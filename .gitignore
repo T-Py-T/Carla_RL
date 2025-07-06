@@ -1,6 +1,12 @@
 #Ignore in progress items
 **/todo/* 
 
+#IDE Ignore section
+.vscode/
+.cursor/
+.idea/
+.vimrc/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
