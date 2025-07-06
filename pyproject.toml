@@ -1,0 +1,24 @@
+[project]
+name = "carla-rl"
+version = "0.1.0"
+description = "Reinforcement Learning for Self-Driving using Carla"
+authors = [{name = "Your Name", email = "your@email.com"}]
+readme = "README.md"
+requires-python = ">=3.9"
+
+[project]
+dependencies = [
+  "numpy",
+  "tensorflow-gpu",
+  "keras",
+  "opencv-python",
+  "psutil",
+  "colorama"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+carla-train = "carla_rl.trainer:main"
+carla-play = "carla_rl.play:main"
