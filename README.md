@@ -1,6 +1,6 @@
-# 🚗 Autonomous Driving Reinforcement Learning Platform
+# Autonomous Driving Reinforcement Learning Platform
 
-## 🎯 Business Challenge Solved
+## Business Challenge Solved
 
 **Pain Point:** Traditional autonomous vehicle development requires extensive manual programming of driving behaviors, leading to rigid systems that struggle with complex real-world scenarios and require months of development time for each new driving task.
 
@@ -8,7 +8,7 @@
 
 **Results Achieved:** Developed a scalable RL framework that trains autonomous agents to navigate complex urban environments with 6 distinct driving actions, achieving continuous learning through 20,000-step replay memory and adaptive exploration strategies.
 
-## 🏗️ Architecture & Implementation
+## Architecture & Implementation
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
@@ -30,7 +30,7 @@
 - **Experience Replay System** → Stable learning through 20K-step memory buffer
 - **Target Network Updates** → Consistent Q-value estimation every 100 episodes
 
-## ⚙️ Technology Choices & Rationale
+## Technology Choices & Rationale
 
 | Technology Used | Alternative Considered | Business Justification |
 |-----------------|------------------------|------------------------|
@@ -46,7 +46,7 @@
 - **Epsilon-Greedy Exploration**: Balances exploration vs exploitation with adaptive decay strategy
 - **Modular Model Architecture**: Supports multiple CNN backbones (Xception, custom residual networks)
 
-## 📊 Results Achieved
+## Results Achieved
 
 **Training Performance:**
 - **Convergence Speed**: Achieved stable learning within 5,000 episodes using target network updates
@@ -72,7 +72,7 @@
 - **Adaptive Learning Rate**: Dynamic optimization with configurable decay rates
 - **Comprehensive Logging**: Episode statistics, agent performance, and training metrics
 
-## 🚀 Key Technical Achievements
+## Key Technical Achievements
 
 - **Residual CNN Architecture**: Implemented skip connections enabling deeper networks for complex driving scene understanding
 - **Asynchronous DQN Training**: Multi-process architecture enabling continuous learning across parallel agents
@@ -83,7 +83,7 @@
 - **Comprehensive Monitoring**: TensorBoard integration with episode statistics and training metrics
 - **Scalable Training Infrastructure**: Multi-GPU support with configurable memory management
 
-## 🛠️ Quick Start
+## Quick Start
 
 ### Prerequisites
 - Python 3.9+
@@ -110,7 +110,7 @@ pip install -r requirements.txt
 - Episode statistics and agent performance tracking
 - Automatic model checkpointing with reward thresholds
 
-## 🔧 Advanced Features
+## Advanced Features
 
 **Multi-Agent Training**: Support for parallel agent training with configurable agent counts
 **Dynamic Environment**: Realistic traffic simulation with 50+ NPC vehicles
