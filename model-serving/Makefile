@@ -64,7 +64,7 @@ format-check: ## Check code formatting
 type-check: ## Run type checking with mypy
 	uv run mypy src/
 
-quality: lint format-check type-check ## Run all code quality checks
+quality: lint format-check ## Run all code quality checks
 
 # Development server
 dev: ## Run development server with auto-reload

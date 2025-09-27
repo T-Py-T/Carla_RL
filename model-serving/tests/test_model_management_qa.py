@@ -54,7 +54,7 @@ class TestModelManagementQA:
         # Create preprocessor
         observations = [
             Observation(speed=25.0, steering=0.1, sensors=[0.8, 0.2, 0.5, 0.9, 0.1]),
-            Observation(speed=30.0, steering=-0.1, sensors=[0.6, 0.4, 0.7, 0.8, 0.3])
+            Observation(speed=30.0, steering=-0.1, sensors=[0.6, 0.4, 0.7, 0.8, 0.3]),
         ]
         preprocessor = StandardFeaturePreprocessor()
         preprocessor.fit(observations)
@@ -71,10 +71,7 @@ class TestModelManagementQA:
             "output_shape": [3],
             "framework_version": "2.1.0",
             "description": "Test model for QA validation",
-            "performance_metrics": {
-                "reward": 850.5,
-                "success_rate": 0.95
-            }
+            "performance_metrics": {"reward": 850.5, "success_rate": 0.95},
         }
 
         if with_hashes:
@@ -90,11 +87,11 @@ class TestModelManagementQA:
 
             model_card_data["artifact_hashes"] = {
                 "model.pt": compute_hash(model_path),
-                "preprocessor.pkl": compute_hash(preprocessor_path)
+                "preprocessor.pkl": compute_hash(preprocessor_path),
             }
 
         model_card_path = temp_dir / "model_card.yaml"
-        with open(model_card_path, 'w') as f:
+        with open(model_card_path, "w") as f:
             yaml.dump(model_card_data, f)
 
     def test_qa_fr_2_1_policy_wrapper_deterministic_modes(self):
@@ -110,7 +107,9 @@ class TestModelManagementQA:
         output2 = wrapper(x, deterministic=True)
 
         # Should produce same output for deterministic mode
-        assert torch.allclose(output1, output2), "Deterministic mode should produce identical outputs"
+        assert torch.allclose(
+            output1, output2
+        ), "Deterministic mode should produce identical outputs"
 
         # Test stochastic mode (for models that support it)
         output3 = wrapper(x, deterministic=False)
@@ -131,7 +130,8 @@ class TestModelManagementQA:
             torch.save(model, pytorch_path)
 
             from src.model_loader import load_pytorch_model
-            pytorch_wrapper = load_pytorch_model(pytorch_path, torch.device('cpu'))
+
+            pytorch_wrapper = load_pytorch_model(pytorch_path, torch.device("cpu"))
             assert pytorch_wrapper.model_type == "pytorch"
 
             # Test TorchScript model loading
@@ -139,7 +139,7 @@ class TestModelManagementQA:
             torchscript_path = temp_path / "torchscript_model.pt"
             torch.jit.save(scripted_model, torchscript_path)
 
-            torchscript_wrapper = load_pytorch_model(torchscript_path, torch.device('cpu'))
+            torchscript_wrapper = load_pytorch_model(torchscript_path, torch.device("cpu"))
             assert torchscript_wrapper.model_type == "torchscript"
 
             print("FR-2.2: Model loading formats (PyTorch/TorchScript) validated")
@@ -154,6 +154,7 @@ class TestModelManagementQA:
 
             # Load model card and validate integrity
             from src.model_loader import load_model_card
+
             model_card = load_model_card(temp_path)
 
             # Should pass validation
@@ -173,7 +174,7 @@ class TestModelManagementQA:
         """
         observations = [
             Observation(speed=25.0, steering=0.1, sensors=[0.8, 0.2, 0.5]),
-            Observation(speed=30.0, steering=-0.1, sensors=[0.6, 0.4, 0.7])
+            Observation(speed=30.0, steering=-0.1, sensors=[0.6, 0.4, 0.7]),
         ]
 
         # Test StandardFeaturePreprocessor serialization
@@ -202,7 +203,7 @@ class TestModelManagementQA:
         """
         observations = [
             Observation(speed=25.0, steering=0.1, sensors=[0.8, 0.2, 0.5]),
-            Observation(speed=30.0, steering=-0.1, sensors=[0.6, 0.4, 0.7])
+            Observation(speed=30.0, steering=-0.1, sensors=[0.6, 0.4, 0.7]),
         ]
 
         # Create "training" preprocessor
@@ -245,9 +246,7 @@ class TestModelManagementQA:
 
             # Test loading specific version
             policy, preprocessor = load_artifacts(
-                temp_path / "v1.0.0",
-                torch.device('cpu'),
-                validate_integrity=False
+                temp_path / "v1.0.0", torch.device("cpu"), validate_integrity=False
             )
 
             assert isinstance(policy, PolicyWrapper)
@@ -264,17 +263,13 @@ class TestModelManagementQA:
             self.create_complete_artifacts(temp_path, with_hashes=False)
 
             # Test CPU device selection
-            policy_cpu, _ = load_artifacts(
-                temp_path,
-                torch.device('cpu'),
-                validate_integrity=False
-            )
+            policy_cpu, _ = load_artifacts(temp_path, torch.device("cpu"), validate_integrity=False)
 
-            assert policy_cpu.device.type == 'cpu'
+            assert policy_cpu.device.type == "cpu"
 
             # Test device movement
-            policy_moved = policy_cpu.to(torch.device('cpu'))
-            assert policy_moved.device.type == 'cpu'
+            policy_moved = policy_cpu.to(torch.device("cpu"))
+            assert policy_moved.device.type == "cpu"
 
             print(" FR-2.7: Device selection logic validated")
 
@@ -287,6 +282,7 @@ class TestModelManagementQA:
             self.create_complete_artifacts(temp_path, with_hashes=False)
 
             from src.model_loader import load_model_card
+
             model_card = load_model_card(temp_path)
 
             # Validate required fields
@@ -307,7 +303,7 @@ class TestModelManagementQA:
         """
         # Test missing directory
         with pytest.raises(ModelLoadingError) as exc_info:
-            load_artifacts(Path("nonexistent"), torch.device('cpu'))
+            load_artifacts(Path("nonexistent"), torch.device("cpu"))
         assert "Artifact directory not found" in str(exc_info.value)
 
         # Test missing model card
@@ -315,7 +311,7 @@ class TestModelManagementQA:
             temp_path = Path(temp_dir)
 
             with pytest.raises(ModelLoadingError) as exc_info:
-                load_artifacts(temp_path, torch.device('cpu'))
+                load_artifacts(temp_path, torch.device("cpu"))
             assert "Model card not found" in str(exc_info.value)
 
         # Test corrupted model card
@@ -327,7 +323,7 @@ class TestModelManagementQA:
             model_card_path.write_text("invalid: yaml: [")
 
             with pytest.raises(ModelLoadingError) as exc_info:
-                load_artifacts(temp_path, torch.device('cpu'))
+                load_artifacts(temp_path, torch.device("cpu"))
             assert "Failed to parse model card YAML" in str(exc_info.value)
 
         print(" FR-2.9: Error handling for missing/corrupted artifacts validated")
@@ -345,7 +341,7 @@ class TestModelManagementQA:
         # Test variable sensor lengths
         observations = [
             Observation(speed=20.0, steering=0.0, sensors=[1.0, 2.0]),
-            Observation(speed=25.0, steering=0.1, sensors=[3.0, 4.0, 5.0, 6.0])  # More sensors
+            Observation(speed=25.0, steering=0.1, sensors=[3.0, 4.0, 5.0, 6.0]),  # More sensors
         ]
 
         features = preprocessor.transform(observations)
@@ -361,11 +357,7 @@ class TestModelManagementQA:
         QA Test: Model compatibility validation works correctly
         """
         # Valid model card
-        valid_model_card = {
-            "input_shape": [5],
-            "output_shape": [3],
-            "framework_version": "2.1.0"
-        }
+        valid_model_card = {"input_shape": [5], "output_shape": [3], "framework_version": "2.1.0"}
 
         result = validate_model_compatibility(valid_model_card)
         assert result is True

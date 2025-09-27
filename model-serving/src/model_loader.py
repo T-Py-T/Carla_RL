@@ -29,25 +29,27 @@ class PolicyWrapper(nn.Module):
         super().__init__()
         self.model = model.eval()
         self.model_type = model_type
-        
+
         # Safely get device, handling cases where model has no parameters
         try:
-            if hasattr(model, 'parameters'):
+            if hasattr(model, "parameters"):
                 # Try to get device from first parameter
                 first_param = next(iter(model.parameters()), None)
-                self._device = first_param.device if first_param is not None else torch.device('cpu')
+                self._device = (
+                    first_param.device if first_param is not None else torch.device("cpu")
+                )
             else:
-                self._device = torch.device('cpu')
+                self._device = torch.device("cpu")
         except (StopIteration, AttributeError):
             # Fallback to CPU if no parameters or other issues
-            self._device = torch.device('cpu')
+            self._device = torch.device("cpu")
 
     @property
     def device(self) -> torch.device:
         """Get the device the model is on."""
         return self._device
 
-    def to(self, device: torch.device) -> 'PolicyWrapper':
+    def to(self, device: torch.device) -> "PolicyWrapper":
         """Move model to specified device."""
         self.model = self.model.to(device)
         self._device = device
@@ -68,15 +70,15 @@ class PolicyWrapper(nn.Module):
         try:
             if self.model_type == "torchscript":
                 # TorchScript models may have different interfaces
-                if hasattr(self.model, 'act'):
+                if hasattr(self.model, "act"):
                     return self.model.act(x, deterministic)
-                elif hasattr(self.model, 'forward'):
+                elif hasattr(self.model, "forward"):
                     return self.model.forward(x, deterministic)
                 else:
                     return self.model(x)
             else:
                 # Standard PyTorch model
-                if hasattr(self.model, 'act'):
+                if hasattr(self.model, "act"):
                     return self.model.act(x, deterministic)
                 else:
                     # Assume direct forward pass for simple models
@@ -88,8 +90,8 @@ class PolicyWrapper(nn.Module):
                 details={
                     "model_type": self.model_type,
                     "input_shape": list(x.shape),
-                    "deterministic": deterministic
-                }
+                    "deterministic": deterministic,
+                },
             )
 
 
@@ -111,9 +113,7 @@ def compute_file_hash(file_path: Path) -> str:
                 sha256_hash.update(chunk)
         return sha256_hash.hexdigest()
     except Exception as e:
-        raise ArtifactValidationError(
-            f"Failed to compute hash for {file_path}: {str(e)}"
-        )
+        raise ArtifactValidationError(f"Failed to compute hash for {file_path}: {str(e)}")
 
 
 def validate_artifact_integrity(artifact_dir: Path, model_card: dict[str, Any]) -> bool:
@@ -142,7 +142,7 @@ def validate_artifact_integrity(artifact_dir: Path, model_card: dict[str, Any]) 
         if not file_path.exists():
             raise ArtifactValidationError(
                 f"Missing artifact file: {filename}",
-                details={"expected_files": list(expected_hashes.keys())}
+                details={"expected_files": list(expected_hashes.keys())},
             )
 
         actual_hash = compute_file_hash(file_path)
@@ -152,8 +152,8 @@ def validate_artifact_integrity(artifact_dir: Path, model_card: dict[str, Any]) 
                 details={
                     "expected_hash": expected_hash,
                     "actual_hash": actual_hash,
-                    "file_path": str(file_path)
-                }
+                    "file_path": str(file_path),
+                },
             )
 
     return True
@@ -176,8 +176,7 @@ def load_model_card(artifact_dir: Path) -> dict[str, Any]:
 
     if not model_card_path.exists():
         raise ModelLoadingError(
-            f"Model card not found: {model_card_path}",
-            details={"artifact_dir": str(artifact_dir)}
+            f"Model card not found: {model_card_path}", details={"artifact_dir": str(artifact_dir)}
         )
 
     try:
@@ -191,7 +190,7 @@ def load_model_card(artifact_dir: Path) -> dict[str, Any]:
         if missing_fields:
             raise ModelLoadingError(
                 f"Model card missing required fields: {missing_fields}",
-                details={"model_card_path": str(model_card_path)}
+                details={"model_card_path": str(model_card_path)},
             )
 
         return model_card
@@ -199,12 +198,12 @@ def load_model_card(artifact_dir: Path) -> dict[str, Any]:
     except yaml.YAMLError as e:
         raise ModelLoadingError(
             f"Failed to parse model card YAML: {str(e)}",
-            details={"model_card_path": str(model_card_path)}
+            details={"model_card_path": str(model_card_path)},
         )
     except Exception as e:
         raise ModelLoadingError(
             f"Failed to load model card: {str(e)}",
-            details={"model_card_path": str(model_card_path)}
+            details={"model_card_path": str(model_card_path)},
         )
 
 
@@ -234,19 +233,17 @@ def load_pytorch_model(model_path: Path, device: torch.device) -> PolicyWrapper:
 
             # Handle different save formats
             if isinstance(model, dict):
-                if 'model_state_dict' in model:
+                if "model_state_dict" in model:
                     # Assume we need to reconstruct the model architecture
                     raise ModelLoadingError(
                         "Model state dict found but no architecture provided",
-                        details={"available_keys": list(model.keys())}
+                        details={"available_keys": list(model.keys())},
                     )
-                elif 'model' in model:
-                    model = model['model']
+                elif "model" in model:
+                    model = model["model"]
 
             if not isinstance(model, nn.Module):
-                raise ModelLoadingError(
-                    f"Loaded object is not a PyTorch model: {type(model)}"
-                )
+                raise ModelLoadingError(f"Loaded object is not a PyTorch model: {type(model)}")
 
             return PolicyWrapper(model, model_type="pytorch")
 
@@ -255,8 +252,8 @@ def load_pytorch_model(model_path: Path, device: torch.device) -> PolicyWrapper:
                 f"Failed to load model from {model_path}",
                 details={
                     "torchscript_error": str(torchscript_error),
-                    "pytorch_error": str(pytorch_error)
-                }
+                    "pytorch_error": str(pytorch_error),
+                },
             )
 
 
@@ -277,21 +274,19 @@ def load_preprocessor(preprocessor_path: Path) -> Any | None:
         return None
 
     try:
-        with open(preprocessor_path, 'rb') as f:
+        with open(preprocessor_path, "rb") as f:
             preprocessor = pickle.load(f)
         return preprocessor
 
     except Exception as e:
         raise ModelLoadingError(
             f"Failed to load preprocessor from {preprocessor_path}: {str(e)}",
-            details={"preprocessor_path": str(preprocessor_path)}
+            details={"preprocessor_path": str(preprocessor_path)},
         )
 
 
 def load_artifacts(
-    artifact_dir: Path,
-    device: torch.device,
-    validate_integrity: bool = True
+    artifact_dir: Path, device: torch.device, validate_integrity: bool = True
 ) -> tuple[PolicyWrapper, Any | None]:
     """
     Load model artifacts from directory.
@@ -311,7 +306,7 @@ def load_artifacts(
     if not artifact_dir.exists():
         raise ModelLoadingError(
             f"Artifact directory not found: {artifact_dir}",
-            details={"artifact_dir": str(artifact_dir)}
+            details={"artifact_dir": str(artifact_dir)},
         )
 
     # Load model card first
@@ -328,10 +323,7 @@ def load_artifacts(
     if not model_path.exists():
         raise ModelLoadingError(
             f"Model file not found: {model_path}",
-            details={
-                "artifact_dir": str(artifact_dir),
-                "expected_filename": model_filename
-            }
+            details={"artifact_dir": str(artifact_dir), "expected_filename": model_filename},
         )
 
     # Load model based on type
@@ -342,7 +334,7 @@ def load_artifacts(
     else:
         raise ModelLoadingError(
             f"Unsupported model type: {model_type}",
-            details={"supported_types": ["pytorch", "torchscript"]}
+            details={"supported_types": ["pytorch", "torchscript"]},
         )
 
     # Load preprocessor if available
@@ -368,9 +360,9 @@ def get_available_versions(artifacts_root: Path) -> list[str]:
 
     versions = []
     for item in artifacts_root.iterdir():
-        if item.is_dir() and item.name.startswith('v'):
+        if item.is_dir() and item.name.startswith("v"):
             # Basic semantic version validation
-            if len(item.name.split('.')) >= 3:
+            if len(item.name.split(".")) >= 3:
                 versions.append(item.name)
 
     # Sort versions (basic lexicographic sorting)
@@ -395,9 +387,7 @@ def validate_model_compatibility(model_card: dict[str, Any]) -> bool:
     missing_fields = [field for field in required_fields if field not in model_card]
 
     if missing_fields:
-        raise ArtifactValidationError(
-            f"Model card missing compatibility fields: {missing_fields}"
-        )
+        raise ArtifactValidationError(f"Model card missing compatibility fields: {missing_fields}")
 
     # Validate input/output shapes
     input_shape = model_card["input_shape"]

@@ -218,7 +218,7 @@ Examples:
     
     print("Starting Performance Benchmark")
     print("=" * 50)
-    print(f"Configuration:")
+    print("Configuration:")
     print(f"  Warmup iterations: {config.warmup_iterations}")
     print(f"  Measurement iterations: {config.measurement_iterations}")
     print(f"  Batch sizes: {config.batch_sizes}")
