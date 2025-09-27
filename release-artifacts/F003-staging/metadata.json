@@ -1,0 +1,13 @@
+{
+  "feature_release_id": "F003-staging",
+  "feature_number": "F003",
+  "feature_name": "Staging to Release",
+  "source_branch": "staging",
+  "target_branch": "release",
+  "pr_number": 7,
+  "merge_date": "2025-09-27 21:22:58 UTC",
+  "author": "T-Py-T",
+  "base_sha": "083fab44fe522ad89d1caa21a6e4d1e725c9f4c3",
+  "head_sha": "6abd6cd35355d91c084c555ccce75cc4b065a25e",
+  "files_changed": [".cursor/rules/github-workflow-sop.mdc",".github/REQUIRED_STATUS_CHECKS.md",".github/workflows/branch-validation.yml",".github/workflows/feature-release-artifact.yml",".github/workflows/merge-validation.yml","=3.11","RELEASE_CHANGELOG.md","model-serving/Dockerfile"]
+}
