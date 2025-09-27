@@ -21,7 +21,7 @@ This directory contains automated workflows for the Highway RL project.
 
 **Artifacts Created:**
 ```
-release-artifacts/feature-{branch}-{pr-number}/
+release-artifacts/F001-feature-name/
 ├── prd-*.md                 # Product Requirements Document
 ├── tasks-*.md               # Task breakdown and tracking
 ├── FEATURE_SUMMARY.md       # Auto-generated feature summary
@@ -47,7 +47,9 @@ release-artifacts/feature-{branch}-{pr-number}/
 The workflow uses standard GitHub tokens and requires no additional setup. It will:
 - Only run on merged PRs to main/master
 - Skip if no `tasks/` folder exists
-- Create release tags like `release-feature-add_model_serving-123`
+- Auto-generate sequential feature numbers (F001, F002, etc.)
+- Create release tags like `F001-add-model-serving`
+- Use clean folder names with sanitized branch names
 
 ## Customization
 

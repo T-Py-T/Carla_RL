@@ -29,11 +29,22 @@ jobs:
         PR_TITLE="${{ github.event.pull_request.title }}"
         MERGE_DATE=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
         
+        # Generate feature release number by counting existing releases
+        RELEASE_COUNT=$(find release-artifacts -maxdepth 1 -name "F*" -type d 2>/dev/null | wc -l)
+        FEATURE_NUMBER=$(printf "F%03d" $((RELEASE_COUNT + 1)))
+        
+        # Clean branch name for folder (remove special characters, convert to lowercase)
+        CLEAN_BRANCH=$(echo "${BRANCH_NAME}" | sed 's/[^a-zA-Z0-9_-]/-/g' | tr '[:upper:]' '[:lower:]')
+        
+        # Create feature release name: F001-branch-name
+        FEATURE_RELEASE_NAME="${FEATURE_NUMBER}-${CLEAN_BRANCH}"
+        
         echo "branch_name=${BRANCH_NAME}" >> $GITHUB_OUTPUT
         echo "pr_number=${PR_NUMBER}" >> $GITHUB_OUTPUT
         echo "pr_title=${PR_TITLE}" >> $GITHUB_OUTPUT
         echo "merge_date=${MERGE_DATE}" >> $GITHUB_OUTPUT
-        echo "artifact_name=feature-${BRANCH_NAME}-${PR_NUMBER}" >> $GITHUB_OUTPUT
+        echo "feature_number=${FEATURE_NUMBER}" >> $GITHUB_OUTPUT
+        echo "feature_release_name=${FEATURE_RELEASE_NAME}" >> $GITHUB_OUTPUT
         
     - name: Check for tasks folder
       id: check-tasks
@@ -49,7 +60,7 @@ jobs:
     - name: Create feature artifact
       if: steps.check-tasks.outputs.has_tasks == 'true'
       run: |
-        ARTIFACT_DIR="release-artifacts/${{ steps.feature-info.outputs.artifact_name }}"
+        ARTIFACT_DIR="release-artifacts/${{ steps.feature-info.outputs.feature_release_name }}"
         mkdir -p "${ARTIFACT_DIR}"
         
         # Copy tasks folder contents
@@ -81,6 +92,8 @@ jobs:
         # Create metadata file
         cat > "${ARTIFACT_DIR}/metadata.json" << EOF
         {
+          "feature_release_id": "${{ steps.feature-info.outputs.feature_release_name }}",
+          "feature_number": "${{ steps.feature-info.outputs.feature_number }}",
           "feature_name": "${{ steps.feature-info.outputs.pr_title }}",
           "branch_name": "${{ steps.feature-info.outputs.branch_name }}",
           "pr_number": ${{ steps.feature-info.outputs.pr_number }},
@@ -100,7 +113,7 @@ jobs:
       run: |
         # Create or update RELEASE_CHANGELOG.md
         CHANGELOG_FILE="RELEASE_CHANGELOG.md"
-        ARTIFACT_NAME="${{ steps.feature-info.outputs.artifact_name }}"
+        FEATURE_RELEASE_NAME="${{ steps.feature-info.outputs.feature_release_name }}"
         
         # Create changelog header if file doesn't exist
         if [ ! -f "${CHANGELOG_FILE}" ]; then
@@ -117,11 +130,12 @@ jobs:
         # Prepare the new entry
         NEW_ENTRY=$(cat << EOF
         
-        ### [${{ steps.feature-info.outputs.pr_title }}](https://github.com/${{ github.repository }}/pull/${{ steps.feature-info.outputs.pr_number }}) - ${{ steps.feature-info.outputs.merge_date }}
+        ### ${{ steps.feature-info.outputs.feature_number }} - [${{ steps.feature-info.outputs.pr_title }}](https://github.com/${{ github.repository }}/pull/${{ steps.feature-info.outputs.pr_number }}) - ${{ steps.feature-info.outputs.merge_date }}
         
+        **Release ID:** \`${{ steps.feature-info.outputs.feature_release_name }}\`  
         **Branch:** \`${{ steps.feature-info.outputs.branch_name }}\`  
         **Author:** ${{ github.event.pull_request.user.login }}  
-        **Artifact:** \`release-artifacts/${ARTIFACT_NAME}/\`
+        **Artifact:** \`release-artifacts/${FEATURE_RELEASE_NAME}/\`
         
         ${{ github.event.pull_request.body }}
         
@@ -153,12 +167,13 @@ jobs:
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
-          git commit -m "feat: add release artifact for ${{ steps.feature-info.outputs.pr_title }}
+          git commit -m "feat: add release artifact ${{ steps.feature-info.outputs.feature_number }} for ${{ steps.feature-info.outputs.pr_title }}
 
-          - Created artifact: release-artifacts/${{ steps.feature-info.outputs.artifact_name }}/
+          - Created artifact: release-artifacts/${{ steps.feature-info.outputs.feature_release_name }}/
           - Updated RELEASE_CHANGELOG.md with feature summary
           - Preserved tasks folder contents and metadata
           
+          Release ID: ${{ steps.feature-info.outputs.feature_release_name }}
           PR: #${{ steps.feature-info.outputs.pr_number }}
           Branch: ${{ steps.feature-info.outputs.branch_name }}"
           
@@ -171,11 +186,12 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: "release-${{ steps.feature-info.outputs.artifact_name }}"
-        release_name: "Feature: ${{ steps.feature-info.outputs.pr_title }}"
+        tag_name: "${{ steps.feature-info.outputs.feature_release_name }}"
+        release_name: "${{ steps.feature-info.outputs.feature_number }}: ${{ steps.feature-info.outputs.pr_title }}"
         body: |
           ## Feature Release Artifact
           
+          **Release ID:** `${{ steps.feature-info.outputs.feature_release_name }}`
           **Branch:** `${{ steps.feature-info.outputs.branch_name }}`
           **PR:** #${{ steps.feature-info.outputs.pr_number }}
           **Merged:** ${{ steps.feature-info.outputs.merge_date }}
@@ -185,7 +201,7 @@ jobs:
           - Task breakdown and completion tracking
           - Feature metadata and change summary
           
-          **Artifact Location:** `release-artifacts/${{ steps.feature-info.outputs.artifact_name }}/`
+          **Artifact Location:** `release-artifacts/${{ steps.feature-info.outputs.feature_release_name }}/`
           
           ### Description
           ${{ github.event.pull_request.body }}
@@ -197,16 +213,17 @@ jobs:
       run: |
         # Create a zip of the artifact folder
         cd release-artifacts
-        zip -r "${{ steps.feature-info.outputs.artifact_name }}.zip" "${{ steps.feature-info.outputs.artifact_name }}/"
+        zip -r "${{ steps.feature-info.outputs.feature_release_name }}.zip" "${{ steps.feature-info.outputs.feature_release_name }}/"
         
         # The zip will be available as a release asset
-        echo "Created release artifact: ${{ steps.feature-info.outputs.artifact_name }}.zip"
+        echo "Created release artifact: ${{ steps.feature-info.outputs.feature_release_name }}.zip"
         
     - name: Summary
       if: steps.check-tasks.outputs.has_tasks == 'true'
       run: |
         echo "Feature Release Artifact Created Successfully!"
-        echo "Artifact: release-artifacts/${{ steps.feature-info.outputs.artifact_name }}/"
+        echo "Release ID: ${{ steps.feature-info.outputs.feature_release_name }}"
+        echo "Artifact: release-artifacts/${{ steps.feature-info.outputs.feature_release_name }}/"
         echo "Changelog: Updated RELEASE_CHANGELOG.md"
-        echo "Release: release-${{ steps.feature-info.outputs.artifact_name }}"
+        echo "GitHub Release: ${{ steps.feature-info.outputs.feature_release_name }}"
         echo "View at: https://github.com/${{ github.repository }}/releases"
