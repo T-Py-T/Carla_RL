@@ -3,6 +3,7 @@ name: Feature Release Artifact
 on:
   pull_request:
     types: [closed]
+
     branches: [release]
     # Only triggers on merge to 'release' branch to avoid creating releases on every merge
 
@@ -116,6 +117,7 @@ jobs:
     - name: Update release changelog
       if: steps.check-tasks.outputs.has_tasks == 'true'
       run: |
+
         # Create or update RELEASE_CHANGELOG.md in release-artifacts folder
         CHANGELOG_FILE="release-artifacts/RELEASE_CHANGELOG.md"
         FEATURE_RELEASE_NAME="${{ steps.feature-info.outputs.feature_release_name }}"
@@ -170,6 +172,7 @@ jobs:
         git config --local user.name "GitHub Action"
         
         git add release-artifacts/
+
         # Stage removal of tasks folder if it was deleted
         git add -A
         
