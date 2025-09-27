@@ -103,10 +103,18 @@ docker-push: ## Push Docker image to registry
 	docker push $(REGISTRY)/carla-rl-serving:$(VERSION)
 
 docker-compose-up: ## Start services with docker-compose
-	docker-compose up -d
+	docker-compose -f deploy/docker/docker-compose.yml up -d
 
 docker-compose-down: ## Stop services with docker-compose
-	docker-compose down
+	docker-compose -f deploy/docker/docker-compose.yml down
+
+docker-compose-test: ## Run Docker Compose with testing setup
+	docker-compose -f deploy/docker/docker-compose.yml up -d
+	@echo "Waiting for service to be ready..."
+	@sleep 10
+	@echo "Running validation tests..."
+	python3 scripts/cluster_validation.py --url http://localhost:8080
+	docker-compose -f deploy/docker/docker-compose.yml down
 
 # Health and monitoring
 health-check: ## Check service health
@@ -148,10 +156,33 @@ deploy-local: docker-build ## Deploy locally with Docker
 		carla-rl-serving:latest
 
 deploy-k8s: ## Deploy to Kubernetes
-	kubectl apply -f k8s/
+	kubectl apply -f deploy/k8s/
 
 undeploy-k8s: ## Remove from Kubernetes
-	kubectl delete -f k8s/
+	kubectl delete -f deploy/k8s/
+
+# Testing
+test-docker: docker-build create-artifacts ## Test with Docker (simple)
+	@echo "🧪 Testing CarlaRL Policy Service with Docker"
+	docker run --rm -d --name carla-rl-test -p 8080:8080 \
+		-e ARTIFACT_DIR=/app/artifacts -e MODEL_VERSION=v0.1.0 \
+		carla-rl-serving:latest
+	@echo "Waiting for service to start..."
+	@sleep 15
+	@echo "Running validation tests..."
+	python3 scripts/cluster_validation.py --url http://localhost:8080 || true
+	@echo "Cleaning up..."
+	docker stop carla-rl-test || true
+
+test-compose: docker-compose-test ## Test with Docker Compose (full stack)
+
+test-k8s: deploy-k8s ## Test Kubernetes deployment
+	@echo "🧪 Testing Kubernetes deployment"
+	kubectl wait --for=condition=ready pod -l app=carla-rl-serving --timeout=300s
+	kubectl port-forward svc/carla-rl-serving-service 8080:80 &
+	@sleep 10
+	python3 scripts/cluster_validation.py --url http://localhost:8080 || true
+	@pkill -f "kubectl port-forward" || true
 
 # Cleanup
 clean: ## Clean up build artifacts and cache
