@@ -15,7 +15,9 @@
 - `model-serving/src/versioning/` - Semantic versioning and artifact management
 - `model-serving/src/versioning/semantic_version.py` - Semantic version parser and validation
 - `model-serving/src/versioning/artifact_manager.py` - Artifact integrity and hash pinning
-- `model-serving/src/versioning/version_selector.py` - Multi-version model support
+- `model-serving/src/versioning/version_selector.py` - Multi-version model support with intelligent version selection logic
+- `model-serving/tests/versioning/test_version_selector.py` - Unit tests for version selection and multi-version support
+- `model-serving/scripts/version_manager.py` - CLI tool for version management and selection
 - `model-serving/tests/versioning/test_semantic_version.py` - Unit tests for semantic versioning
 - `model-serving/tests/versioning/test_artifact_manager.py` - Unit tests for artifact management
 - `model-serving/scripts/artifact_manager.py` - CLI tool for artifact management
@@ -69,12 +71,12 @@
   - [x] 1.9 Validate P50 < 10ms latency requirement on target hardware
 
 - [ ] 2.0 Artifact Management & Integrity System
-  - [ ] 2.1 Implement semantic versioning parser with vMAJOR.MINOR.PATCH validation
-  - [ ] 2.2 Create SHA-256 hash pinning system for all artifact files
-  - [ ] 2.3 Build artifact integrity validation on model loading with error handling
-  - [ ] 2.4 Implement artifact rollback functionality to previous versions
-  - [ ] 2.5 Create artifact validation CLI tool with comprehensive reporting
-  - [ ] 2.6 Build multi-version model support with version selection logic
+  - [x] 2.1 Implement semantic versioning parser with vMAJOR.MINOR.PATCH validation
+  - [x] 2.2 Create SHA-256 hash pinning system for all artifact files
+  - [x] 2.3 Build artifact integrity validation on model loading with error handling
+  - [x] 2.4 Implement artifact rollback functionality to previous versions
+  - [x] 2.5 Create artifact validation CLI tool with comprehensive reporting
+  - [x] 2.6 Build multi-version model support with version selection logic
   - [ ] 2.7 Implement artifact integrity reports with detailed validation results
   - [ ] 2.8 Create artifact migration tools for version upgrades
   - [ ] 2.9 Build content-addressable storage system for artifact integrity
