@@ -52,6 +52,7 @@ jobs:
     - name: Check Python syntax
       run: |
         echo "Checking Python syntax..."
+        # Use find with -exec for better performance and no while loop
         find . -name "*.py" \
           -not -path "./.venv/*" \
           -not -path "./*/__pycache__/*" \
@@ -59,9 +60,7 @@ jobs:
           -not -path "./.git/*" \
           -not -path "./*/build/*" \
           -not -path "./*/dist/*" \
-          | while read file; do
-          python3 -m py_compile "$file" || (echo "Syntax error in $file" && exit 1)
-        done
+          -exec python3 -m py_compile {} \; || (echo "Python syntax check failed" && exit 1)
         echo "Python syntax check passed"
         
     - name: Run full tests
