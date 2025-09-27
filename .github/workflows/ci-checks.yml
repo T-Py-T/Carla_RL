@@ -23,35 +23,38 @@ jobs:
     - name: Install basic dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ruff black isort
+        pip install ruff==0.1.8 black==23.12.1 isort==5.13.2 pyyaml
         
     - name: Check Python syntax
       run: |
         echo "🔍 Checking Python syntax..."
-        python -m py_compile model-serving/src/*.py 2>/dev/null || echo "No Python files in model-serving/src"
-        python -m py_compile model-sim/src/*.py 2>/dev/null || echo "No Python files in model-sim/src"
-        find . -name "*.py" -exec python -m py_compile {} \; || echo "Syntax check completed"
+        # Check all Python files for syntax errors
+        find . -name "*.py" -not -path "./.venv/*" -not -path "./.git/*" -exec python -m py_compile {} \;
+        echo "✅ Python syntax check passed"
         
     - name: Check code formatting with black
       run: |
         echo "🎨 Checking code formatting..."
-        black --check --diff . || (echo "❌ Code formatting issues found. Run 'black .' to fix." && exit 1)
+        black --check --diff . --exclude="\.venv|\.git"
+        echo "✅ Code formatting check passed"
         
     - name: Check import sorting with isort
       run: |
         echo "📦 Checking import sorting..."
-        isort --check-only --diff . || (echo "❌ Import sorting issues found. Run 'isort .' to fix." && exit 1)
+        isort --check-only --diff . --skip-glob=".venv/*" --skip-glob=".git/*"
+        echo "✅ Import sorting check passed"
         
     - name: Basic linting with ruff
       run: |
         echo "🔧 Running basic linting..."
-        ruff check . --select=E,W,F || (echo "❌ Linting issues found. Run 'ruff check --fix .' to fix." && exit 1)
+        ruff check . --select=E,W,F --exclude=".venv,.git"
+        echo "✅ Linting check passed"
         
     - name: Check for basic security issues
       run: |
         echo "🔒 Checking for basic security issues..."
-        # Check for hardcoded secrets
-        if grep -r -i "password\|secret\|key\|token" . --exclude-dir=.git --exclude-dir=.venv --exclude="*.md" | grep -v "example\|test\|dummy"; then
+        # Check for hardcoded secrets (excluding examples and tests)
+        if grep -r -i "password\|secret\|key\|token" . --exclude-dir=.git --exclude-dir=.venv --exclude="*.md" | grep -v -i "example\|test\|dummy\|placeholder"; then
           echo "❌ Potential secrets found in code"
           exit 1
         fi
@@ -61,9 +64,13 @@ jobs:
       run: |
         echo "⚙️ Validating configuration files..."
         # Check YAML files
-        find . -name "*.yml" -o -name "*.yaml" | xargs -I {} python -c "import yaml; yaml.safe_load(open('{}'))" || echo "YAML validation failed"
-        # Check JSON files
-        find . -name "*.json" | xargs -I {} python -c "import json; json.load(open('{}'))" || echo "JSON validation failed"
+        find . -name "*.yml" -o -name "*.yaml" | while read file; do
+          python -c "import yaml; yaml.safe_load(open('$file'))" || (echo "❌ Invalid YAML: $file" && exit 1)
+        done
+        # Check JSON files  
+        find . -name "*.json" | while read file; do
+          python -c "import json; json.load(open('$file'))" || (echo "❌ Invalid JSON: $file" && exit 1)
+        done
         echo "✅ Configuration files are valid"
 
   # Step 2: Build and test (only if basic checks pass)
