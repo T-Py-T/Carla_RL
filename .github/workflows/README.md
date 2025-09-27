@@ -4,7 +4,7 @@ This directory contains automated workflows for the Highway RL project.
 
 ## Workflows
 
-### 🏷️ Feature Release Artifact (`feature-release-artifact.yml`)
+### Feature Release Artifact (`feature-release-artifact.yml`)
 
 **Trigger:** When a pull request is merged to `main`/`master`
 
@@ -29,11 +29,11 @@ release-artifacts/feature-{branch}-{pr-number}/
 ```
 
 **Benefits:**
-- 📋 **Preserves feature planning** - PRDs and task lists are archived
-- 🔍 **Maintains project history** - Complete feature development record
-- 📊 **Enables retrospectives** - Easy access to what was planned vs delivered
-- 🤖 **Fully automated** - No manual work required
-- 🏷️ **GitHub releases** - Professional release management
+- **Preserves feature planning** - PRDs and task lists are archived
+- **Maintains project history** - Complete feature development record
+- **Enables retrospectives** - Easy access to what was planned vs delivered
+- **Fully automated** - No manual work required
+- **GitHub releases** - Professional release management
 
 ## Usage
 

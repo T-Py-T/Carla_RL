@@ -181,9 +181,9 @@ jobs:
           **Merged:** ${{ steps.feature-info.outputs.merge_date }}
           
           This release contains the complete feature development artifacts including:
-          - 📋 Project Requirements Document (PRD)
-          - ✅ Task breakdown and completion tracking
-          - 📊 Feature metadata and change summary
+          - Project Requirements Document (PRD)
+          - Task breakdown and completion tracking
+          - Feature metadata and change summary
           
           **Artifact Location:** `release-artifacts/${{ steps.feature-info.outputs.artifact_name }}/`
           
@@ -205,8 +205,8 @@ jobs:
     - name: Summary
       if: steps.check-tasks.outputs.has_tasks == 'true'
       run: |
-        echo "🎉 Feature Release Artifact Created Successfully!"
-        echo "📁 Artifact: release-artifacts/${{ steps.feature-info.outputs.artifact_name }}/"
-        echo "📝 Changelog: Updated RELEASE_CHANGELOG.md"
-        echo "🏷️  Release: release-${{ steps.feature-info.outputs.artifact_name }}"
-        echo "🔗 View at: https://github.com/${{ github.repository }}/releases"
+        echo "Feature Release Artifact Created Successfully!"
+        echo "Artifact: release-artifacts/${{ steps.feature-info.outputs.artifact_name }}/"
+        echo "Changelog: Updated RELEASE_CHANGELOG.md"
+        echo "Release: release-${{ steps.feature-info.outputs.artifact_name }}"
+        echo "View at: https://github.com/${{ github.repository }}/releases"
