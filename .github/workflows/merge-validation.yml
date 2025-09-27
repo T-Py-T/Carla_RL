@@ -25,7 +25,16 @@ jobs:
         
     - name: Install dependencies
       run: |
+        # Install root dependencies
         uv sync --dev
+        # Install model-serving dependencies
+        if [ -d "model-serving" ]; then
+          cd model-serving && uv sync --dev && cd ..
+        fi
+        # Install model-sim dependencies  
+        if [ -d "model-sim" ]; then
+          cd model-sim && uv sync --dev && cd ..
+        fi
         
     - name: Check Python syntax
       run: |
@@ -47,11 +56,13 @@ jobs:
         echo "Running full test suite..."
         # Run model-serving tests
         if [ -d "model-serving/tests" ]; then
-          uv run pytest model-serving/tests/ -v --tb=short
+          echo "Running model-serving tests..."
+          cd model-serving && uv run pytest tests/ -v --tb=short && cd ..
         fi
         # Run model-sim tests
         if [ -d "model-sim/tests" ]; then
-          uv run pytest model-sim/tests/ -v --tb=short
+          echo "Running model-sim tests..."
+          cd model-sim && uv run pytest tests/ -v --tb=short && cd ..
         fi
         echo "All tests passed"
         
