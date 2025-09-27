@@ -1,0 +1,105 @@
+---
+alwaysApply: false
+---
+# Rule: Feature Release Workflow
+
+## Goal
+
+To guide AI assistants in following the established feature release workflow for this repository, which uses structured release artifacts and automated GitHub Actions.
+
+## Repository Structure
+
+This repository follows a function-driven organization:
+
+- **`tasks/`** - Feature documentation (PRDs, task lists) - preserved in release artifacts
+- **`model-serving/`** - Production serving infrastructure 
+- **`model-sim/`** - Simulation and training components
+- **`release-artifacts/`** - Structured feature release history
+- **`.github/workflows/`** - Automated release workflows
+
+## Feature Development Process
+
+### 1. Feature Branch Creation
+- Create feature branch from `master` (e.g., `add_new_feature`)
+- Work within the established folder structure
+
+### 2. Documentation Generation
+- **PRDs**: Always save to `tasks/prd-[feature-name].md`
+- **Task Lists**: Always save to `tasks/tasks-prd-[feature-name].md`
+- These files are the source of truth for feature releases
+
+### 3. Implementation
+- Follow the task breakdown systematically
+- Use the established testing and validation patterns
+- Commit regularly with conventional commit messages
+
+### 4. Release Artifact Creation
+- GitHub Actions automatically triggers on PR merge
+- Creates structured release folder: `F{number}-{feature-name}`
+- Preserves all `tasks/` content in release artifacts
+- Generates `FEATURE_SUMMARY.md` and `metadata.json`
+- Updates `RELEASE_CHANGELOG.md`
+- Creates official GitHub release with tags
+
+## Structured Release Naming
+
+- **Format**: `F{number}-{feature-name}`
+- **Examples**: `F001-add-model-serving`, `F002-enhance-evaluation`
+- **Auto-incrementing**: GitHub Action counts existing releases
+- **Professional**: No emojis, clean naming conventions
+
+## File Location Standards
+
+### Always Use These Paths:
+- **PRDs**: `tasks/prd-[feature-name].md`
+- **Task Lists**: `tasks/tasks-prd-[feature-name].md`
+- **Model Serving**: `model-serving/` (production code)
+- **Simulation**: `model-sim/` (training/simulation code)
+
+### Never Use These Patterns:
+- Root-level documentation files (use `tasks/` instead)
+- Temporary or ad-hoc folder structures
+- Mixed concerns (keep serving separate from simulation)
+
+## Commit Message Standards
+
+Use conventional commits with feature context:
+```
+feat: implement user authentication system
+
+- Add JWT token validation
+- Create user session management
+- Include comprehensive test suite
+- Related to F002 user management feature
+
+Closes #123
+```
+
+## Testing Requirements
+
+Each feature should include:
+- Unit tests for core functionality
+- Integration tests for API endpoints
+- QA validation tests for requirements compliance
+- Local deployment validation (Docker/Kubernetes)
+
+## GitHub Action Integration
+
+The workflow automatically:
+1. Detects PR merges to `master`
+2. Copies `tasks/` content to `release-artifacts/F{number}-{branch-name}/`
+3. Generates comprehensive feature summaries
+4. Creates GitHub releases with proper tags
+5. Updates project changelog
+6. Maintains professional, emoji-free output
+
+## Best Practices
+
+- **Always** save documentation to `tasks/` folder
+- Use descriptive feature branch names (they become release names)
+- Include comprehensive testing before merge
+- Follow the established folder structure
+- Let GitHub Actions handle release artifact creation
+- Maintain professional tone in all generated content
+
+This workflow ensures consistent, professional feature releases with complete documentation preservation and automated artifact management.
