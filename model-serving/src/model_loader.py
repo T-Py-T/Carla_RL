@@ -29,7 +29,18 @@ class PolicyWrapper(nn.Module):
         super().__init__()
         self.model = model.eval()
         self.model_type = model_type
-        self._device = next(model.parameters()).device if hasattr(model, 'parameters') else torch.device('cpu')
+        
+        # Safely get device, handling cases where model has no parameters
+        try:
+            if hasattr(model, 'parameters'):
+                # Try to get device from first parameter
+                first_param = next(iter(model.parameters()), None)
+                self._device = first_param.device if first_param is not None else torch.device('cpu')
+            else:
+                self._device = torch.device('cpu')
+        except (StopIteration, AttributeError):
+            # Fallback to CPU if no parameters or other issues
+            self._device = torch.device('cpu')
 
     @property
     def device(self) -> torch.device:
