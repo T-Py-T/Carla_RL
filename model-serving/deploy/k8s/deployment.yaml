@@ -1,0 +1,121 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-serving
+  labels:
+    app: model-serving
+    version: v0.1.0
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: model-serving
+  template:
+    metadata:
+      labels:
+        app: model-serving
+        version: v0.1.0
+    spec:
+      containers:
+      - name: model-serving
+        image: model-serving:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: ARTIFACT_DIR
+          value: "/app/artifacts"
+        - name: MODEL_VERSION
+          value: "v0.1.0"
+        - name: USE_GPU
+          value: "0"
+        - name: LOG_LEVEL
+          value: "info"
+        - name: WORKERS
+          value: "1"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+        volumeMounts:
+        - name: artifacts
+          mountPath: /app/artifacts
+          readOnly: true
+      volumes:
+      - name: artifacts
+        configMap:
+          name: model-serving-artifacts
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: model-serving-service
+  labels:
+    app: model-serving
+spec:
+  selector:
+    app: model-serving
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: model-serving-artifacts
+data:
+  model_card.yaml: |
+    model_name: "highway-ppo"
+    version: "v0.1.0"
+    model_type: "pytorch"
+    description: "Highway RL PPO policy for autonomous driving"
+    input_shape: [5]
+    output_shape: [3]
+    framework_version: "2.1.0"
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: model-serving-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: model-serving.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: model-serving-service
+            port:
+              number: 80

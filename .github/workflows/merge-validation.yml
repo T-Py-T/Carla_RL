@@ -1,0 +1,81 @@
+name: Merge Validation
+
+on:
+  push:
+    branches: [main, master, dev, staging, production]
+
+jobs:
+  # full validation for merges
+  merge-validation:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "latest"
+        
+    - name: Install dependencies
+      run: |
+        uv sync --dev
+        
+    - name: Check Python syntax
+      run: |
+        echo "Checking Python syntax..."
+        find . -name "*.py" \
+          -not -path "./.venv/*" \
+          -not -path "./*/__pycache__/*" \
+          -not -path "./*/node_modules/*" \
+          -not -path "./.git/*" \
+          -not -path "./*/build/*" \
+          -not -path "./*/dist/*" \
+          | while read file; do
+          python3 -m py_compile "$file" || (echo "Syntax error in $file" && exit 1)
+        done
+        echo "Python syntax check passed"
+        
+    - name: Run full tests
+      run: |
+        echo "Running full test suite..."
+        # Run model-serving tests
+        if [ -d "model-serving/tests" ]; then
+          uv run pytest model-serving/tests/ -v --tb=short
+        fi
+        # Run model-sim tests
+        if [ -d "model-sim/tests" ]; then
+          uv run pytest model-sim/tests/ -v --tb=short
+        fi
+        echo "All tests passed"
+        
+    - name: Test Docker builds
+      run: |
+        echo "Testing Docker builds..."
+        if [ -f "model-serving/Dockerfile" ]; then
+          docker build -t model-serving:test ./model-serving/
+          echo "Model-serving Docker build successful"
+        fi
+        if [ -f "model-sim/Dockerfile" ]; then
+          docker build -t model-sim:test ./model-sim/
+          echo "Model-sim Docker build successful"
+        fi
+        
+    - name: Validate configurations
+      run: |
+        echo "Validating configuration files..."
+        # Check JSON files
+        find . -name "*.json" \
+          | grep -v "\.venv/" \
+          | grep -v "__pycache__" \
+          | grep -v "node_modules" \
+          | while read file; do
+          python3 -c "import json; json.load(open('$file'))" || (echo "Invalid JSON: $file" && exit 1)
+        done
+        echo "Configuration files are valid"
