@@ -3,8 +3,8 @@ name: Feature Release Artifact
 on:
   pull_request:
     types: [closed]
-    # Triggers on merge to any branch - gives you control over when releases are created
-    # Common patterns: main, master, dev, staging, production, release/*
+    branches: [release]
+    # Only triggers on merge to 'release' branch to avoid creating releases on every merge
 
 jobs:
   create-feature-artifact:
@@ -116,9 +116,12 @@ jobs:
     - name: Update release changelog
       if: steps.check-tasks.outputs.has_tasks == 'true'
       run: |
-        # Create or update RELEASE_CHANGELOG.md
-        CHANGELOG_FILE="RELEASE_CHANGELOG.md"
+        # Create or update RELEASE_CHANGELOG.md in release-artifacts folder
+        CHANGELOG_FILE="release-artifacts/RELEASE_CHANGELOG.md"
         FEATURE_RELEASE_NAME="${{ steps.feature-info.outputs.feature_release_name }}"
+        
+        # Ensure release-artifacts directory exists
+        mkdir -p release-artifacts
         
         # Create changelog header if file doesn't exist
         if [ ! -f "${CHANGELOG_FILE}" ]; then
@@ -167,7 +170,6 @@ jobs:
         git config --local user.name "GitHub Action"
         
         git add release-artifacts/
-        git add RELEASE_CHANGELOG.md
         # Stage removal of tasks folder if it was deleted
         git add -A
         
@@ -177,7 +179,7 @@ jobs:
           git commit -m "feat: add release artifact ${{ steps.feature-info.outputs.feature_number }} for ${{ steps.feature-info.outputs.pr_title }}
 
           - Created artifact: release-artifacts/${{ steps.feature-info.outputs.feature_release_name }}/
-          - Updated RELEASE_CHANGELOG.md with feature summary
+          - Updated release-artifacts/RELEASE_CHANGELOG.md with feature summary
           - Preserved tasks folder contents and metadata
           - Tasks folder will be cleaned up in final step
           
@@ -232,7 +234,7 @@ jobs:
         echo "Feature Release Artifact Created Successfully!"
         echo "Release ID: ${{ steps.feature-info.outputs.feature_release_name }}"
         echo "Artifact: release-artifacts/${{ steps.feature-info.outputs.feature_release_name }}/"
-        echo "Changelog: Updated RELEASE_CHANGELOG.md"
+        echo "Changelog: Updated release-artifacts/RELEASE_CHANGELOG.md"
         echo "GitHub Release: ${{ steps.feature-info.outputs.feature_release_name }}"
         echo "View at: https://github.com/${{ github.repository }}/releases"
         
