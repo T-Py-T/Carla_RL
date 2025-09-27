@@ -561,7 +561,7 @@ class BenchmarkEngine:
             recommendations.append("Implement memory pooling for repeated operations")
         
         # Garbage collection recommendations
-        if gc_collections > iterations * 0.5:  # More than 50% of iterations triggered GC
+        if gc_collections > 50:  # More than 50 GC collections
             recommendations.append("Frequent garbage collection - optimize object creation")
             recommendations.append("Consider using object pooling")
         
