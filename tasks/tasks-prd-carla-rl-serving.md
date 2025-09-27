@@ -65,18 +65,18 @@ Based on PRD: `prd-carla-rl-serving.md`
   - [x] 2.10 Write unit tests for model loading with various artifact configurations
   - [x] 2.11 Write unit tests for preprocessing pipeline with edge cases and validation
 
-- [ ] 3.0 **Inference Engine Layer** (Agent 3: Inference optimization, performance, versioning)
-  - [ ] 3.1 Create InferenceEngine class with batch processing and memory optimization
-  - [ ] 3.2 Implement tensor pre-allocation and memory pinning for performance
-  - [ ] 3.3 Add torch.no_grad() context and JIT optimization for inference
-  - [ ] 3.4 Implement deterministic inference mode with reproducible outputs
-  - [ ] 3.5 Create performance timing and metrics collection for latency tracking
-  - [ ] 3.6 Implement batch size optimization and dynamic batching
-  - [ ] 3.7 Add version management with git SHA tracking and model version consistency
-  - [ ] 3.8 Create inference result caching for identical inputs (optional optimization)
-  - [ ] 3.9 Implement graceful degradation and error recovery mechanisms
-  - [ ] 3.10 Write performance benchmarking tests with latency and throughput validation
-  - [ ] 3.11 Write unit tests for inference engine with determinism and batch consistency
+- [x] 3.0 **Inference Engine Layer** (Agent 3: Inference optimization, performance, versioning)
+  - [x] 3.1 Create InferenceEngine class with batch processing and memory optimization
+  - [x] 3.2 Implement tensor pre-allocation and memory pinning for performance
+  - [x] 3.3 Add torch.no_grad() context and JIT optimization for inference
+  - [x] 3.4 Implement deterministic inference mode with reproducible outputs
+  - [x] 3.5 Create performance timing and metrics collection for latency tracking
+  - [x] 3.6 Implement batch size optimization and dynamic batching
+  - [x] 3.7 Add version management with git SHA tracking and model version consistency
+  - [x] 3.8 Create inference result caching for identical inputs (optional optimization)
+  - [x] 3.9 Implement graceful degradation and error recovery mechanisms
+  - [x] 3.10 Write performance benchmarking tests with latency and throughput validation
+  - [x] 3.11 Write unit tests for inference engine with determinism and batch consistency
 
 - [ ] 4.0 **Infrastructure & Deployment** (Agent 4: Docker, dependencies, build system)
   - [ ] 4.1 Create multi-stage Dockerfile with optimized Python base image
