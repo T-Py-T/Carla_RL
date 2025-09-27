@@ -45,10 +45,7 @@ class TestCarlaRLServingException:
         """Test exception with custom details."""
         details = {"field": "test", "value": 123}
         exc = CarlaRLServingException(
-            message="Custom message",
-            error_code="CUSTOM_ERROR",
-            details=details,
-            status_code=422
+            message="Custom message", error_code="CUSTOM_ERROR", details=details, status_code=422
         )
         assert exc.message == "Custom message"
         assert exc.error_code == "CUSTOM_ERROR"

@@ -73,7 +73,8 @@ class TestFeaturePreprocessorBase:
 
             # Save non-preprocessor object
             import pickle
-            with open(temp_path, 'wb') as f:
+
+            with open(temp_path, "wb") as f:
                 pickle.dump({"not": "preprocessor"}, f)
 
             with pytest.raises(PreprocessingError) as exc_info:
@@ -92,7 +93,7 @@ class TestStandardFeaturePreprocessor:
             obs = Observation(
                 speed=20.0 + i * 5.0,  # 20, 25, 30, 35, 40
                 steering=-0.2 + i * 0.1,  # -0.2, -0.1, 0.0, 0.1, 0.2
-                sensors=[0.1 * j + i * 0.1 for j in range(3)]  # Variable sensor values
+                sensors=[0.1 * j + i * 0.1 for j in range(3)],  # Variable sensor values
             )
             observations.append(obs)
         return observations
@@ -112,7 +113,7 @@ class TestStandardFeaturePreprocessor:
             normalize_speed=False,
             normalize_steering=True,
             normalize_sensors=False,
-            sensor_clip_range=(-5.0, 5.0)
+            sensor_clip_range=(-5.0, 5.0),
         )
 
         assert preprocessor.normalize_speed is False
@@ -203,9 +204,7 @@ class TestStandardFeaturePreprocessor:
     def test_standard_preprocessor_sensor_clipping(self):
         """Test sensor clipping functionality."""
         # Create observations with extreme sensor values
-        observations = [
-            Observation(speed=25.0, steering=0.0, sensors=[-100.0, 100.0, 0.0])
-        ]
+        observations = [Observation(speed=25.0, steering=0.0, sensors=[-100.0, 100.0, 0.0])]
 
         preprocessor = StandardFeaturePreprocessor(sensor_clip_range=(-10.0, 10.0))
         features = preprocessor.fit_transform(observations)
@@ -242,7 +241,7 @@ class TestMinimalPreprocessor:
             obs = Observation(
                 speed=20.0 + i,
                 steering=i * 0.1,
-                sensors=[0.1 * j for j in range(2)]  # 2 sensors
+                sensors=[0.1 * j for j in range(2)],  # 2 sensors
             )
             observations.append(obs)
         return observations
@@ -287,7 +286,7 @@ class TestMinimalPreprocessor:
         observations = [
             Observation(speed=20.0, steering=0.0, sensors=[1.0, 2.0]),
             Observation(speed=25.0, steering=0.1, sensors=[3.0, 4.0, 5.0]),  # 3 sensors
-            Observation(speed=30.0, steering=0.2, sensors=[6.0])  # 1 sensor
+            Observation(speed=30.0, steering=0.2, sensors=[6.0]),  # 1 sensor
         ]
 
         preprocessor = MinimalPreprocessor()
@@ -318,7 +317,7 @@ class TestPreprocessorFactory:
             "type": "standard",
             "normalize_speed": False,
             "normalize_steering": True,
-            "sensor_clip_range": [-5.0, 5.0]
+            "sensor_clip_range": [-5.0, 5.0],
         }
         preprocessor = create_preprocessor(config)
 
@@ -358,7 +357,7 @@ class TestUtilityFunctions:
         """Test to_feature_matrix utility function."""
         observations = [
             Observation(speed=20.0, steering=0.0, sensors=[1.0, 2.0]),
-            Observation(speed=25.0, steering=0.1, sensors=[3.0, 4.0])
+            Observation(speed=25.0, steering=0.1, sensors=[3.0, 4.0]),
         ]
 
         features = to_feature_matrix(observations)
@@ -366,13 +365,13 @@ class TestUtilityFunctions:
         assert isinstance(features, np.ndarray)
         assert features.shape == (2, 4)  # 2 observations, 4 features
         assert features[0, 0] == 20.0  # First speed
-        assert features[1, 1] == 0.1   # Second steering
+        assert features[1, 1] == 0.1  # Second steering
 
     def test_validate_preprocessing_parity_success(self):
         """Test successful preprocessing parity validation."""
         observations = [
             Observation(speed=20.0, steering=0.0, sensors=[1.0, 2.0]),
-            Observation(speed=25.0, steering=0.1, sensors=[3.0, 4.0])
+            Observation(speed=25.0, steering=0.1, sensors=[3.0, 4.0]),
         ]
 
         # Create two identical preprocessors
@@ -382,17 +381,13 @@ class TestUtilityFunctions:
         train_preprocessor.fit(observations)
         serve_preprocessor.fit(observations)
 
-        result = validate_preprocessing_parity(
-            train_preprocessor, serve_preprocessor, observations
-        )
+        result = validate_preprocessing_parity(train_preprocessor, serve_preprocessor, observations)
 
         assert result is True
 
     def test_validate_preprocessing_parity_shape_mismatch(self):
         """Test parity validation with shape mismatch."""
-        observations = [
-            Observation(speed=20.0, steering=0.0, sensors=[1.0, 2.0])
-        ]
+        observations = [Observation(speed=20.0, steering=0.0, sensors=[1.0, 2.0])]
 
         # Create preprocessors that will produce different shapes
         train_preprocessor = Mock()
@@ -402,17 +397,13 @@ class TestUtilityFunctions:
         serve_preprocessor.transform.return_value = np.array([[1, 2]])  # Different shape
 
         with pytest.raises(PreprocessingError) as exc_info:
-            validate_preprocessing_parity(
-                train_preprocessor, serve_preprocessor, observations
-            )
+            validate_preprocessing_parity(train_preprocessor, serve_preprocessor, observations)
 
         assert "Shape mismatch" in str(exc_info.value)
 
     def test_validate_preprocessing_parity_value_mismatch(self):
         """Test parity validation with value mismatch."""
-        observations = [
-            Observation(speed=20.0, steering=0.0, sensors=[1.0, 2.0])
-        ]
+        observations = [Observation(speed=20.0, steering=0.0, sensors=[1.0, 2.0])]
 
         # Create preprocessors that produce different values
         train_preprocessor = Mock()
@@ -430,16 +421,16 @@ class TestUtilityFunctions:
 
     def test_validate_preprocessing_parity_within_tolerance(self):
         """Test parity validation within tolerance."""
-        observations = [
-            Observation(speed=20.0, steering=0.0, sensors=[1.0, 2.0])
-        ]
+        observations = [Observation(speed=20.0, steering=0.0, sensors=[1.0, 2.0])]
 
         # Create preprocessors with small difference within tolerance
         train_preprocessor = Mock()
         serve_preprocessor = Mock()
 
         train_preprocessor.transform.return_value = np.array([[1.0, 2.0, 3.0]])
-        serve_preprocessor.transform.return_value = np.array([[1.0, 2.0, 3.000001]])  # Very small diff
+        serve_preprocessor.transform.return_value = np.array(
+            [[1.0, 2.0, 3.000001]]
+        )  # Very small diff
 
         result = validate_preprocessing_parity(
             train_preprocessor, serve_preprocessor, observations, tolerance=1e-5
@@ -453,9 +444,7 @@ class TestPreprocessingEdgeCases:
 
     def test_preprocessing_with_nan_values(self):
         """Test preprocessing with NaN values in observations."""
-        observations = [
-            Observation(speed=float('nan'), steering=0.0, sensors=[1.0, 2.0])
-        ]
+        observations = [Observation(speed=float("nan"), steering=0.0, sensors=[1.0, 2.0])]
 
         preprocessor = StandardFeaturePreprocessor()
 
@@ -465,9 +454,7 @@ class TestPreprocessingEdgeCases:
 
     def test_preprocessing_with_infinite_values(self):
         """Test preprocessing with infinite values."""
-        observations = [
-            Observation(speed=float('inf'), steering=0.0, sensors=[1.0, 2.0])
-        ]
+        observations = [Observation(speed=float("inf"), steering=0.0, sensors=[1.0, 2.0])]
 
         preprocessor = StandardFeaturePreprocessor()
 
@@ -496,7 +483,7 @@ class TestPreprocessingEdgeCases:
             obs = Observation(
                 speed=20.0 + i * 0.01,
                 steering=(i % 100) * 0.01,
-                sensors=[0.1 * j for j in range(5)]
+                sensors=[0.1 * j for j in range(5)],
             )
             observations.append(obs)
 

@@ -105,7 +105,7 @@ class TestFileOperations:
 
     def test_compute_file_hash(self):
         """Test file hash computation."""
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
             f.write("test content")
             temp_path = Path(f.name)
 
@@ -114,7 +114,7 @@ class TestFileOperations:
 
             # Verify it's a valid SHA256 hash
             assert len(hash_value) == 64
-            assert all(c in '0123456789abcdef' for c in hash_value)
+            assert all(c in "0123456789abcdef" for c in hash_value)
 
             # Verify consistency
             hash_value2 = compute_file_hash(temp_path)
@@ -141,11 +141,11 @@ class TestModelCardOperations:
             "input_shape": [5],
             "output_shape": [3],
             "framework_version": "2.1.0",
-            **kwargs
+            **kwargs,
         }
 
         model_card_path = temp_dir / "model_card.yaml"
-        with open(model_card_path, 'w') as f:
+        with open(model_card_path, "w") as f:
             yaml.dump(model_card_data, f)
 
         return model_card_path
@@ -180,7 +180,7 @@ class TestModelCardOperations:
             # Create model card missing required fields
             model_card_data = {"model_name": "test-model"}  # Missing version and model_type
             model_card_path = temp_path / "model_card.yaml"
-            with open(model_card_path, 'w') as f:
+            with open(model_card_path, "w") as f:
                 yaml.dump(model_card_data, f)
 
             with pytest.raises(ModelLoadingError) as exc_info:
@@ -195,7 +195,7 @@ class TestModelCardOperations:
 
             # Create invalid YAML file
             model_card_path = temp_path / "model_card.yaml"
-            with open(model_card_path, 'w') as f:
+            with open(model_card_path, "w") as f:
                 f.write("invalid: yaml: content: [unclosed")
 
             with pytest.raises(ModelLoadingError) as exc_info:
@@ -220,11 +220,7 @@ class TestArtifactValidation:
             actual_hash = compute_file_hash(test_file)
 
             # Create model card with correct hash
-            model_card = {
-                "artifact_hashes": {
-                    "test.txt": actual_hash
-                }
-            }
+            model_card = {"artifact_hashes": {"test.txt": actual_hash}}
 
             # Should pass validation
             result = validate_artifact_integrity(temp_path, model_card)
@@ -240,11 +236,7 @@ class TestArtifactValidation:
             test_file.write_text("test content")
 
             # Create model card with wrong hash
-            model_card = {
-                "artifact_hashes": {
-                    "test.txt": "wrong_hash"
-                }
-            }
+            model_card = {"artifact_hashes": {"test.txt": "wrong_hash"}}
 
             with pytest.raises(ArtifactValidationError) as exc_info:
                 validate_artifact_integrity(temp_path, model_card)
@@ -257,11 +249,7 @@ class TestArtifactValidation:
             temp_path = Path(temp_dir)
 
             # Create model card referencing nonexistent file
-            model_card = {
-                "artifact_hashes": {
-                    "missing.txt": "some_hash"
-                }
-            }
+            model_card = {"artifact_hashes": {"missing.txt": "some_hash"}}
 
             with pytest.raises(ArtifactValidationError) as exc_info:
                 validate_artifact_integrity(temp_path, model_card)
@@ -297,7 +285,7 @@ class TestModelLoading:
             temp_path = Path(temp_dir)
             model_path = self.create_test_model_file(temp_path)
 
-            wrapper = load_pytorch_model(model_path, torch.device('cpu'))
+            wrapper = load_pytorch_model(model_path, torch.device("cpu"))
 
             assert isinstance(wrapper, PolicyWrapper)
             assert wrapper.model_type == "pytorch"
@@ -313,7 +301,7 @@ class TestModelLoading:
             model_path = temp_path / "model.pt"
             torch.jit.save(scripted_model, model_path)
 
-            wrapper = load_pytorch_model(model_path, torch.device('cpu'))
+            wrapper = load_pytorch_model(model_path, torch.device("cpu"))
 
             assert isinstance(wrapper, PolicyWrapper)
             assert wrapper.model_type == "torchscript"
@@ -321,7 +309,7 @@ class TestModelLoading:
     def test_load_pytorch_model_nonexistent(self):
         """Test loading nonexistent model file."""
         with pytest.raises(ModelLoadingError):
-            load_pytorch_model(Path("nonexistent.pt"), torch.device('cpu'))
+            load_pytorch_model(Path("nonexistent.pt"), torch.device("cpu"))
 
     def test_load_preprocessor_success(self):
         """Test successful preprocessor loading."""
@@ -333,7 +321,8 @@ class TestModelLoading:
             preprocessor_path = temp_path / "preprocessor.pkl"
 
             import pickle
-            with open(preprocessor_path, 'wb') as f:
+
+            with open(preprocessor_path, "wb") as f:
                 pickle.dump(test_preprocessor, f)
 
             loaded_preprocessor = load_preprocessor(preprocessor_path)
@@ -371,7 +360,8 @@ class TestArtifactLoading:
         preprocessor = {"type": "test", "fitted": True}
         preprocessor_path = temp_dir / "preprocessor.pkl"
         import pickle
-        with open(preprocessor_path, 'wb') as f:
+
+        with open(preprocessor_path, "wb") as f:
             pickle.dump(preprocessor, f)
 
         # Create model card
@@ -381,10 +371,10 @@ class TestArtifactLoading:
             "model_type": "pytorch",
             "input_shape": [5],
             "output_shape": [3],
-            "framework_version": "2.1.0"
+            "framework_version": "2.1.0",
         }
         model_card_path = temp_dir / "model_card.yaml"
-        with open(model_card_path, 'w') as f:
+        with open(model_card_path, "w") as f:
             yaml.dump(model_card_data, f)
 
     def test_load_artifacts_success(self):
@@ -394,9 +384,7 @@ class TestArtifactLoading:
             self.create_test_artifacts(temp_path)
 
             policy, preprocessor = load_artifacts(
-                temp_path,
-                torch.device('cpu'),
-                validate_integrity=False
+                temp_path, torch.device("cpu"), validate_integrity=False
             )
 
             assert isinstance(policy, PolicyWrapper)
@@ -405,7 +393,7 @@ class TestArtifactLoading:
     def test_load_artifacts_missing_directory(self):
         """Test artifact loading with missing directory."""
         with pytest.raises(ModelLoadingError) as exc_info:
-            load_artifacts(Path("nonexistent"), torch.device('cpu'))
+            load_artifacts(Path("nonexistent"), torch.device("cpu"))
 
         assert "Artifact directory not found" in str(exc_info.value)
 
@@ -418,14 +406,14 @@ class TestArtifactLoading:
             model_card_data = {
                 "model_name": "test-model",
                 "version": "v0.1.0",
-                "model_type": "pytorch"
+                "model_type": "pytorch",
             }
             model_card_path = temp_path / "model_card.yaml"
-            with open(model_card_path, 'w') as f:
+            with open(model_card_path, "w") as f:
                 yaml.dump(model_card_data, f)
 
             with pytest.raises(ModelLoadingError) as exc_info:
-                load_artifacts(temp_path, torch.device('cpu'))
+                load_artifacts(temp_path, torch.device("cpu"))
 
             assert "Model file not found" in str(exc_info.value)
 
@@ -469,11 +457,7 @@ class TestModelCompatibility:
 
     def test_validate_model_compatibility_success(self):
         """Test successful model compatibility validation."""
-        model_card = {
-            "input_shape": [5],
-            "output_shape": [3],
-            "framework_version": "2.1.0"
-        }
+        model_card = {"input_shape": [5], "output_shape": [3], "framework_version": "2.1.0"}
 
         result = validate_model_compatibility(model_card)
         assert result is True
@@ -493,7 +477,7 @@ class TestModelCompatibility:
         model_card = {
             "input_shape": "not_a_list",
             "output_shape": [3],
-            "framework_version": "2.1.0"
+            "framework_version": "2.1.0",
         }
 
         with pytest.raises(ArtifactValidationError) as exc_info:

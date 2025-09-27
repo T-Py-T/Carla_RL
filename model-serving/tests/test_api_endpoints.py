@@ -16,10 +16,7 @@ def mock_inference_engine():
     """Mock inference engine for testing."""
     engine = Mock()
     engine.device = "cpu"
-    engine.predict = Mock(return_value=(
-        [Mock(throttle=0.7, brake=0.0, steer=0.1)],
-        8.5
-    ))
+    engine.predict = Mock(return_value=([Mock(throttle=0.7, brake=0.0, steer=0.1)], 8.5))
     return engine
 
 
@@ -30,7 +27,7 @@ def mock_app_state():
         "model_loaded": True,
         "inference_engine": None,  # Will be set by mock_inference_engine
         "startup_time": 1695825600.0,
-        "warmup_completed": False
+        "warmup_completed": False,
     }
 
 
@@ -40,6 +37,7 @@ def client(mock_app_state, mock_inference_engine):
     with patch("src.server.app_state", mock_app_state):
         with patch("src.server.get_inference_engine", return_value=mock_inference_engine):
             from src.server import app
+
             return TestClient(app)
 
 
@@ -149,12 +147,10 @@ class TestPredictEndpoint:
         mock_inference_engine.predict.return_value = ([mock_action], 8.5)
 
         request_data = {
-            "observations": [{
-                "speed": 25.5,
-                "steering": 0.1,
-                "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]
-            }],
-            "deterministic": True
+            "observations": [
+                {"speed": 25.5, "steering": 0.1, "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]}
+            ],
+            "deterministic": True,
         }
 
         response = client.post("/predict", json=request_data)
@@ -174,24 +170,16 @@ class TestPredictEndpoint:
         # Mock batch response
         mock_actions = [
             Action(throttle=0.7, brake=0.0, steer=0.1),
-            Action(throttle=0.5, brake=0.2, steer=-0.1)
+            Action(throttle=0.5, brake=0.2, steer=-0.1),
         ]
         mock_inference_engine.predict.return_value = (mock_actions, 15.2)
 
         request_data = {
             "observations": [
-                {
-                    "speed": 25.5,
-                    "steering": 0.1,
-                    "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]
-                },
-                {
-                    "speed": 30.0,
-                    "steering": -0.05,
-                    "sensors": [0.6, 0.4, 0.7, 0.8, 0.3]
-                }
+                {"speed": 25.5, "steering": 0.1, "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]},
+                {"speed": 30.0, "steering": -0.05, "sensors": [0.6, 0.4, 0.7, 0.8, 0.3]},
             ],
-            "deterministic": False
+            "deterministic": False,
         }
 
         response = client.post("/predict", json=request_data)
@@ -204,11 +192,13 @@ class TestPredictEndpoint:
     def test_predict_validation_error(self, client):
         """Test prediction with invalid input."""
         request_data = {
-            "observations": [{
-                "speed": -1.0,  # Invalid speed
-                "steering": 0.1,
-                "sensors": [0.8, 0.2, 0.5]
-            }]
+            "observations": [
+                {
+                    "speed": -1.0,  # Invalid speed
+                    "steering": 0.1,
+                    "sensors": [0.8, 0.2, 0.5],
+                }
+            ]
         }
 
         response = client.post("/predict", json=request_data)
@@ -220,9 +210,7 @@ class TestPredictEndpoint:
 
     def test_predict_empty_batch(self, client):
         """Test prediction with empty observation batch."""
-        request_data = {
-            "observations": []
-        }
+        request_data = {"observations": []}
 
         response = client.post("/predict", json=request_data)
 
@@ -235,11 +223,7 @@ class TestPredictEndpoint:
         mock_inference_engine.predict.side_effect = Exception("Model error")
 
         request_data = {
-            "observations": [{
-                "speed": 25.5,
-                "steering": 0.1,
-                "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]
-            }]
+            "observations": [{"speed": 25.5, "steering": 0.1, "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]}]
         }
 
         response = client.post("/predict", json=request_data)
@@ -305,7 +289,7 @@ class TestErrorHandling:
         response = client.post(
             "/predict",
             data="{'invalid': json}",  # Malformed JSON
-            headers={"Content-Type": "application/json"}
+            headers={"Content-Type": "application/json"},
         )
 
         assert response.status_code == 422

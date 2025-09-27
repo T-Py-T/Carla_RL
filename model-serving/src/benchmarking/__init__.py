@@ -11,7 +11,7 @@ from .performance_validator import PerformanceValidator, ValidationResult
 
 __all__ = [
     "BenchmarkEngine",
-    "BenchmarkConfig", 
+    "BenchmarkConfig",
     "BenchmarkResult",
     "HardwareDetector",
     "HardwareInfo",

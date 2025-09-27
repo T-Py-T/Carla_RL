@@ -34,7 +34,7 @@ app_state: dict[str, Any] = {
     "model_loaded": False,
     "inference_engine": None,
     "startup_time": None,
-    "warmup_completed": False
+    "warmup_completed": False,
 }
 
 
@@ -43,7 +43,7 @@ async def get_inference_engine():
     if not app_state["model_loaded"] or app_state["inference_engine"] is None:
         raise ServiceUnavailableError(
             message="Model not loaded or service not ready",
-            details={"model_loaded": app_state["model_loaded"]}
+            details={"model_loaded": app_state["model_loaded"]},
         )
     return app_state["inference_engine"]
 
@@ -102,7 +102,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Add middleware
@@ -114,10 +114,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.add_middleware(
-    TrustedHostMiddleware,
-    allowed_hosts=os.getenv("ALLOWED_HOSTS", "*").split(",")
-)
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=os.getenv("ALLOWED_HOSTS", "*").split(","))
 
 
 @app.middleware("http")
@@ -156,14 +153,12 @@ async def health_check() -> HealthResponse:
         status="ok" if app_state["model_loaded"] else "degraded",
         version=MODEL_VERSION,
         git=GIT_SHA,
-        device=device_str
+        device=device_str,
     )
 
 
 @app.get("/metadata", response_model=MetadataResponse, tags=["Model"])
-async def get_metadata(
-    inference_engine = Depends(get_inference_engine)
-) -> MetadataResponse:
+async def get_metadata(inference_engine=Depends(get_inference_engine)) -> MetadataResponse:
     """
     Get model metadata and configuration.
 
@@ -177,25 +172,19 @@ async def get_metadata(
     # This is a simplified version - actual implementation would inspect model
     input_shape = [5]  # speed + steering + 3 sensor values (example)
 
-    action_space = {
-        "throttle": [0.0, 1.0],
-        "brake": [0.0, 1.0],
-        "steer": [-1.0, 1.0]
-    }
+    action_space = {"throttle": [0.0, 1.0], "brake": [0.0, 1.0], "steer": [-1.0, 1.0]}
 
     return MetadataResponse(
         modelName=MODEL_NAME,
         version=MODEL_VERSION,
         device=device_str,
         inputShape=input_shape,
-        actionSpace=action_space
+        actionSpace=action_space,
     )
 
 
 @app.post("/warmup", response_model=WarmupResponse, tags=["Model"])
-async def warmup_model(
-    inference_engine = Depends(get_inference_engine)
-) -> WarmupResponse:
+async def warmup_model(inference_engine=Depends(get_inference_engine)) -> WarmupResponse:
     """
     Warm up the model with dummy inference.
 
@@ -207,11 +196,8 @@ async def warmup_model(
     try:
         # Create dummy observation for warmup
         from .io_schemas import Observation
-        dummy_obs = Observation(
-            speed=25.0,
-            steering=0.0,
-            sensors=[0.5] * 5
-        )
+
+        dummy_obs = Observation(speed=25.0, steering=0.0, sensors=[0.5] * 5)
 
         # Perform dummy inference
         _, _ = inference_engine.predict([dummy_obs], deterministic=True)
@@ -220,22 +206,16 @@ async def warmup_model(
         timing_ms = (time.time() - start_time) * 1000.0
 
         return WarmupResponse(
-            status="warmed",
-            timingMs=timing_ms,
-            device=str(inference_engine.device)
+            status="warmed", timingMs=timing_ms, device=str(inference_engine.device)
         )
 
     except Exception as e:
-        raise ServiceUnavailableError(
-            message="Warmup failed",
-            details={"error": str(e)}
-        )
+        raise ServiceUnavailableError(message="Warmup failed", details={"error": str(e)})
 
 
 @app.post("/predict", response_model=PredictResponse, tags=["Inference"])
 async def predict(
-    request: PredictRequest,
-    inference_engine = Depends(get_inference_engine)
+    request: PredictRequest, inference_engine=Depends(get_inference_engine)
 ) -> PredictResponse:
     """
     Perform batch inference on observations.
@@ -246,26 +226,26 @@ async def predict(
     try:
         # Perform inference
         actions, timing_ms = inference_engine.predict(
-            request.observations,
-            request.deterministic or False
+            request.observations, request.deterministic or False
         )
 
         return PredictResponse(
             actions=actions,
             version=MODEL_VERSION,
             timingMs=timing_ms,
-            deterministic=request.deterministic or False
+            deterministic=request.deterministic or False,
         )
 
     except Exception as e:
         from .exceptions import InferenceError
+
         raise InferenceError(
             message="Inference failed",
             details={
                 "batch_size": len(request.observations),
                 "deterministic": request.deterministic,
-                "error": str(e)
-            }
+                "error": str(e),
+            },
         )
 
 
@@ -303,5 +283,5 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=int(os.getenv("PORT", "8080")),
         reload=os.getenv("RELOAD", "false").lower() == "true",
-        log_level=os.getenv("LOG_LEVEL", "info").lower()
+        log_level=os.getenv("LOG_LEVEL", "info").lower(),
     )

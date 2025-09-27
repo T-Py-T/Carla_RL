@@ -25,11 +25,7 @@ class TestObservation:
 
     def test_valid_observation(self):
         """Test valid observation creation."""
-        obs = Observation(
-            speed=25.5,
-            steering=0.1,
-            sensors=[0.8, 0.2, 0.5, 0.9, 0.1]
-        )
+        obs = Observation(speed=25.5, steering=0.1, sensors=[0.8, 0.2, 0.5, 0.9, 0.1])
         assert obs.speed == 25.5
         assert obs.steering == 0.1
         assert len(obs.sensors) == 5
@@ -172,10 +168,7 @@ class TestPredictResponse:
         """Test valid predict response."""
         action = Action(throttle=0.7, brake=0.0, steer=0.1)
         response = PredictResponse(
-            actions=[action],
-            version="v0.1.0",
-            timingMs=8.5,
-            deterministic=True
+            actions=[action], version="v0.1.0", timingMs=8.5, deterministic=True
         )
         assert len(response.actions) == 1
         assert response.version == "v0.1.0"
@@ -200,12 +193,7 @@ class TestHealthResponse:
 
     def test_valid_health_response(self):
         """Test valid health response."""
-        response = HealthResponse(
-            status="ok",
-            version="v0.1.0",
-            git="abc123",
-            device="cpu"
-        )
+        response = HealthResponse(status="ok", version="v0.1.0", git="abc123", device="cpu")
         assert response.status == "ok"
         assert response.version == "v0.1.0"
         assert response.git == "abc123"
@@ -231,11 +219,7 @@ class TestMetadataResponse:
             version="v0.1.0",
             device="cpu",
             inputShape=[5],
-            actionSpace={
-                "throttle": [0.0, 1.0],
-                "brake": [0.0, 1.0],
-                "steer": [-1.0, 1.0]
-            }
+            actionSpace={"throttle": [0.0, 1.0], "brake": [0.0, 1.0], "steer": [-1.0, 1.0]},
         )
         assert response.modelName == "carla-ppo"
         assert response.inputShape == [5]
@@ -248,9 +232,7 @@ class TestErrorResponse:
     def test_valid_error_response(self):
         """Test valid error response."""
         response = ErrorResponse(
-            error="VALIDATION_ERROR",
-            message="Invalid input",
-            details={"field": "sensors"}
+            error="VALIDATION_ERROR", message="Invalid input", details={"field": "sensors"}
         )
         assert response.error == "VALIDATION_ERROR"
         assert response.message == "Invalid input"
@@ -259,10 +241,7 @@ class TestErrorResponse:
 
     def test_optional_details(self):
         """Test error response without details."""
-        response = ErrorResponse(
-            error="INTERNAL_ERROR",
-            message="Something went wrong"
-        )
+        response = ErrorResponse(error="INTERNAL_ERROR", message="Something went wrong")
         assert response.details is None
 
 

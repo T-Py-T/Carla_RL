@@ -24,7 +24,7 @@ class CarlaRLServingException(Exception):
         message: str,
         error_code: str = "CARLA_RL_ERROR",
         details: dict[str, Any] | None = None,
-        status_code: int = 500
+        status_code: int = 500,
     ):
         self.message = message
         self.error_code = error_code
@@ -39,10 +39,7 @@ class ModelLoadingError(CarlaRLServingException):
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
-            message=message,
-            error_code="MODEL_LOADING_ERROR",
-            details=details,
-            status_code=500
+            message=message, error_code="MODEL_LOADING_ERROR", details=details, status_code=500
         )
 
 
@@ -54,7 +51,7 @@ class ArtifactValidationError(CarlaRLServingException):
             message=message,
             error_code="ARTIFACT_VALIDATION_ERROR",
             details=details,
-            status_code=422
+            status_code=422,
         )
 
 
@@ -63,10 +60,7 @@ class InferenceError(CarlaRLServingException):
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
-            message=message,
-            error_code="INFERENCE_ERROR",
-            details=details,
-            status_code=500
+            message=message, error_code="INFERENCE_ERROR", details=details, status_code=500
         )
 
 
@@ -75,10 +69,7 @@ class PreprocessingError(CarlaRLServingException):
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
-            message=message,
-            error_code="PREPROCESSING_ERROR",
-            details=details,
-            status_code=422
+            message=message, error_code="PREPROCESSING_ERROR", details=details, status_code=422
         )
 
 
@@ -87,10 +78,7 @@ class ValidationError(CarlaRLServingException):
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
-            message=message,
-            error_code="VALIDATION_ERROR",
-            details=details,
-            status_code=422
+            message=message, error_code="VALIDATION_ERROR", details=details, status_code=422
         )
 
 
@@ -99,10 +87,7 @@ class ServiceUnavailableError(CarlaRLServingException):
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
-            message=message,
-            error_code="SERVICE_UNAVAILABLE",
-            details=details,
-            status_code=503
+            message=message, error_code="SERVICE_UNAVAILABLE", details=details, status_code=503
         )
 
 
@@ -111,17 +96,11 @@ class ResourceExhaustedError(CarlaRLServingException):
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
-            message=message,
-            error_code="RESOURCE_EXHAUSTED",
-            details=details,
-            status_code=429
+            message=message, error_code="RESOURCE_EXHAUSTED", details=details, status_code=429
         )
 
 
-def create_error_response(
-    error: Exception,
-    request_id: str | None = None
-) -> dict[str, Any]:
+def create_error_response(error: Exception, request_id: str | None = None) -> dict[str, Any]:
     """
     Create standardized error response dictionary.
 
@@ -136,11 +115,8 @@ def create_error_response(
         return {
             "error": error.error_code,
             "message": error.message,
-            "details": {
-                **error.details,
-                **({"request_id": request_id} if request_id else {})
-            },
-            "timestamp": error.timestamp
+            "details": {**error.details, **({"request_id": request_id} if request_id else {})},
+            "timestamp": error.timestamp,
         }
     elif isinstance(error, PydanticValidationError):
         return {
@@ -151,13 +127,13 @@ def create_error_response(
                     {
                         "field": ".".join(str(loc) for loc in err["loc"]),
                         "message": err["msg"],
-                        "type": err["type"]
+                        "type": err["type"],
                     }
                     for err in error.errors()
                 ],
-                **({"request_id": request_id} if request_id else {})
+                **({"request_id": request_id} if request_id else {}),
             },
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
     elif isinstance(error, HTTPException):
         return {
@@ -165,9 +141,9 @@ def create_error_response(
             "message": error.detail,
             "details": {
                 "status_code": error.status_code,
-                **({"request_id": request_id} if request_id else {})
+                **({"request_id": request_id} if request_id else {}),
             },
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
     else:
         # Generic exception handling
@@ -176,15 +152,14 @@ def create_error_response(
             "message": "An unexpected error occurred",
             "details": {
                 "error_type": type(error).__name__,
-                **({"request_id": request_id} if request_id else {})
+                **({"request_id": request_id} if request_id else {}),
             },
-            "timestamp": time.time()
+            "timestamp": time.time(),
         }
 
 
 async def carla_rl_exception_handler(
-    request: Request,
-    exc: CarlaRLServingException
+    request: Request, exc: CarlaRLServingException
 ) -> JSONResponse:
     """
     FastAPI exception handler for CarlaRLServingException.
@@ -206,20 +181,16 @@ async def carla_rl_exception_handler(
             "details": exc.details,
             "request_id": request_id,
             "path": request.url.path,
-            "method": request.method
-        }
+            "method": request.method,
+        },
     )
 
     error_response = create_error_response(exc, request_id)
-    return JSONResponse(
-        status_code=exc.status_code,
-        content=error_response
-    )
+    return JSONResponse(status_code=exc.status_code, content=error_response)
 
 
 async def validation_exception_handler(
-    request: Request,
-    exc: PydanticValidationError
+    request: Request, exc: PydanticValidationError
 ) -> JSONResponse:
     """
     FastAPI exception handler for Pydantic validation errors.
@@ -240,21 +211,15 @@ async def validation_exception_handler(
             "validation_errors": exc.errors(),
             "request_id": request_id,
             "path": request.url.path,
-            "method": request.method
-        }
+            "method": request.method,
+        },
     )
 
     error_response = create_error_response(exc, request_id)
-    return JSONResponse(
-        status_code=422,
-        content=error_response
-    )
+    return JSONResponse(status_code=422, content=error_response)
 
 
-async def http_exception_handler(
-    request: Request,
-    exc: HTTPException
-) -> JSONResponse:
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     """
     FastAPI exception handler for HTTP exceptions.
 
@@ -276,21 +241,15 @@ async def http_exception_handler(
             "status_code": exc.status_code,
             "request_id": request_id,
             "path": request.url.path,
-            "method": request.method
-        }
+            "method": request.method,
+        },
     )
 
     error_response = create_error_response(exc, request_id)
-    return JSONResponse(
-        status_code=exc.status_code,
-        content=error_response
-    )
+    return JSONResponse(status_code=exc.status_code, content=error_response)
 
 
-async def generic_exception_handler(
-    request: Request,
-    exc: Exception
-) -> JSONResponse:
+async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """
     FastAPI exception handler for unexpected exceptions.
 
@@ -310,16 +269,13 @@ async def generic_exception_handler(
             "error_type": type(exc).__name__,
             "request_id": request_id,
             "path": request.url.path,
-            "method": request.method
+            "method": request.method,
         },
-        exc_info=True  # Include stack trace
+        exc_info=True,  # Include stack trace
     )
 
     error_response = create_error_response(exc, request_id)
-    return JSONResponse(
-        status_code=500,
-        content=error_response
-    )
+    return JSONResponse(status_code=500, content=error_response)
 
 
 # Exception handler mapping for FastAPI
