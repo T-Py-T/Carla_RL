@@ -63,6 +63,7 @@ WORKDIR /app
 
 # Create necessary directories
 RUN mkdir -p /app/artifacts /app/logs \
+
     && chown -R modelserving:modelserving /app
 
 # Copy application code
@@ -71,6 +72,7 @@ COPY --chown=modelserving:modelserving artifacts/ ./artifacts/
 
 # Create startup script
 COPY --chown=modelserving:modelserving <<EOF /app/entrypoint.sh
+
 #!/bin/bash
 set -e
 
