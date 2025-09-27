@@ -1,7 +1,7 @@
 [project]
-name = "carla-rl"
+name = "highway-rl"
 version = "0.1.0"
-description = "Reinforcement Learning for Self-Driving using Carla"
+description = "Reinforcement Learning for Self-Driving using Highway environments"
 authors = [{name = "Your Name", email = "your@email.com"}]
 readme = "README.md"
 requires-python = ">=3.9,<3.13"

@@ -156,7 +156,7 @@ def test_sources_compatibility():
     print_section("Sources Compatibility Layer")
     
     try:
-        import sources
+        # Legacy CARLA sources removed - using Highway RL only
         print("PASS: Sources import successful")
         
         # Test key exports

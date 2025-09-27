@@ -1,4 +1,4 @@
-# Carla RL - Function-Driven Repository
+# Highway RL - Function-Driven Repository
 # Root Makefile for managing different components
 # Usage: make <target>
 
@@ -6,7 +6,7 @@
 
 # Default target
 help:
-	@echo "Carla RL - Function-Driven Repository"
+	@echo "Highway RL - Function-Driven Repository"
 	@echo "===================================="
 	@echo ""
 	@echo "🏗️  Component Management:"

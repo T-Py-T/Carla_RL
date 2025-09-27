@@ -1,5 +1,5 @@
 # Highway RL Makefile
-# Apple Silicon optimized with legacy CARLA support
+# Apple Silicon optimized autonomous driving simulation
 # Usage: make <target>
 
 .PHONY: help setup validate test train play clean install lint format check-gpu monitor
