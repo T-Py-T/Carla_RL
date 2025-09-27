@@ -3,7 +3,8 @@ name: Feature Release Artifact
 on:
   pull_request:
     types: [closed]
-    branches: [main, master]
+    # Triggers on merge to any branch - gives you control over when releases are created
+    # Common patterns: main, master, dev, staging, production, release/*
 
 jobs:
   create-feature-artifact:
@@ -25,6 +26,7 @@ jobs:
       id: feature-info
       run: |
         BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
+        TARGET_BRANCH="${{ github.event.pull_request.base.ref }}"
         PR_NUMBER="${{ github.event.pull_request.number }}"
         PR_TITLE="${{ github.event.pull_request.title }}"
         MERGE_DATE=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
@@ -40,6 +42,7 @@ jobs:
         FEATURE_RELEASE_NAME="${FEATURE_NUMBER}-${CLEAN_BRANCH}"
         
         echo "branch_name=${BRANCH_NAME}" >> $GITHUB_OUTPUT
+        echo "target_branch=${TARGET_BRANCH}" >> $GITHUB_OUTPUT
         echo "pr_number=${PR_NUMBER}" >> $GITHUB_OUTPUT
         echo "pr_title=${PR_TITLE}" >> $GITHUB_OUTPUT
         echo "merge_date=${MERGE_DATE}" >> $GITHUB_OUTPUT
@@ -70,7 +73,8 @@ jobs:
         cat > "${ARTIFACT_DIR}/FEATURE_SUMMARY.md" << EOF
         # Feature Release: ${{ steps.feature-info.outputs.pr_title }}
         
-        **Branch:** \`${{ steps.feature-info.outputs.branch_name }}\`  
+        **Source Branch:** \`${{ steps.feature-info.outputs.branch_name }}\`  
+        **Target Branch:** \`${{ steps.feature-info.outputs.target_branch }}\`  
         **PR:** #${{ steps.feature-info.outputs.pr_number }}  
         **Merged:** ${{ steps.feature-info.outputs.merge_date }}  
         **Author:** ${{ github.event.pull_request.user.login }}
@@ -95,7 +99,8 @@ jobs:
           "feature_release_id": "${{ steps.feature-info.outputs.feature_release_name }}",
           "feature_number": "${{ steps.feature-info.outputs.feature_number }}",
           "feature_name": "${{ steps.feature-info.outputs.pr_title }}",
-          "branch_name": "${{ steps.feature-info.outputs.branch_name }}",
+          "source_branch": "${{ steps.feature-info.outputs.branch_name }}",
+          "target_branch": "${{ steps.feature-info.outputs.target_branch }}",
           "pr_number": ${{ steps.feature-info.outputs.pr_number }},
           "merge_date": "${{ steps.feature-info.outputs.merge_date }}",
           "author": "${{ github.event.pull_request.user.login }}",
