@@ -1,0 +1,13 @@
+{
+  "feature_release_id": "F004-dependabot-pip-model-serving-torch-2-8-0",
+  "feature_number": "F004",
+  "feature_name": "Bump torch from 2.1.1 to 2.8.0 in /model-serving",
+  "source_branch": "dependabot/pip/model-serving/torch-2.8.0",
+  "target_branch": "master",
+  "pr_number": 5,
+  "merge_date": "2025-09-27 18:48:35 UTC",
+  "author": "dependabot[bot]",
+  "base_sha": "492a8c2cc8437eafa4dbbf6bad80a3e57d7eec9a",
+  "head_sha": "f82b5b2e0f85c0b4282cdfffddeb594341544bc9",
+  "files_changed": []
+}
