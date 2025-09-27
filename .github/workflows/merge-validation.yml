@@ -1,18 +1,29 @@
 name: Merge Validation
 
 on:
-  push:
+  pull_request:
+    types: [opened, synchronize, reopened]
     branches: [main, master, dev, staging, production]
 
 jobs:
-  # full validation for merges
+  # Comprehensive validation for PR merges
+  # NOTE: This should be configured as a required status check in branch protection rules
   merge-validation:
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+      with:
+        fetch-depth: 0  # Fetch full history for better context
+        
+    - name: Show PR information
+      run: |
+        echo "PR #${{ github.event.number }}: ${{ github.event.pull_request.title }}"
+        echo "From: ${{ github.event.pull_request.head.ref }}"
+        echo "To: ${{ github.event.pull_request.base.ref }}"
+        echo "Author: ${{ github.event.pull_request.user.login }}"
+        
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -25,11 +36,23 @@ jobs:
         
     - name: Install dependencies
       run: |
+
+        # Install root dependencies
         uv sync --dev
+        # Install model-serving dependencies
+        if [ -d "model-serving" ]; then
+          cd model-serving && uv sync --dev && cd ..
+        fi
+        # Install model-sim dependencies  
+        if [ -d "model-sim" ]; then
+          cd model-sim && uv sync --dev && cd ..
+        fi
+
         
     - name: Check Python syntax
       run: |
         echo "Checking Python syntax..."
+        # Use find with -exec for better performance and no while loop
         find . -name "*.py" \
           -not -path "./.venv/*" \
           -not -path "./*/__pycache__/*" \
@@ -37,9 +60,7 @@ jobs:
           -not -path "./.git/*" \
           -not -path "./*/build/*" \
           -not -path "./*/dist/*" \
-          | while read file; do
-          python3 -m py_compile "$file" || (echo "Syntax error in $file" && exit 1)
-        done
+          -exec python3 -m py_compile {} \; || (echo "Python syntax check failed" && exit 1)
         echo "Python syntax check passed"
         
     - name: Run full tests
@@ -47,11 +68,15 @@ jobs:
         echo "Running full test suite..."
         # Run model-serving tests
         if [ -d "model-serving/tests" ]; then
-          uv run pytest model-serving/tests/ -v --tb=short
+
+          echo "Running model-serving tests..."
+          cd model-serving && uv run pytest tests/ -v --tb=short && cd ..
         fi
         # Run model-sim tests
         if [ -d "model-sim/tests" ]; then
-          uv run pytest model-sim/tests/ -v --tb=short
+          echo "Running model-sim tests..."
+          cd model-sim && uv run pytest tests/ -v --tb=short && cd ..
+
         fi
         echo "All tests passed"
         

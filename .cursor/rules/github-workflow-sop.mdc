@@ -1,0 +1,365 @@
+---
+description: Standard Operating Procedure for GitHub workflow, branch management, and release processes
+globs: **/*.md,**/*.yml,**/*.yaml,**/*.py,**/*.js,**/*.ts,**/*.sh
+alwaysApply: true
+---
+
+# GitHub Workflow SOP
+
+## CRITICAL: Follow these procedures for ALL GitHub operations
+
+**This SOP defines the standard procedures for GitHub workflow, branch management, feature development, and release processes. Follow these rules consistently across ALL repositories.**
+
+## Branch Strategy
+
+### Branch Hierarchy
+```
+master/main (production)
+├── release (release artifacts only)
+├── staging (integration testing)
+├── dev (active development)
+└── feature branches (individual features)
+```
+
+### Branch Purposes
+
+#### `master/main`
+- **Purpose**: Production-ready code
+- **Protection**: Full branch protection enabled
+- **Content**: Only stable, tested, production-ready code
+- **Artifacts**: NO release artifacts in root directory
+
+#### `release`
+- **Purpose**: Release management and artifact storage
+- **Protection**: Branch protection enabled
+- **Content**: Release artifacts in `release-artifacts/` folder
+- **Artifacts**: Contains `release-artifacts/RELEASE_CHANGELOG.md` and feature folders
+- **Trigger**: GitHub Actions create release artifacts ONLY on merges to this branch
+
+#### `staging`
+- **Purpose**: Integration testing and pre-production validation
+- **Protection**: Branch protection enabled
+- **Content**: Clean code ready for production
+- **Artifacts**: NO release artifacts in root directory
+
+#### `dev`
+- **Purpose**: Active development and feature integration
+- **Protection**: Branch protection enabled
+- **Content**: Latest development code with dependabot updates
+- **Artifacts**: NO release artifacts in root directory
+
+#### Feature Branches
+- **Naming**: `feature/description`, `fix/description`, `hotfix/description`
+- **Purpose**: Individual feature development
+- **Protection**: No protection (can be force-pushed during development)
+- **Content**: Feature-specific changes
+- **Artifacts**: NO release artifacts in root directory
+
+## Development Workflow
+
+### 1. Feature Development Process
+
+#### Starting a New Feature
+```bash
+# Always start from dev branch
+git checkout dev
+git pull origin dev
+
+# Create feature branch
+git checkout -b feature/your-feature-name
+
+# Work on feature...
+git add .
+git commit -m "feat: implement your feature"
+git push origin feature/your-feature-name
+```
+
+#### Feature Completion
+```bash
+# Ensure feature is up to date with dev
+git checkout feature/your-feature-name
+git pull origin dev
+git rebase dev  # or merge if preferred
+
+# Push updated feature
+git push origin feature/your-feature-name
+
+# Create PR: feature/your-feature-name → dev
+```
+
+### 2. Branch Progression
+
+#### Normal Flow
+```
+feature/xyz → dev → staging → release → master
+```
+
+#### Emergency Flow (Hotfixes)
+```
+hotfix/xyz → master (direct)
+hotfix/xyz → dev (backport)
+```
+
+### 3. Merge Procedures
+
+#### Feature to Dev
+- **Method**: Pull Request with review
+- **Requirements**: All CI checks must pass
+- **Artifacts**: NO release artifacts created
+- **Cleanup**: Feature branch can be deleted after merge
+
+#### Dev to Staging
+- **Method**: Pull Request with review
+- **Requirements**: All CI checks must pass
+- **Artifacts**: NO release artifacts created
+- **Purpose**: Integration testing
+
+#### Staging to Release
+- **Method**: Pull Request with review
+- **Requirements**: All CI checks must pass
+- **Artifacts**: NO release artifacts created
+- **Purpose**: Prepare for release
+
+#### Release to Master
+- **Method**: Pull Request with review
+- **Requirements**: All CI checks must pass
+- **Artifacts**: Release artifacts created by GitHub Action
+- **Purpose**: Production deployment
+
+## Release Artifact Management
+
+### Artifact Location
+- **Root Directory**: NEVER create artifacts in root
+- **Release Branch**: `release-artifacts/` folder only
+- **Structure**: `release-artifacts/F{number}-{feature-name}/`
+
+### Artifact Contents
+```
+release-artifacts/
+├── RELEASE_CHANGELOG.md
+└── F001-feature-name/
+    ├── FEATURE_SUMMARY.md
+    ├── metadata.json
+    ├── prd-*.md
+    └── tasks-*.md
+```
+
+### GitHub Action Behavior
+- **Trigger**: ONLY on merges to `release` branch
+- **Artifacts**: Created in `release-artifacts/` folder
+- **Cleanup**: Removes `tasks/` folder after artifact creation
+- **Changelog**: Updates `release-artifacts/RELEASE_CHANGELOG.md`
+
+## File Organization Rules
+
+### Root Directory Cleanliness
+- **NEVER** create release artifacts in root
+- **NEVER** create temporary files in root
+- **NEVER** commit generated files to root
+- **ONLY** commit source code and configuration files
+
+### Allowed Root Files
+- `README.md`
+- `Makefile`
+- `pyproject.toml` / `package.json`
+- `Dockerfile`
+- `docker-compose.yml`
+- `.gitignore`
+- `.github/` (workflows)
+- `.cursor/` (rules)
+
+### Forbidden Root Files
+- `RELEASE_CHANGELOG.md`
+- `release-artifacts/` folder
+- `tasks/` folder (temporary only)
+- `*.log` files
+- `*.tmp` files
+- Generated documentation
+
+## Commit Message Standards
+
+### Format
+```
+type(scope): description
+
+Body (optional)
+
+Footer (optional)
+```
+
+### Types
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `style`: Code style changes (formatting, etc.)
+- `refactor`: Code refactoring
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks
+- `ci`: CI/CD changes
+- `perf`: Performance improvements
+
+### Examples
+```
+feat(model-serving): add batch inference support
+
+- Implement batch processing for multiple observations
+- Add performance metrics collection
+- Update API documentation
+
+Closes #123
+```
+
+## Branch Protection Rules
+
+### Required Status Checks
+- **Basic Checks**: Syntax validation, linting
+- **Build & Test**: Full test suite execution
+- **Security Scan**: Dependency vulnerability scanning
+
+### Merge Requirements
+- **Reviews**: At least 1 approval required
+- **Status Checks**: All must pass
+- **Up to Date**: Branch must be up to date with target
+- **Linear History**: Optional, depends on team preference
+
+## Emergency Procedures
+
+### Hotfix Process
+```bash
+# Create hotfix from master
+git checkout master
+git pull origin master
+git checkout -b hotfix/critical-issue
+
+# Make fix
+git add .
+git commit -m "fix: resolve critical issue"
+git push origin hotfix/critical-issue
+
+# Create PR: hotfix/critical-issue → master
+# After merge, backport to dev
+```
+
+### Rollback Process
+```bash
+# Identify bad commit
+git log --oneline
+
+# Create revert commit
+git revert <commit-hash>
+git push origin <branch-name>
+```
+
+## Repository Setup Checklist
+
+### New Repository Setup
+- [ ] Create branch protection rules
+- [ ] Set up CI/CD workflows
+- [ ] Configure dependabot
+- [ ] Add `.cursor/rules/` directory
+- [ ] Create this SOP file
+- [ ] Set up release workflow (if needed)
+
+### Branch Protection Configuration
+- [ ] Enable branch protection on `master`
+- [ ] Enable branch protection on `release`
+- [ ] Enable branch protection on `staging`
+- [ ] Enable branch protection on `dev`
+- [ ] Require status checks
+- [ ] Require pull request reviews
+- [ ] Restrict pushes to protected branches
+
+## Common Commands
+
+### Daily Workflow
+```bash
+# Start work
+git checkout dev
+git pull origin dev
+
+# Create feature
+git checkout -b feature/my-feature
+# ... work ...
+git add .
+git commit -m "feat: implement my feature"
+git push origin feature/my-feature
+
+# Update feature with latest dev
+git checkout feature/my-feature
+git pull origin dev
+git rebase dev
+git push origin feature/my-feature
+```
+
+### Cleanup Commands
+```bash
+# Remove local branches
+git branch -d feature/old-feature
+
+# Remove remote branches
+git push origin --delete feature/old-feature
+
+# Clean up merged branches
+git branch --merged | grep -v master | xargs -n 1 git branch -d
+```
+
+## Troubleshooting
+
+### Merge Conflicts
+1. Identify conflicted files: `git status`
+2. Resolve conflicts manually
+3. Add resolved files: `git add <file>`
+4. Complete merge: `git commit`
+
+### Branch Divergence
+1. Check divergence: `git status`
+2. Pull latest: `git pull origin <branch>`
+3. Resolve conflicts if any
+4. Push resolved changes
+
+### Accidental Commits to Wrong Branch
+1. Create new branch from current state
+2. Reset original branch to previous commit
+3. Cherry-pick changes to correct branch
+4. Push both branches
+
+## Best Practices
+
+### DO
+- Always start from `dev` branch for new features
+- Keep feature branches small and focused
+- Write descriptive commit messages
+- Clean up merged branches regularly
+- Use meaningful branch names
+- Test changes before pushing
+- Keep root directory clean
+
+### DON'T
+- Commit directly to protected branches
+- Create release artifacts in root directory
+- Force push to protected branches
+- Leave feature branches unmerged for long periods
+- Commit sensitive information
+- Create temporary files in root directory
+- Skip CI checks
+
+## Integration with Cursor Agents
+
+### When Working with Agents
+1. **Always specify the target branch** for changes
+2. **Never allow agents to create branches** - use existing ones
+3. **Ensure agents follow the branch hierarchy**
+4. **Verify agents don't create root artifacts**
+5. **Check that agents use proper commit messages**
+
+### Agent Instructions
+- Start all work from `dev` branch
+- Create feature branches only when necessary
+- Never commit to `master`, `release`, `staging` directly
+- Always clean up temporary files
+- Follow the established file organization rules
+- Use the defined commit message format
+
+---
+
+**Remember: Consistency across repositories is key. Follow these procedures exactly to maintain clean, organized, and efficient GitHub workflows.**
