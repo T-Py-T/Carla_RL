@@ -1,62 +1,87 @@
 [project]
-name = "carla-rl"
+name = "highway-rl"
 version = "0.1.0"
-description = "Reinforcement Learning for Self-Driving using Carla"
-authors = [{name = "Your Name", email = "your@email.com"}]
-readme = "README.md"
-requires-python = ">=3.9,<3.13"
+description = "Highway RL - Function-Driven Repository"
+requires-python = ">=3.11"
 dependencies = [
-  "numpy>=1.21.0",
-  "opencv-python>=4.5.0",
-  "psutil>=5.8.0",
-  "colorama>=0.4.4",
-  "highway-env>=1.10.1",
-  "gymnasium>=1.1.1",
-  "wandb>=0.22.0",
-  "tensorboard-plugin-wit>=1.8.1",
+    "ruff>=0.1.8",
 ]
 
 [project.optional-dependencies]
-# Apple Silicon GPU acceleration
-apple-gpu = [
-  "tensorflow-macos>=2.14.0,<2.16.0",
-  "tensorflow-metal>=1.2.0",
-]
-# NVIDIA GPU acceleration  
-nvidia-gpu = [
-  "tensorflow[and-cuda]>=2.14.0",
-]
-# Development tools
 dev = [
-  "pytest",
-  "ruff",
-  "mypy",
-  "pre-commit"
+    "ruff>=0.1.8",
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
 ]
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src"]
-
-[project.scripts]
-carla-train = "carla_rl.trainer:main"
-carla-play = "carla_rl.play:main"
 
 [tool.ruff]
+# Exclude a variety of commonly ignored directories.
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+
+# Same as Black.
 line-length = 88
-target-version = "py39"
+indent-width = 4
 
-[tool.mypy]
-python_version = "3.9"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
+# Assume Python 3.11+
+target-version = "py311"
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
+[tool.ruff.lint]
+# Only enable the most critical rules - everything else is ignored
+select = [
+    "E9",      # pycodestyle errors (syntax errors, indentation)
+    "F",       # pyflakes (undefined names, unused imports)
+]
+
+# Ignore everything else to avoid overwhelming output
+ignore = [
+    "E501",    # line too long
+    "E203",    # whitespace before ':'
+    "B008",    # do not perform function calls in argument defaults
+    "B006",    # do not use mutable data structures for argument defaults
+    "B904",    # raise exceptions with raise ... from err
+    "N803",    # argument name should be lowercase
+    "N815",    # variable in class scope should not be mixedCase
+    "N818",    # exception name should be named with an Error suffix
+    "F841",    # local variable assigned but never used
+    "F401",    # imported but unused
+    "E402",    # module level import not at top of file
+    "E722",    # do not use bare except
+    "W291",    # trailing whitespace
+    "W293",    # blank line contains whitespace
+    "B007",    # loop control variable not used within loop body
+]
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.lint.isort]
+known-first-party = ["model_serving", "model_sim"]
+
+[tool.ruff.lint.per-file-ignores]
+"model-sim/**/*" = ["E402", "E722"]

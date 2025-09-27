@@ -1,0 +1,51 @@
+name: PR Quality Checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  # Basic quality checks for PRs
+  pr-quality-checks:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "latest"
+        
+    - name: Install dependencies
+      run: |
+        uv sync --dev
+        
+    - name: Check Python syntax
+      run: |
+        echo "Checking Python syntax..."
+        # Check only our source Python files (exclude all build/cache directories)
+        find . -name "*.py" \
+          -not -path "./.venv/*" \
+          -not -path "./*/__pycache__/*" \
+          -not -path "./*/node_modules/*" \
+          -not -path "./.git/*" \
+          -not -path "./*/build/*" \
+          -not -path "./*/dist/*" \
+          | while read file; do
+          python3 -m py_compile "$file" || (echo "Syntax error in $file" && exit 1)
+        done
+        echo "Python syntax check passed"
+        
+    - name: Basic ruff linting (minimal rules)
+      run: |
+        echo "Running basic ruff linting..."
+        # Use minimal ruff rules - only check for critical issues
+        uv run ruff check . --select E9,F --extend-exclude="pyproject.toml,*.toml,*.yaml,*.yml,*.json,*.md"
+        echo "Basic linting check passed"

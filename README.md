@@ -8,12 +8,12 @@
 - **Production RL pipeline** for autonomous driving using highway-env simulator
 - **Multi-scenario training** across highway, merging, intersection, parking, and racetrack environments
 - **Advanced DQN architecture** with Dueling + Double DQN for improved learning stability
-- **Real-world adaptability** through curriculum learning and comprehensive evaluation metrics
+- **Real-world adaptability** through curriculum learning and full evaluation metrics
 
 ### Technical Implementation
 - **Modern RL algorithms** - Double DQN with dueling architecture and experience replay
 - **Multi-environment training** - 5 distinct driving scenarios for robust policy learning
-- **Comprehensive evaluation** - 15+ metrics including success rate, collision avoidance, speed compliance
+- **full evaluation** - 15+ metrics including success rate, collision avoidance, speed compliance
 - **Curriculum learning** - Progressive difficulty training for better convergence
 
 ### Research Contributions
@@ -27,7 +27,7 @@
 ### Fully Implemented
 - **Highway-env integration** - 5 driving scenarios with realistic physics and dynamics
 - **Advanced DQN agent** - 124K parameter model with proven convergence properties
-- **Comprehensive evaluation** - Multi-metric assessment including safety and efficiency measures
+- **full evaluation** - Multi-metric assessment including safety and efficiency measures
 - **Training pipeline** - End-to-end system from environment setup to model deployment
 
 ### Driving Scenarios
@@ -82,7 +82,7 @@ make eval-highway
 ### Essential Commands
 - `make setup` - Configure training environment
 - `make train-highway` - Train RL agent on driving scenarios
-- `make eval-highway` - Comprehensive model evaluation
+- `make eval-highway` - full model evaluation
 - `make benchmark` - Performance and convergence analysis
 
 ### Expected Training Results

@@ -1,0 +1,84 @@
+version: '3.8'
+
+# Simplified Docker Compose for testing on OrbStack
+# This version focuses on core functionality without external dependencies
+
+services:
+  # CarlaRL Policy Serving Service
+  carla-rl-serving:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: production
+    container_name: carla-rl-serving-test
+    ports:
+      - "8080:8080"
+    environment:
+      - ARTIFACT_DIR=/app/artifacts
+      - MODEL_VERSION=v0.1.0
+      - USE_GPU=0
+      - LOG_LEVEL=info
+      - WORKERS=1
+      - CORS_ORIGINS=*
+      - ALLOWED_HOSTS=*
+    volumes:
+      - ../../artifacts:/app/artifacts:ro
+      - ../../logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - carla-rl-test
+
+  # Test runner service
+  test-runner:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: dependencies
+    container_name: carla-rl-test-runner
+    volumes:
+      - ../../scripts:/app/scripts:ro
+      - ../../tests:/app/tests:ro
+      - .:/app/deploy/docker:ro
+    working_dir: /app
+    environment:
+      - SERVICE_URL=http://carla-rl-serving:8080
+    networks:
+      - carla-rl-test
+    profiles:
+      - testing
+    depends_on:
+      carla-rl-serving:
+        condition: service_healthy
+    command: >
+      sh -c "
+        echo 'Waiting for service to be ready...' &&
+        sleep 10 &&
+        echo 'Running validation tests...' &&
+        python scripts/cluster_validation.py --url http://carla-rl-serving:8080 --output /tmp/test_results.json &&
+        echo 'Tests completed successfully!'
+      "
+
+  # Load testing service (optional)
+  load-tester:
+    image: alpine/curl:latest
+    container_name: carla-rl-load-tester
+    volumes:
+      - ./load_test.sh:/load_test.sh:ro
+    networks:
+      - carla-rl-test
+    profiles:
+      - load-testing
+    depends_on:
+      carla-rl-serving:
+        condition: service_healthy
+    command: ["/load_test.sh", "http://carla-rl-serving:8080"]
+
+networks:
+  carla-rl-test:
+    driver: bridge
