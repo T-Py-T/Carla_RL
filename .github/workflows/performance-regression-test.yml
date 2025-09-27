@@ -36,7 +36,7 @@ jobs:
     - name: Run performance regression test
       run: |
         cd model-serving
-        python scripts/performance_regression_test.py \
+        uv run python scripts/performance_regression_test.py \
           --iterations 100 \
           --p50-threshold 10.0 \
           --throughput-threshold 1000.0 \

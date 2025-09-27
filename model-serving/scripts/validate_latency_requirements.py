@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env uv run python
 """
 Validate P50 < 10ms latency requirement on target hardware.
 
