@@ -4,6 +4,30 @@ This file tracks all feature releases and their associated artifacts.
 
 ## Release History
 
+### F003 - [Staging](https://github.com/T-Py-T/Carla_RL/pull/4) - 2025-09-27 18:16:17 UTC
+
+**Release ID:** `F003-staging`  
+**Branch:** `staging`  
+**Author:** T-Py-T  
+**Artifact:** `release-artifacts/F003-staging/`
+
+
+
+**Key Changes:**
+- .cursor/rules/create-prd.mdc
+- .cursor/rules/generate-tasks.mdc
+- .cursor/rules/process-task-list.mdc
+- .cursor/rules/release-workflow.mdc
+- .github/BRANCH_PROTECTION.md
+- .github/workflows/README.md
+- .github/workflows/feature-release-artifact.yml
+- .github/workflows/merge-validation.yml
+- .github/workflows/ml-pipeline-trigger.yml
+- .github/workflows/pr-checks.yml
+- ... and 91 more files
+
+---
+
 ### F002 - [Dev](https://github.com/T-Py-T/Carla_RL/pull/3) - 2025-09-27 18:15:20 UTC
 
 **Release ID:** `F002-dev`  
