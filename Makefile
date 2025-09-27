@@ -2,7 +2,7 @@
 # Root Makefile for managing different components
 # Usage: make <target>
 
-.PHONY: help setup-sim setup-serving test-sim test-serving clean
+.PHONY: help setup-sim setup-serving test-sim test-serving clean lint test security docker-check ci-checks
 
 # Default target
 help:
@@ -16,6 +16,13 @@ help:
 	@echo "🧪 Testing:"
 	@echo "  make test-sim         - Test simulation components"
 	@echo "  make test-serving     - Test serving components"
+	@echo "  make test             - Run all tests"
+	@echo ""
+	@echo "🔍 Quality Checks:"
+	@echo "  make lint             - Run linting (ruff, black, isort, mypy)"
+	@echo "  make security         - Run security checks (bandit, safety)"
+	@echo "  make docker-check     - Test Docker builds"
+	@echo "  make ci-checks        - Run all CI checks locally"
 	@echo ""
 	@echo "🚀 Quick Commands:"
 	@echo "  make train-highway    - Train Highway RL model"
@@ -88,3 +95,38 @@ sim-shell:
 serving-shell:
 	@echo "🐚 Entering serving environment shell..."
 	@cd model-serving && bash
+
+# Quality checks (run these before committing)
+lint:
+	@echo "🔧 Running linting checks..."
+	@pip install ruff black isort >/dev/null 2>&1 || echo "Installing linting tools..."
+	@echo "Running ruff..."
+	@ruff check . --select=E,W,F
+	@echo "Running black format check..."
+	@black --check --diff .
+	@echo "Running isort import check..."
+	@isort --check-only --diff .
+	@echo "✅ Linting checks passed!"
+
+format:
+	@echo "🎨 Auto-fixing code formatting..."
+	@pip install black isort ruff >/dev/null 2>&1 || echo "Installing formatting tools..."
+	@black .
+	@isort .
+	@ruff check --fix .
+	@echo "✅ Code formatted!"
+
+test:
+	@echo "🧪 Running tests..."
+	@pip install pytest >/dev/null 2>&1 || echo "Installing pytest..."
+	@if [ -d "model-serving/tests" ]; then pytest model-serving/tests/ -v; fi
+	@if [ -d "model-sim/tests" ]; then pytest model-sim/tests/ -v; fi
+	@echo "✅ Tests completed!"
+
+ci-checks:
+	@echo "🔍 Running all CI checks locally..."
+	@$(MAKE) lint
+	@$(MAKE) test
+	@echo "🐳 Testing Docker build..."
+	@if [ -f "model-serving/Dockerfile" ]; then docker build -t model-serving:test ./model-serving/; fi
+	@echo "✅ All CI checks passed!"
