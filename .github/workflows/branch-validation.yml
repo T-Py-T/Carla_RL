@@ -1,0 +1,61 @@
+name: Branch Validation
+
+on:
+  push:
+    branches: [main, master, dev, staging, production]
+
+jobs:
+  # Light validation for branch pushes
+  branch-validation:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      with:
+        version: "latest"
+        
+    - name: Install root dependencies
+      run: |
+        uv sync --dev
+        
+    - name: Check Python syntax
+      run: |
+        echo "Checking Python syntax..."
+        # Use find with -exec for better performance and no while loop
+        find . -name "*.py" \
+          -not -path "./.venv/*" \
+          -not -path "./*/__pycache__/*" \
+          -not -path "./*/node_modules/*" \
+          -not -path "./.git/*" \
+          -not -path "./*/build/*" \
+          -not -path "./*/dist/*" \
+          -exec python3 -m py_compile {} \; || (echo "Python syntax check failed" && exit 1)
+        echo "Python syntax check passed"
+        
+    - name: Run basic linting
+      run: |
+        echo "Running basic linting..."
+        uv run ruff check . --select E9,F
+        echo "Basic linting passed"
+        
+    - name: Validate configurations
+      run: |
+        echo "Validating configuration files..."
+        # Check JSON files
+        find . -name "*.json" \
+          | grep -v "\.venv/" \
+          | grep -v "__pycache__" \
+          | grep -v "node_modules" \
+          | while read file; do
+          python3 -c "import json; json.load(open('$file'))" || (echo "Invalid JSON: $file" && exit 1)
+        done
+        echo "Configuration files are valid"
