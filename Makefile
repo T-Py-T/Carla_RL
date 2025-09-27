@@ -1,216 +1,126 @@
-# Highway RL Makefile
-# Apple Silicon optimized with legacy CARLA support
+# Highway RL - Function-Driven Repository
+# Root Makefile for managing different components
 # Usage: make <target>
 
-.PHONY: help setup validate test train play clean install lint format check-gpu monitor
+.PHONY: help setup-sim setup-serving test-sim test-serving clean lint test security docker-check ci-checks
 
 # Default target
 help:
-	@echo "Highway RL - Apple Silicon Optimized Autonomous Driving"
-	@echo "======================================================="
+	@echo "Highway RL - Function-Driven Repository"
+	@echo "===================================="
 	@echo ""
-	@echo "Essential Commands:"
-	@echo "  make setup           - Install and configure environment"
-	@echo "  make train-highway   - Train RL agent (Apple Silicon optimized)"
-	@echo "  make eval-highway    - Evaluate trained models"
-	@echo "  make check-gpu       - Verify Metal acceleration"
+	@echo "Component Management:"
+	@echo "  make setup-sim        - Setup simulation environment (model-sim/)"
+	@echo "  make setup-serving    - Setup serving environment (model-serving/)"
 	@echo ""
-	@echo "Development:"
-	@echo "  make clean          - Clean temporary files"
-	@echo "  make benchmark      - Performance benchmarks"
+	@echo "Testing:"
+	@echo "  make test-sim         - Test simulation components"
+	@echo "  make test-serving     - Test serving components"
+	@echo "  make test             - Run all tests"
+	@echo ""
+	@echo "Quality Checks:"
+	@echo "  make check            - Run all quality checks (syntax + linting)"
+	@echo "  make lint             - Run ruff linting only"
+	@echo "  make fix              - Auto-fix code issues"
+	@echo "  make format           - Auto-format code (same as fix)"
+	@echo "  make diff             - Show what would be fixed"
+	@echo ""
+	@echo "Quick Commands:"
+	@echo "  make train-highway    - Train Highway RL model"
+	@echo "  make serve-model      - Start model serving service"
+	@echo ""
+	@echo "Directory Structure:"
+	@echo "  model-sim/           - Simulation and training"
+	@echo "  model-serving/       - Model serving microservice"
+	@echo "  tasks/               - Project management"
 
-# Setup and Installation
-setup: install validate
-	@echo "Setup complete! Ready for RL training"
+# Simulation Commands (delegate to model-sim/)
+setup-sim:
+	@echo "Setting up simulation environment..."
+	@cd model-sim && make setup
 
-install:
-	@echo "Installing dependencies..."
-	uv sync --extra apple-gpu
-	@echo "Dependencies installed"
-
-validate:
-	@echo "Validating highway RL setup..."
-	@uv run python -c "import sys; sys.path.insert(0, 'src'); import highway_env, gymnasium, tensorflow as tf; from highway_rl import HighwayEnvironment, HighwayDQNAgent; env = HighwayEnvironment('highway'); env.close(); gpus = tf.config.list_physical_devices('GPU'); print(f'SUCCESS: System ready - GPU devices: {len(gpus)}')"
-
-# Development Commands
-test:
-	@echo "Running basic tests..."
-	@uv run python -c "import sys; sys.path.insert(0, 'tests/validation'); import sources; print('Sources import: OK')"
-	@uv run python -c "import sys; sys.path.insert(0, 'tests/validation'); import sources; env = sources.CarlaEnv(0); print('Environment: OK')"
-	@uv run python -c "import sys; sys.path.insert(0, 'tests/validation'); import sources; agent = sources.ARTDQNAgent(id=0); print('Agent: OK')"
-	@echo "All basic tests passed"
-
-test-platform:
-	@echo "Running cross-platform compatibility tests..."
-	@uv run python tests/test_cross_platform.py
-
-lint:
-	@echo "Running linter..."
-	@if command -v ruff >/dev/null 2>&1; then \
-		uv run ruff check src/ scripts/; \
-	else \
-		echo "WARNING: Ruff not available. Install with: uv add --dev ruff"; \
-	fi
-
-format:
-	@echo "Formatting code..."
-	@if command -v ruff >/dev/null 2>&1; then \
-		uv run ruff format src/ scripts/; \
-	else \
-		echo "WARNING: Ruff not available for formatting"; \
-	fi
-
-clean:
-	@echo "Cleaning temporary files..."
-	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	find . -type f -name "*.pyc" -delete 2>/dev/null || true
-	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
-	rm -rf .mypy_cache/ 2>/dev/null || true
-	rm -rf tmp/ 2>/dev/null || true
-	@echo "Cleanup complete"
-
-# Platform and Hardware Commands
-check-platform:
-	@echo "Detecting platform and hardware capabilities..."
-	@uv run python scripts/setup_platform.py
-
-setup-carla-docker:
-	@echo "Setting up Carla simulator via Docker..."
-	@uv run python scripts/setup_carla_docker.py
-
-check-gpu:
-	@echo "Checking GPU status and system resources..."
-	@uv run python -c "import tensorflow as tf; import psutil; import platform; print('Platform:', platform.system(), platform.machine()); print('TensorFlow:', tf.__version__); gpus = tf.config.list_physical_devices('GPU'); print('GPU devices:', len(gpus)); [print('  -', gpu.name, ':', tf.config.experimental.get_device_details(gpu).get('device_name', 'Unknown')) for gpu in gpus]; print('System Memory: {:.1f} GB'.format(psutil.virtual_memory().total / (1024**3))); print('Available Memory: {:.1f} GB'.format(psutil.virtual_memory().available / (1024**3)))"
-
-# Primary Training Commands (Highway-env)
 train-highway:
-	@echo "Starting Highway RL training (Apple Silicon optimized)..."
-	@echo "Tip: Use 'make check-gpu' to verify GPU acceleration"
-	@mkdir -p models/highway training/highway/logs evaluation/highway
-	uv run python training/highway/train_highway.py --scenario highway --episodes 1000 --double-dqn --dueling-dqn
-
-train-multi:
-	@echo "Starting Multi-Scenario Curriculum Training..."
-	@echo "Training across: highway, merge, intersection, parking, racetrack"
-	@mkdir -p models/highway training/highway/logs evaluation/highway
-	uv run python training/highway/train_highway.py --scenario curriculum --episodes 2000 --double-dqn --dueling-dqn
-
-train-highway-bg:
-	@echo "Starting Highway RL training in background..."
-	@mkdir -p models/highway training/highway/logs evaluation/highway
-	@echo "Logs will be saved to training/highway/logs/training.log"
-	nohup uv run python training/highway/train_highway.py --scenario highway --episodes 1000 --double-dqn --dueling-dqn > training/highway/logs/training.log 2>&1 &
-	@echo "Training started in background"
-	@echo "Use 'make monitor-highway' to watch progress"
+	@echo "Training Highway RL model..."
+	@cd model-sim && make train-highway
 
 eval-highway:
 	@echo "Evaluating Highway RL models..."
-	@if [ ! -d "models/highway" ] || [ -z "$$(ls -A models/highway 2>/dev/null)" ]; then \
-		echo "ERROR: No trained highway models found in models/highway/ directory"; \
-		echo "Run 'make train-highway' first to train a model"; \
-		exit 1; \
-	fi
-	@mkdir -p evaluation/highway
-	uv run python evaluation/highway/evaluate_models.py
+	@cd model-sim && make eval-highway
 
-# Legacy CARLA Training Commands
-train-carla:
-	@echo "Starting Legacy CARLA RL training..."
-	@echo "Note: CARLA not supported on macOS Apple Silicon"
-	@echo "Use 'make train-highway' for native macOS training"
-	@mkdir -p models/carla training/carla/logs
-	uv run python scripts/train.py
+test-sim:
+	@echo "Testing simulation components..."
+	@cd model-sim && make test
 
-# Compatibility aliases
-train: train-highway
-	@echo "Default training now uses highway-env for better Apple Silicon support"
-	@echo "Use 'make train-carla' for legacy CARLA training (Windows/Linux)"
+benchmark-sim:
+	@echo "Running simulation benchmarks..."
+	@cd model-sim && make benchmark
 
-play:
-	@echo "Starting model playback..."
-	@if [ ! -d "models" ] || [ -z "$$(ls -A models 2>/dev/null)" ]; then \
-		echo "ERROR: No trained models found in models/ directory"; \
-		echo "Run 'make train' first to train a model"; \
-		exit 1; \
-	fi
-	uv run python scripts/play.py
+# Serving Commands (delegate to model-serving/)
+setup-serving:
+	@echo "Setting up serving environment..."
+	@cd model-serving && pip install -r requirements.txt
 
-monitor:
-	@echo "Monitoring training progress..."
-	@if [ -f "training/highway/logs/training.log" ]; then \
-		tail -f training/highway/logs/training.log; \
-	elif [ -f "logs/training.log" ]; then \
-		tail -f logs/training.log; \
-	else \
-		echo "ERROR: No training log found."; \
-		echo "Start training with 'make train-highway-bg' or 'make train-bg'"; \
-	fi
+serve-model:
+	@echo "Starting model serving service..."
+	@cd model-serving && make run
 
-monitor-highway:
-	@echo "Monitoring highway training progress..."
-	@if [ -f "training/highway/logs/training.log" ]; then \
-		tail -f training/highway/logs/training.log; \
-	else \
-		echo "ERROR: No highway training log found. Start training with 'make train-highway-bg'"; \
-	fi
+test-serving:
+	@echo "Testing serving components..."
+	@cd model-serving && make test
 
-# Advanced Commands
-benchmark:
-	@echo "Running performance benchmarks..."
-	@mkdir -p benchmark_results
-	@uv run python scripts/benchmark.py
+deploy-docker:
+	@echo "Deploying with Docker..."
+	@cd model-serving && make docker-build && make docker-run
 
-benchmark-modern:
-	@echo "Running modern ML stack benchmarks..."
-	@echo "Testing TensorFlow 2.20 + Keras 3.x + NumPy 2.x performance"
-	@mkdir -p benchmark_results
-	@uv run python tests/benchmarks/benchmark_modern_stack.py
+deploy-k8s:
+	@echo "Deploying to Kubernetes..."
+	@cd model-serving && make deploy-k8s
 
-debug:
-	@echo "Debug mode: Starting training with debug output..."
-	@mkdir -p models checkpoint tmp logs
-	@echo "Debug mode: Verbose logging enabled"
-	TF_CPP_MIN_LOG_LEVEL=0 uv run python scripts/train.py
-
-# Model Management
-list-models:
-	@echo "Available trained models:"
-	@if [ -d "models" ]; then \
-		ls -la models/ | grep -E "\.h5$$|\.keras$$" || echo "No models found"; \
-	else \
-		echo "No models directory found"; \
-	fi
-
-backup-models:
-	@echo "Backing up trained models..."
-	@if [ -d "models" ]; then \
-		tar -czf "models_backup_$$(date +%Y%m%d_%H%M%S).tar.gz" models/; \
-		echo "Models backed up to models_backup_$$(date +%Y%m%d_%H%M%S).tar.gz"; \
-	else \
-		echo "ERROR: No models directory to backup"; \
-	fi
-
-# Environment Management
-create-dirs:
-	@mkdir -p models checkpoint tmp logs benchmark_results
-	@echo "Created necessary directories"
+# Utility Commands
+clean:
+	@echo "Cleaning all components..."
+	@cd model-sim && make clean || true
+	@cd model-serving && make clean || true
 
 status:
-	@echo "Project Status"
-	@echo "=================="
-	@echo "Python: $$(uv run python --version)"
-	@echo "TensorFlow: $$(uv run python -c 'import tensorflow as tf; print(tf.__version__)' 2>/dev/null || echo 'Not available')"
-	@echo "GPU: $$(uv run python -c 'import tensorflow as tf; print(len(tf.config.list_physical_devices(\"GPU\")))' 2>/dev/null || echo 'Unknown') device(s)"
-	@echo "Models: $$(ls models/ 2>/dev/null | wc -l | tr -d ' ') trained models"
-	@echo "Checkpoints: $$(ls checkpoint/ 2>/dev/null | wc -l | tr -d ' ') checkpoints"
-	@echo ""
-	@echo "System Resources:"
-	@uv run python -c "import psutil; mem=psutil.virtual_memory(); print(f'Memory: {mem.used/(1024**3):.1f}GB / {mem.total/(1024**3):.1f}GB ({mem.percent:.1f}% used)')"
+	@echo "Repository Status:"
+	@echo "model-sim/: $$(cd model-sim && ls -1 | wc -l) items"
+	@echo "model-serving/: $$(cd model-serving && ls -1 | wc -l) items"
+	@echo "tasks/: $$(cd tasks && ls -1 | wc -l) items"
 
-# Quick start for new users
-quickstart: setup
-	@echo ""
-	@echo "Highway RL Ready!"
-	@echo "=================="
-	@echo ""
-	@echo "Next: make train-highway"
+# Development helpers
+sim-shell:
+	@echo "Entering simulation environment shell..."
+	@cd model-sim && bash
+
+serving-shell:
+	@echo "Entering serving environment shell..."
+	@cd model-serving && bash
+
+# Quality checks (run these before committing)
+check:
+	@echo "Running code quality checks..."
+	@echo "Checking Python syntax..."
+	@find . -name "*.py" -not -path "./.venv/*" -not -path "./.git/*" -exec python -m py_compile {} \;
+	@echo "Python syntax check passed"
+	@echo "Running ruff linting..."
+	@uv run ruff check --extend-exclude="pyproject.toml,*.toml,*.yaml,*.yml,*.json,*.md" . || (echo "Linting issues found. Run 'make fix' to auto-fix." && exit 1)
+	@echo "All checks passed!"
+
+fix:
+	@echo "Auto-fixing code issues..."
+	@uv run ruff check --fix --extend-exclude="pyproject.toml,*.toml,*.yaml,*.yml,*.json,*.md" .
+	@echo "Code issues fixed!"
+
+lint:
+	@echo "Running ruff linting only..."
+	@uv run ruff check --extend-exclude="pyproject.toml,*.toml,*.yaml,*.yml,*.json,*.md" .
+
+format:
+	@echo "Auto-formatting code..."
+	@uv run ruff check --fix --extend-exclude="pyproject.toml,*.toml,*.yaml,*.yml,*.json,*.md" .
+
+# Show what would be fixed without actually fixing
+diff:
+	@echo "Showing what would be fixed..."
+	@uv run ruff check --diff --extend-exclude="pyproject.toml,*.toml,*.yaml,*.yml,*.json,*.md" .
