@@ -29,7 +29,7 @@ jobs:
         
     - name: Check Python syntax
       run: |
-        echo "🔍 Checking Python syntax..."
+        echo "Checking Python syntax..."
         # Check only our source Python files (exclude all build/cache directories)
         find . -name "*.py" \
           -not -path "./.venv/*" \
@@ -39,13 +39,13 @@ jobs:
           -not -path "./*/build/*" \
           -not -path "./*/dist/*" \
           | while read file; do
-          python3 -m py_compile "$file" || (echo "❌ Syntax error in $file" && exit 1)
+          python3 -m py_compile "$file" || (echo "Syntax error in $file" && exit 1)
         done
-        echo "✅ Python syntax check passed"
+        echo "Python syntax check passed"
         
     - name: Basic ruff linting (minimal rules)
       run: |
-        echo "🔧 Running basic ruff linting..."
+        echo "Running basic ruff linting..."
         # Use minimal ruff rules - only check for critical issues
         uv run ruff check . --select E9,F --extend-exclude="pyproject.toml,*.toml,*.yaml,*.yml,*.json,*.md"
-        echo "✅ Basic linting check passed"
+        echo "Basic linting check passed"
