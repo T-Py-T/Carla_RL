@@ -1,0 +1,249 @@
+name: Feature Release Artifact
+
+on:
+  pull_request:
+    types: [closed]
+    # Triggers on merge to any branch - gives you control over when releases are created
+    # Common patterns: main, master, dev, staging, production, release/*
+
+jobs:
+  create-feature-artifact:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for changelog generation
+        
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Extract feature info
+      id: feature-info
+      run: |
+        BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
+        TARGET_BRANCH="${{ github.event.pull_request.base.ref }}"
+        PR_NUMBER="${{ github.event.pull_request.number }}"
+        PR_TITLE="${{ github.event.pull_request.title }}"
+        MERGE_DATE=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        
+        # Generate feature release number by counting existing releases
+        RELEASE_COUNT=$(find release-artifacts -maxdepth 1 -name "F*" -type d 2>/dev/null | wc -l)
+        FEATURE_NUMBER=$(printf "F%03d" $((RELEASE_COUNT + 1)))
+        
+        # Clean branch name for folder (remove special characters, convert to lowercase)
+        CLEAN_BRANCH=$(echo "${BRANCH_NAME}" | sed 's/[^a-zA-Z0-9_-]/-/g' | tr '[:upper:]' '[:lower:]')
+        
+        # Create feature release name: F001-branch-name
+        FEATURE_RELEASE_NAME="${FEATURE_NUMBER}-${CLEAN_BRANCH}"
+        
+        echo "branch_name=${BRANCH_NAME}" >> $GITHUB_OUTPUT
+        echo "target_branch=${TARGET_BRANCH}" >> $GITHUB_OUTPUT
+        echo "pr_number=${PR_NUMBER}" >> $GITHUB_OUTPUT
+        echo "pr_title=${PR_TITLE}" >> $GITHUB_OUTPUT
+        echo "merge_date=${MERGE_DATE}" >> $GITHUB_OUTPUT
+        echo "feature_number=${FEATURE_NUMBER}" >> $GITHUB_OUTPUT
+        echo "feature_release_name=${FEATURE_RELEASE_NAME}" >> $GITHUB_OUTPUT
+        
+    - name: Check for tasks folder
+      id: check-tasks
+      run: |
+        if [ -d "tasks" ]; then
+          echo "has_tasks=true" >> $GITHUB_OUTPUT
+          echo "Found tasks folder with $(ls tasks/ | wc -l) files"
+        else
+          echo "has_tasks=false" >> $GITHUB_OUTPUT
+          echo "No tasks folder found - skipping artifact creation"
+        fi
+        
+    - name: Create feature artifact
+      if: steps.check-tasks.outputs.has_tasks == 'true'
+      run: |
+        ARTIFACT_DIR="release-artifacts/${{ steps.feature-info.outputs.feature_release_name }}"
+        mkdir -p "${ARTIFACT_DIR}"
+        
+        # Copy tasks folder contents
+        cp -r tasks/* "${ARTIFACT_DIR}/" 2>/dev/null || echo "No tasks files to copy"
+        
+        # Create feature summary
+        cat > "${ARTIFACT_DIR}/FEATURE_SUMMARY.md" << EOF
+        # Feature Release: ${{ steps.feature-info.outputs.pr_title }}
+        
+        **Source Branch:** \`${{ steps.feature-info.outputs.branch_name }}\`  
+        **Target Branch:** \`${{ steps.feature-info.outputs.target_branch }}\`  
+        **PR:** #${{ steps.feature-info.outputs.pr_number }}  
+        **Merged:** ${{ steps.feature-info.outputs.merge_date }}  
+        **Author:** ${{ github.event.pull_request.user.login }}
+        
+        ## Description
+        ${{ github.event.pull_request.body }}
+        
+        ## Files Changed
+        \`\`\`
+        $(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
+        \`\`\`
+        
+        ## Commits in this Feature
+        \`\`\`
+        $(git log --oneline ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
+        \`\`\`
+        EOF
+        
+        # Create metadata file
+        cat > "${ARTIFACT_DIR}/metadata.json" << EOF
+        {
+          "feature_release_id": "${{ steps.feature-info.outputs.feature_release_name }}",
+          "feature_number": "${{ steps.feature-info.outputs.feature_number }}",
+          "feature_name": "${{ steps.feature-info.outputs.pr_title }}",
+          "source_branch": "${{ steps.feature-info.outputs.branch_name }}",
+          "target_branch": "${{ steps.feature-info.outputs.target_branch }}",
+          "pr_number": ${{ steps.feature-info.outputs.pr_number }},
+          "merge_date": "${{ steps.feature-info.outputs.merge_date }}",
+          "author": "${{ github.event.pull_request.user.login }}",
+          "base_sha": "${{ github.event.pull_request.base.sha }}",
+          "head_sha": "${{ github.event.pull_request.head.sha }}",
+          "files_changed": $(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | jq -R -s -c 'split("\n")[:-1]')
+        }
+        EOF
+        
+        echo "Created artifact in: ${ARTIFACT_DIR}"
+        ls -la "${ARTIFACT_DIR}"
+        
+    - name: Update release changelog
+      if: steps.check-tasks.outputs.has_tasks == 'true'
+      run: |
+        # Create or update RELEASE_CHANGELOG.md
+        CHANGELOG_FILE="RELEASE_CHANGELOG.md"
+        FEATURE_RELEASE_NAME="${{ steps.feature-info.outputs.feature_release_name }}"
+        
+        # Create changelog header if file doesn't exist
+        if [ ! -f "${CHANGELOG_FILE}" ]; then
+          cat > "${CHANGELOG_FILE}" << EOF
+        # Highway RL - Release Changelog
+        
+        This file tracks all feature releases and their associated artifacts.
+        
+        ## Release History
+        
+        EOF
+        fi
+        
+        # Prepare the new entry
+        NEW_ENTRY=$(cat << EOF
+        
+        ### ${{ steps.feature-info.outputs.feature_number }} - [${{ steps.feature-info.outputs.pr_title }}](https://github.com/${{ github.repository }}/pull/${{ steps.feature-info.outputs.pr_number }}) - ${{ steps.feature-info.outputs.merge_date }}
+        
+        **Release ID:** \`${{ steps.feature-info.outputs.feature_release_name }}\`  
+        **Branch:** \`${{ steps.feature-info.outputs.branch_name }}\`  
+        **Author:** ${{ github.event.pull_request.user.login }}  
+        **Artifact:** \`release-artifacts/${FEATURE_RELEASE_NAME}/\`
+        
+        ${{ github.event.pull_request.body }}
+        
+        **Key Changes:**
+        $(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | head -10 | sed 's/^/- /')
+        $([ $(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | wc -l) -gt 10 ] && echo "- ... and $(( $(git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | wc -l) - 10 )) more files")
+        
+        ---
+        EOF
+        )
+        
+        # Insert new entry after "## Release History" line
+        awk -v new_entry="$NEW_ENTRY" '
+        /^## Release History/ { print; print new_entry; next }
+        { print }
+        ' "${CHANGELOG_FILE}" > temp_changelog.md && mv temp_changelog.md "${CHANGELOG_FILE}"
+        
+        echo "Updated changelog with new entry"
+        
+    - name: Commit and push artifacts
+      if: steps.check-tasks.outputs.has_tasks == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        git add release-artifacts/
+        git add RELEASE_CHANGELOG.md
+        # Stage removal of tasks folder if it was deleted
+        git add -A
+        
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "feat: add release artifact ${{ steps.feature-info.outputs.feature_number }} for ${{ steps.feature-info.outputs.pr_title }}
+
+          - Created artifact: release-artifacts/${{ steps.feature-info.outputs.feature_release_name }}/
+          - Updated RELEASE_CHANGELOG.md with feature summary
+          - Preserved tasks folder contents and metadata
+          - Tasks folder will be cleaned up in final step
+          
+          Release ID: ${{ steps.feature-info.outputs.feature_release_name }}
+          PR: #${{ steps.feature-info.outputs.pr_number }}
+          Branch: ${{ steps.feature-info.outputs.branch_name }}"
+          
+          git push
+        fi
+        
+    - name: Create GitHub Release
+      if: steps.check-tasks.outputs.has_tasks == 'true'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: "${{ steps.feature-info.outputs.feature_release_name }}"
+        release_name: "${{ steps.feature-info.outputs.feature_number }}: ${{ steps.feature-info.outputs.pr_title }}"
+        body: |
+          ## Feature Release Artifact
+          
+          **Release ID:** `${{ steps.feature-info.outputs.feature_release_name }}`
+          **Branch:** `${{ steps.feature-info.outputs.branch_name }}`
+          **PR:** #${{ steps.feature-info.outputs.pr_number }}
+          **Merged:** ${{ steps.feature-info.outputs.merge_date }}
+          
+          This release contains the complete feature development artifacts including:
+          - Project Requirements Document (PRD)
+          - Task breakdown and completion tracking
+          - Feature metadata and change summary
+          
+          **Artifact Location:** `release-artifacts/${{ steps.feature-info.outputs.feature_release_name }}/`
+          
+          ### Description
+          ${{ github.event.pull_request.body }}
+        draft: false
+        prerelease: false
+        
+    - name: Upload artifact to release
+      if: steps.check-tasks.outputs.has_tasks == 'true'
+      run: |
+        # Create a zip of the artifact folder
+        cd release-artifacts
+        zip -r "${{ steps.feature-info.outputs.feature_release_name }}.zip" "${{ steps.feature-info.outputs.feature_release_name }}/"
+        
+        # The zip will be available as a release asset
+        echo "Created release artifact: ${{ steps.feature-info.outputs.feature_release_name }}.zip"
+        
+    - name: Summary
+      if: steps.check-tasks.outputs.has_tasks == 'true'
+      run: |
+        echo "Feature Release Artifact Created Successfully!"
+        echo "Release ID: ${{ steps.feature-info.outputs.feature_release_name }}"
+        echo "Artifact: release-artifacts/${{ steps.feature-info.outputs.feature_release_name }}/"
+        echo "Changelog: Updated RELEASE_CHANGELOG.md"
+        echo "GitHub Release: ${{ steps.feature-info.outputs.feature_release_name }}"
+        echo "View at: https://github.com/${{ github.repository }}/releases"
+        
+    - name: Final cleanup - Remove tasks folder
+      if: steps.check-tasks.outputs.has_tasks == 'true'
+      run: |
+        # Final step: Remove tasks folder after all artifacts are created and committed
+        if [ -d "tasks" ]; then
+          echo "Performing final cleanup: Removing tasks/ folder"
+          rm -rf tasks/
+          echo "Tasks folder successfully removed - ready for next feature"
+        else
+          echo "Tasks folder already cleaned up"
+        fi
