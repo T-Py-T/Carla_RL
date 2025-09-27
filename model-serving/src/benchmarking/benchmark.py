@@ -6,15 +6,12 @@ test scenarios for validating performance requirements.
 """
 
 import asyncio
-import statistics
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import numpy as np
 import psutil
-import torch
 
 
 @dataclass
@@ -175,13 +172,13 @@ class BenchmarkEngine:
 
             try:
                 # Perform inference
-                result = inference_func(observations, self.config.deterministic_mode)
+                inference_func(observations, self.config.deterministic_mode)
                 end_time = time.perf_counter()
 
                 latency_ms = (end_time - start_time) * 1000.0
                 latencies.append(latency_ms)
 
-            except Exception as e:
+            except Exception:
                 failed_measurements += 1
                 if failed_measurements > iterations * 0.1:  # More than 10% failures
                     print(
@@ -356,13 +353,10 @@ class BenchmarkEngine:
 
         # Calculate additional throughput metrics
         if request_times:
-            avg_request_time = sum(request_times) / len(request_times)
-            max_request_time = max(request_times)
-            min_request_time = min(request_times)
+            # Request time statistics available but not currently used
+            pass
         else:
-            avg_request_time = 0.0
-            max_request_time = 0.0
-            min_request_time = 0.0
+            pass  # No request times available
 
         return ThroughputStats(
             requests_per_second=requests_per_second,
@@ -457,9 +451,6 @@ class BenchmarkEngine:
         for i in range(iterations):
             # Force garbage collection before each measurement
             gc.collect()
-
-            # Measure memory before inference
-            memory_before = process.memory_info().rss / 1024 / 1024
 
             try:
                 # Perform inference
