@@ -1,17 +1,28 @@
 name: Merge Validation
 
 on:
-  push:
+  pull_request:
+    types: [opened, synchronize, reopened]
     branches: [main, master, dev, staging, production]
 
 jobs:
-  # full validation for merges
+  # Comprehensive validation for PR merges
+  # NOTE: This should be configured as a required status check in branch protection rules
   merge-validation:
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for better context
+        
+    - name: Show PR information
+      run: |
+        echo "PR #${{ github.event.number }}: ${{ github.event.pull_request.title }}"
+        echo "From: ${{ github.event.pull_request.head.ref }}"
+        echo "To: ${{ github.event.pull_request.base.ref }}"
+        echo "Author: ${{ github.event.pull_request.user.login }}"
       
     - name: Set up Python
       uses: actions/setup-python@v4
