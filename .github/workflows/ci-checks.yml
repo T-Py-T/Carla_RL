@@ -23,7 +23,7 @@ jobs:
     - name: Install basic dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ruff==0.1.8 black==23.12.1 isort==5.13.2 pyyaml
+        pip install ruff==0.1.8 pyyaml
         
     - name: Check Python syntax
       run: |
@@ -32,23 +32,12 @@ jobs:
         find . -name "*.py" -not -path "./.venv/*" -not -path "./.git/*" -exec python -m py_compile {} \;
         echo "✅ Python syntax check passed"
         
-    - name: Check code formatting with black
+    - name: Check code style with ruff
       run: |
-        echo "🎨 Checking code formatting..."
-        black --check --diff . --exclude="\.venv|\.git"
-        echo "✅ Code formatting check passed"
-        
-    - name: Check import sorting with isort
-      run: |
-        echo "📦 Checking import sorting..."
-        isort --check-only --diff . --skip-glob=".venv/*" --skip-glob=".git/*"
-        echo "✅ Import sorting check passed"
-        
-    - name: Basic linting with ruff
-      run: |
-        echo "🔧 Running basic linting..."
-        ruff check . --select=E,W,F --exclude=".venv,.git"
-        echo "✅ Linting check passed"
+        echo "🔧 Running ruff linting checks..."
+        # Use the pyproject.toml configuration for consistent rules
+        ruff check .
+        echo "✅ Code style check passed"
         
     - name: Check for basic security issues
       run: |

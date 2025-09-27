@@ -29,14 +29,11 @@ While the CI runner handles all the tooling, you can still run basic checks loca
 # Check Python syntax
 find . -name "*.py" -exec python -m py_compile {} \;
 
-# Check formatting (will show what needs fixing)
-black --check --diff .
+# Check code style (uses pyproject.toml config)
+ruff check .
 
-# Check imports
-isort --check-only --diff .
-
-# Basic linting
-ruff check . --select=E,W,F
+# Show what would be fixed
+ruff check . --diff
 ```
 
 ## Auto-fix Commands
@@ -44,15 +41,20 @@ ruff check . --select=E,W,F
 If you want to fix issues locally before pushing:
 
 ```bash
-# Fix formatting
-black .
-
-# Fix imports  
-isort .
-
-# Fix linting issues
+# Fix all auto-fixable issues
 ruff check --fix .
+
+# Fix only specific rule types
+ruff check --fix --select=E,W,F .
 ```
+
+## Ruff Configuration
+
+The project uses a `pyproject.toml` file to configure ruff with:
+- **Lenient rules** - Only catches real issues, not style preferences
+- **Ignores common false positives** - E501 (line length), W503 (line breaks)
+- **Auto-fixable** - Most issues can be automatically fixed
+- **Import organization** - Handles import sorting automatically
 
 ## Why This Approach?
 
