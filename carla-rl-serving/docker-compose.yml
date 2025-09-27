@@ -1,0 +1,186 @@
+version: '3.8'
+
+services:
+  # CarlaRL Policy Serving Service
+  carla-rl-serving:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: carla-rl-serving
+    ports:
+      - "8080:8080"
+    environment:
+      - ARTIFACT_DIR=/app/artifacts
+      - MODEL_VERSION=v0.1.0
+      - USE_GPU=0
+      - LOG_LEVEL=info
+      - WORKERS=1
+      - CORS_ORIGINS=*
+      - ALLOWED_HOSTS=*
+    volumes:
+      - ./artifacts:/app/artifacts:ro
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - carla-rl-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.carla-rl.rule=Host(`carla-rl.localhost`)"
+      - "traefik.http.services.carla-rl.loadbalancer.server.port=8080"
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:v2.45.0
+    container_name: carla-rl-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.external-url=http://localhost:9090'
+    networks:
+      - carla-rl-network
+    restart: unless-stopped
+
+  # Grafana for metrics visualization
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: carla-rl-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - carla-rl-network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7.2-alpine
+    container_name: carla-rl-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - carla-rl-network
+    restart: unless-stopped
+    profiles:
+      - "with-cache"
+
+  # Load balancer (Traefik)
+  traefik:
+    image: traefik:v3.0
+    container_name: carla-rl-traefik
+    ports:
+      - "80:80"
+      - "8081:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./monitoring/traefik.yml:/etc/traefik/traefik.yml:ro
+    networks:
+      - carla-rl-network
+    restart: unless-stopped
+    profiles:
+      - "with-lb"
+
+  # Multiple serving instances for load balancing
+  carla-rl-serving-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: carla-rl-serving-2
+    ports:
+      - "8082:8080"
+    environment:
+      - ARTIFACT_DIR=/app/artifacts
+      - MODEL_VERSION=v0.1.0
+      - USE_GPU=0
+      - LOG_LEVEL=info
+      - WORKERS=1
+    volumes:
+      - ./artifacts:/app/artifacts:ro
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - carla-rl-network
+    profiles:
+      - "multi-instance"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.carla-rl.loadbalancer.server.port=8080"
+
+  carla-rl-serving-3:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: carla-rl-serving-3
+    ports:
+      - "8083:8080"
+    environment:
+      - ARTIFACT_DIR=/app/artifacts
+      - MODEL_VERSION=v0.1.0
+      - USE_GPU=0
+      - LOG_LEVEL=info
+      - WORKERS=1
+    volumes:
+      - ./artifacts:/app/artifacts:ro
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - carla-rl-network
+    profiles:
+      - "multi-instance"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.services.carla-rl.loadbalancer.server.port=8080"
+
+volumes:
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  redis-data:
+    driver: local
+
+networks:
+  carla-rl-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -78,28 +78,28 @@ Based on PRD: `prd-carla-rl-serving.md`
   - [x] 3.10 Write performance benchmarking tests with latency and throughput validation
   - [x] 3.11 Write unit tests for inference engine with determinism and batch consistency
 
-- [ ] 4.0 **Infrastructure & Deployment** (Agent 4: Docker, dependencies, build system)
-  - [ ] 4.1 Create multi-stage Dockerfile with optimized Python base image
-  - [ ] 4.2 Configure non-root user and read-only filesystem for security
-  - [ ] 4.3 Set up pyproject.toml with pinned dependencies and development tools
-  - [ ] 4.4 Create Makefile with development, testing, and deployment commands
-  - [ ] 4.5 Configure uvicorn server with production settings and worker management
-  - [ ] 4.6 Set up environment variable configuration for artifact paths and device selection
-  - [ ] 4.7 Create health check configuration for container orchestration
-  - [ ] 4.8 Implement resource limits and memory constraints in container
-  - [ ] 4.9 Create docker-compose.yml for local development and testing
-  - [ ] 4.10 Write comprehensive README with setup, usage, and deployment instructions
-  - [ ] 4.11 Create integration tests for containerized deployment
+- [x] 4.0 **Infrastructure & Deployment** (Agent 4: Docker, dependencies, build system)
+  - [x] 4.1 Create multi-stage Dockerfile with optimized Python base image
+  - [x] 4.2 Configure non-root user and read-only filesystem for security
+  - [x] 4.3 Set up pyproject.toml with pinned dependencies and development tools
+  - [x] 4.4 Create Makefile with development, testing, and deployment commands
+  - [x] 4.5 Configure uvicorn server with production settings and worker management
+  - [x] 4.6 Set up environment variable configuration for artifact paths and device selection
+  - [x] 4.7 Create health check configuration for container orchestration
+  - [x] 4.8 Implement resource limits and memory constraints in container
+  - [x] 4.9 Create docker-compose.yml for local development and testing
+  - [x] 4.10 Write comprehensive README with setup, usage, and deployment instructions
+  - [x] 4.11 Create integration tests for containerized deployment
 
-- [ ] 5.0 **Artifact Management System** (Agent 5: Model artifacts, validation, export pipeline)
-  - [ ] 5.1 Create model export utilities from existing CarlaRL training code
-  - [ ] 5.2 Implement TorchScript model serialization with optimization
-  - [ ] 5.3 Create preprocessor serialization pipeline maintaining train-serve parity
-  - [ ] 5.4 Design model_card.yaml schema with metadata, performance metrics, and versioning
-  - [ ] 5.5 Implement artifact directory structure with semantic versioning
-  - [ ] 5.6 Create hash-based artifact validation and integrity checking
-  - [ ] 5.7 Build model registry interface for artifact discovery and management
-  - [ ] 5.8 Implement artifact migration utilities for version upgrades
-  - [ ] 5.9 Create example artifacts (v0.1.0) with sample model, preprocessor, and metadata
-  - [ ] 5.10 Write validation tests for artifact format compliance and integrity
-  - [ ] 5.11 Write unit tests for export pipeline with various model architectures
+- [x] 5.0 **Artifact Management System** (Agent 5: Model artifacts, validation, export pipeline)
+  - [x] 5.1 Create model export utilities from existing CarlaRL training code
+  - [x] 5.2 Implement TorchScript model serialization with optimization
+  - [x] 5.3 Create preprocessor serialization pipeline maintaining train-serve parity
+  - [x] 5.4 Design model_card.yaml schema with metadata, performance metrics, and versioning
+  - [x] 5.5 Implement artifact directory structure with semantic versioning
+  - [x] 5.6 Create hash-based artifact validation and integrity checking
+  - [x] 5.7 Build model registry interface for artifact discovery and management
+  - [x] 5.8 Implement artifact migration utilities for version upgrades
+  - [x] 5.9 Create example artifacts (v0.1.0) with sample model, preprocessor, and metadata
+  - [x] 5.10 Write validation tests for artifact format compliance and integrity
+  - [x] 5.11 Write unit tests for export pipeline with various model architectures
