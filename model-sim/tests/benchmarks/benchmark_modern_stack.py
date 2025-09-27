@@ -12,7 +12,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 import time
 import numpy as np
 import tensorflow as tf
-from typing import Dict, List, Tuple
 
 
 def benchmark_tensorflow_versions():
@@ -44,7 +43,7 @@ def benchmark_tensorflow_versions():
         # Benchmark
         start_time = time.time()
         for _ in range(10):
-            result = tf.matmul(a, b)
+            tf.matmul(a, b)
         end_time = time.time()
         
         avg_time = (end_time - start_time) / 10
@@ -88,7 +87,7 @@ def benchmark_models():
             start_time = time.time()
             num_runs = 50
             for _ in range(num_runs):
-                output = model(test_input, training=False)
+                model(test_input, training=False)
             end_time = time.time()
             
             avg_time = (end_time - start_time) / num_runs
@@ -139,7 +138,6 @@ def benchmark_numpy_performance():
     """Benchmark NumPy 2.x performance"""
     print("\nNumPy Performance Benchmark")
     print("=" * 50)
-    import numpy as np
     print(f"NumPy Version: {np.__version__}")
     
     # Array operations benchmark
@@ -169,7 +167,7 @@ def benchmark_numpy_performance():
             start_time = time.time()
             num_runs = 100 if size <= 10000 else 10
             for _ in range(num_runs):
-                result = op_func(a, b)
+                op_func(a, b)
             end_time = time.time()
             
             avg_time = (end_time - start_time) / num_runs
@@ -212,7 +210,7 @@ def benchmark_memory_usage():
         print(f"After Batch Creation: {batch_memory:.1f} MB (+{batch_memory - model_memory:.1f} MB)")
         
         # Forward pass
-        output = model(test_input, training=False)
+        model(test_input, training=False)
         forward_memory = process.memory_info().rss / 1024 / 1024  # MB
         print(f"After Forward Pass: {forward_memory:.1f} MB (+{forward_memory - batch_memory:.1f} MB)")
         
@@ -222,7 +220,7 @@ def benchmark_memory_usage():
         actual_memory = forward_memory - initial_memory
         efficiency = theoretical_memory / actual_memory * 100
         
-        print(f"\nMemory Efficiency:")
+        print("\nMemory Efficiency:")
         print(f"  Theoretical: {theoretical_memory:.1f} MB")
         print(f"  Actual: {actual_memory:.1f} MB")
         print(f"  Efficiency: {efficiency:.1f}%")

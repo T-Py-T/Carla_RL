@@ -7,7 +7,6 @@ Provides rich environment feedback and multiple driving scenarios.
 
 import numpy as np
 import gymnasium as gym
-import highway_env
 from typing import Dict, Tuple, Optional, Any, List
 
 

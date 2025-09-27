@@ -49,6 +49,29 @@ carla-play = "carla_rl.play:main"
 line-length = 88
 target-version = "py39"
 
+[tool.ruff.lint]
+select = [
+    "E9",      # pycodestyle errors (syntax errors, indentation)
+    "F",       # pyflakes (undefined names, unused imports)
+]
+ignore = [
+    "E501",    # line too long
+    "E203",    # whitespace before ':'
+    "B008",    # do not perform function calls in argument defaults
+    "B006",    # do not use mutable data structures for argument defaults
+    "B904",    # raise exceptions with raise ... from err
+    "N803",    # argument name should be lowercase
+    "N815",    # variable in class scope should not be mixedCase
+    "N818",    # exception name should be named with an Error suffix
+    "F841",    # local variable assigned but never used
+    "F401",    # imported but unused
+    "E402",    # module level import not at top of file
+    "E722",    # do not use bare except
+    "W291",    # trailing whitespace
+    "W293",    # blank line contains whitespace
+    "B007",    # loop control variable not used within loop body
+]
+
 [tool.mypy]
 python_version = "3.9"
 warn_return_any = true

@@ -7,7 +7,6 @@ for consistent reporting across the application.
 
 import os
 import subprocess
-from typing import Optional
 
 # Application metadata
 APP_NAME = "carla-rl-serving"
@@ -29,7 +28,7 @@ def get_git_sha() -> str:
             return result.stdout.strip()
     except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError):
         pass
-    
+
     # Fallback to environment variable
     return os.getenv("GIT_SHA", "unknown")
 
@@ -42,7 +41,7 @@ BUILD_NUMBER = os.getenv("BUILD_NUMBER", "unknown")
 # Version info dictionary for easy access
 VERSION_INFO = {
     "app_name": APP_NAME,
-    "model_name": MODEL_NAME, 
+    "model_name": MODEL_NAME,
     "model_version": MODEL_VERSION,
     "git_sha": GIT_SHA,
     "build_date": BUILD_DATE,

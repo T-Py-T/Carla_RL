@@ -7,13 +7,12 @@ and Apple Silicon optimizations.
 
 import numpy as np
 import time
-import os
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Dict, List, Optional, Any
 from pathlib import Path
 
 from .environment import HighwayEnvironment, MultiScenarioEnvironment
 from .agent import HighwayDQNAgent
-from .logger import WandBLogger, MultiLogger
+from .logger import MultiLogger
 
 
 class HighwayTrainer:

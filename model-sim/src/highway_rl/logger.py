@@ -11,7 +11,7 @@ import tensorflow as tf
 import time
 import psutil
 import platform
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from pathlib import Path
 
 

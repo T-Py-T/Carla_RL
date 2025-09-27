@@ -7,15 +7,13 @@ This is the primary training approach for macOS development.
 """
 
 import sys
-import os
 import argparse
 from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-import numpy as np
-from highway_rl import HighwayDQNAgent, HighwayEnvironment, HighwayTrainer, WandBLogger
+from highway_rl import HighwayDQNAgent, HighwayEnvironment, HighwayTrainer
 from highway_rl.logger import MultiLogger
 from highway_rl.trainer import MultiScenarioTrainer
 
@@ -112,7 +110,7 @@ def train_single_scenario(args):
         config_overrides=HighwayEnvironment.get_optimized_config(args.scenario)
     )
     
-    print(f"Environment created:")
+    print("Environment created:")
     print(f"  Observation space: {env.observation_space}")
     print(f"  Action space: {env.action_space}")
     
@@ -127,7 +125,7 @@ def train_single_scenario(args):
         print(f"Loading model from: {args.load_model}")
         agent.load(args.load_model)
     
-    print(f"Agent created:")
+    print("Agent created:")
     print(f"  Architecture: {'Dueling' if args.dueling_dqn else 'Standard'} DQN")
     print(f"  Double DQN: {args.double_dqn}")
     print(f"  Mixed Precision: {args.mixed_precision}")
@@ -146,7 +144,7 @@ def train_single_scenario(args):
     )
     
     # Train
-    print(f"\nStarting training...")
+    print("\nStarting training...")
     results = trainer.train(
         episodes=args.episodes,
         eval_frequency=args.eval_frequency,
@@ -154,10 +152,10 @@ def train_single_scenario(args):
     )
     
     # Final evaluation
-    print(f"\nFinal evaluation:")
+    print("\nFinal evaluation:")
     final_eval = trainer.evaluate(episodes=50)
     
-    print(f"Final Results:")
+    print("Final Results:")
     print(f"  Mean Reward: {final_eval['mean_reward']:.2f} ± {final_eval['std_reward']:.2f}")
     print(f"  Success Rate: {final_eval['success_rate']:.2f}")
     print(f"  Collision Rate: {final_eval['collision_rate']:.2f}")
@@ -192,7 +190,7 @@ def train_curriculum(args):
         print(f"Loading model from: {args.load_model}")
         agent.load(args.load_model)
     
-    print(f"Agent created for curriculum training:")
+    print("Agent created for curriculum training:")
     print(f"  Scenarios: {scenarios}")
     print(f"  Architecture: {'Dueling' if args.dueling_dqn else 'Standard'} DQN")
     print(f"  Parameters: {agent.q_network.count_params():,}")
@@ -209,15 +207,15 @@ def train_curriculum(args):
     )
     
     # Train with curriculum
-    print(f"\nStarting curriculum training...")
+    print("\nStarting curriculum training...")
     results = trainer.train_curriculum(
         episodes_per_scenario=args.episodes // len(scenarios),
         evaluation_episodes=20
     )
     
     # Print final results
-    print(f"\nCurriculum Training Complete!")
-    print(f"Final Performance Across All Scenarios:")
+    print("\nCurriculum Training Complete!")
+    print("Final Performance Across All Scenarios:")
     for scenario, eval_results in results['final_evaluation'].items():
         print(f"  {scenario:12s}: {eval_results['mean_reward']:6.2f} ± {eval_results['std_reward']:5.2f} "
               f"(Success: {eval_results['success_rate']:5.2f})")
@@ -235,7 +233,7 @@ def main():
     
     print("Highway RL Training")
     print("=" * 50)
-    print(f"Platform: Apple Silicon Optimized")
+    print("Platform: Apple Silicon Optimized")
     print(f"Scenario: {args.scenario}")
     print(f"Episodes: {args.episodes}")
     print(f"Mixed Precision: {args.mixed_precision}")

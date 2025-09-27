@@ -7,7 +7,6 @@ Evaluates trained highway RL models and reports performance metrics.
 
 import sys
 import os
-import glob
 from pathlib import Path
 
 # Add src to path
@@ -15,7 +14,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 try:
     from highway_rl import HighwayDQNAgent, HighwayEnvironment, HighwayTrainer
-    import numpy as np
     
     def evaluate_latest_model():
         """Evaluate the most recently trained model."""

@@ -102,7 +102,6 @@ class TestCrossPlatformCompatibility(unittest.TestCase):
         """Test that models can be created on this platform"""
         try:
             from carla_rl import models, settings
-            import tensorflow as tf
             
             # Test model base creation
             input_shape = (settings.IMG_HEIGHT, settings.IMG_WIDTH, 1)

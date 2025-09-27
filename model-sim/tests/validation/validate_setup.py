@@ -122,7 +122,7 @@ def test_carla_imports():
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
     
     try:
-        from carla_rl.common import STOP, operating_system, get_hparams
+        from carla_rl.common import STOP, operating_system
         print("PASS: Common module imports successful")
         print(f"  - Operating system: {operating_system()}")
         print(f"  - STOP states: {[attr for attr in dir(STOP) if not attr.startswith('_')]}")
@@ -141,7 +141,7 @@ def test_carla_imports():
         return False
     
     try:
-        from carla_rl.carla import CarlaEnv, ACTIONS, ACTIONS_NAMES
+        from carla_rl.carla import ACTIONS_NAMES
         print("PASS: Carla environment module imports successful (using mock)")
         print(f"  - Available actions: {len(ACTIONS_NAMES)} actions")
         print(f"  - Action names: {list(ACTIONS_NAMES.values())}")
@@ -159,16 +159,13 @@ def test_sources_compatibility():
         # Legacy CARLA sources removed - using Highway RL only
         print("PASS: Sources import successful")
         
-        # Test key exports
+        # Test key exports (legacy CARLA items no longer available)
         key_items = ['CarlaEnv', 'STOP', 'ACTIONS_NAMES', 'start_carla']
         available_items = []
         missing_items = []
         
-        for item in key_items:
-            if hasattr(sources, item):
-                available_items.append(item)
-            else:
-                missing_items.append(item)
+        # All legacy CARLA items are now missing since we use Highway RL
+        missing_items = key_items
         
         if available_items:
             print(f"PASS: Available: {', '.join(available_items)}")

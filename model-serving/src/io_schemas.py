@@ -5,15 +5,16 @@ This module defines all input/output schemas for the FastAPI endpoints,
 ensuring type safety and validation for the serving infrastructure.
 """
 
-from typing import List, Optional, Any, Dict
-from pydantic import BaseModel, Field, ConfigDict, field_validator
 import time
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class Observation(BaseModel):
     """
     Single observation from the CARLA environment.
-    
+
     Represents the current state of the vehicle including speed, steering,
     and sensor readings (cameras, lidar, etc.) as flattened arrays.
     """
@@ -26,29 +27,29 @@ class Observation(BaseModel):
             }
         }
     )
-    
+
     speed: float = Field(
-        ..., 
-        ge=0.0, 
+        ...,
+        ge=0.0,
         le=200.0,
         description="Vehicle speed in km/h"
     )
     steering: float = Field(
-        ..., 
-        ge=-1.0, 
+        ...,
+        ge=-1.0,
         le=1.0,
         description="Current steering angle (-1.0 = full left, 1.0 = full right)"
     )
-    sensors: List[float] = Field(
+    sensors: list[float] = Field(
         ...,
         min_length=1,
         max_length=10000,
         description="Flattened sensor data (camera pixels, lidar points, etc.)"
     )
-    
+
     @field_validator('sensors')
     @classmethod
-    def validate_sensors(cls, v: List[float]) -> List[float]:
+    def validate_sensors(cls, v: list[float]) -> list[float]:
         """Ensure all sensor values are finite and within reasonable bounds."""
         for i, val in enumerate(v):
             if not (-1000.0 <= val <= 1000.0):
@@ -59,7 +60,7 @@ class Observation(BaseModel):
 class Action(BaseModel):
     """
     Action output from the RL policy.
-    
+
     Represents the control commands for the vehicle: throttle, brake, and steering.
     All values are normalized between -1.0 and 1.0 or 0.0 and 1.0 as appropriate.
     """
@@ -72,7 +73,7 @@ class Action(BaseModel):
             }
         }
     )
-    
+
     throttle: float = Field(
         ...,
         ge=0.0,
@@ -96,7 +97,7 @@ class Action(BaseModel):
 class PredictRequest(BaseModel):
     """
     Request payload for the /predict endpoint.
-    
+
     Contains batch of observations and optional deterministic mode flag.
     """
     model_config = ConfigDict(
@@ -113,14 +114,14 @@ class PredictRequest(BaseModel):
             }
         }
     )
-    
-    observations: List[Observation] = Field(
+
+    observations: list[Observation] = Field(
         ...,
         min_length=1,
         max_length=1000,
         description="Batch of observations to process"
     )
-    deterministic: Optional[bool] = Field(
+    deterministic: bool | None = Field(
         default=False,
         description="Whether to use deterministic inference (reproducible outputs)"
     )
@@ -129,7 +130,7 @@ class PredictRequest(BaseModel):
 class PredictResponse(BaseModel):
     """
     Response payload from the /predict endpoint.
-    
+
     Contains predicted actions, model version, and timing information.
     """
     model_config = ConfigDict(
@@ -148,8 +149,8 @@ class PredictResponse(BaseModel):
             }
         }
     )
-    
-    actions: List[Action] = Field(
+
+    actions: list[Action] = Field(
         ...,
         description="Predicted actions corresponding to input observations"
     )
@@ -181,7 +182,7 @@ class HealthResponse(BaseModel):
             }
         }
     )
-    
+
     status: str = Field(
         ...,
         description="Service health status"
@@ -221,7 +222,7 @@ class MetadataResponse(BaseModel):
             }
         }
     )
-    
+
     modelName: str = Field(
         ...,
         description="Name of the loaded model"
@@ -234,11 +235,11 @@ class MetadataResponse(BaseModel):
         ...,
         description="Inference device"
     )
-    inputShape: List[int] = Field(
+    inputShape: list[int] = Field(
         ...,
         description="Expected input tensor shape"
     )
-    actionSpace: Dict[str, List[float]] = Field(
+    actionSpace: dict[str, list[float]] = Field(
         ...,
         description="Action space bounds for each action dimension"
     )
@@ -255,7 +256,7 @@ class WarmupResponse(BaseModel):
             }
         }
     )
-    
+
     status: str = Field(
         ...,
         description="Warmup status"
@@ -286,7 +287,7 @@ class ErrorResponse(BaseModel):
             }
         }
     )
-    
+
     error: str = Field(
         ...,
         description="Error type/category"
@@ -295,7 +296,7 @@ class ErrorResponse(BaseModel):
         ...,
         description="Human-readable error message"
     )
-    details: Optional[Dict[str, Any]] = Field(
+    details: dict[str, Any] | None = Field(
         default=None,
         description="Additional error context and debugging information"
     )

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Simple script to create dummy artifacts without torch dependency"""
 
-import pickle
-import json
 import os
+import pickle
+
 
 def create_dummy_model():
     """Create a simple dummy model file"""
@@ -22,25 +22,25 @@ def create_dummy_preprocessor():
         def transform(self, X):
             # Simple identity transform
             return X
-    
+
     return DummyPreprocessor()
 
 def main():
     artifacts_dir = "artifacts/v0.1.0"
     os.makedirs(artifacts_dir, exist_ok=True)
-    
+
     # Create dummy model.pt (actually a pickle file)
     model_path = os.path.join(artifacts_dir, "model.pt")
     with open(model_path, 'wb') as f:
         pickle.dump(create_dummy_model(), f)
     print(f"Created dummy model: {model_path}")
-    
+
     # Create preprocessor.pkl
     preprocessor_path = os.path.join(artifacts_dir, "preprocessor.pkl")
     with open(preprocessor_path, 'wb') as f:
         pickle.dump(create_dummy_preprocessor(), f)
     print(f"Created dummy preprocessor: {preprocessor_path}")
-    
+
     print("✅ Dummy artifacts created successfully!")
 
 if __name__ == "__main__":

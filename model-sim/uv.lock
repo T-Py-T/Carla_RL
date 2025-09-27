@@ -61,58 +61,6 @@ wheels = [
 ]
 
 [[package]]
-name = "carla-rl"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "colorama" },
-    { name = "gymnasium", version = "1.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
-    { name = "gymnasium", version = "1.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
-    { name = "highway-env" },
-    { name = "numpy" },
-    { name = "opencv-python" },
-    { name = "psutil" },
-    { name = "tensorboard-plugin-wit" },
-    { name = "wandb" },
-]
-
-[package.optional-dependencies]
-apple-gpu = [
-    { name = "tensorflow-macos" },
-    { name = "tensorflow-metal" },
-]
-dev = [
-    { name = "mypy" },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "ruff" },
-]
-nvidia-gpu = [
-    { name = "tensorflow", version = "2.14.0", source = { registry = "https://pypi.org/simple" }, extra = ["and-cuda"], marker = "(python_full_version >= '3.10' and sys_platform == 'darwin') or (platform_machine == 'arm64' and sys_platform == 'darwin')" },
-    { name = "tensorflow", version = "2.15.1", source = { registry = "https://pypi.org/simple" }, extra = ["and-cuda"], marker = "(python_full_version < '3.10' and platform_machine != 'arm64') or sys_platform != 'darwin'" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "colorama", specifier = ">=0.4.4" },
-    { name = "gymnasium", specifier = ">=1.1.1" },
-    { name = "highway-env", specifier = ">=1.10.1" },
-    { name = "mypy", marker = "extra == 'dev'" },
-    { name = "numpy", specifier = ">=1.21.0" },
-    { name = "opencv-python", specifier = ">=4.5.0" },
-    { name = "pre-commit", marker = "extra == 'dev'" },
-    { name = "psutil", specifier = ">=5.8.0" },
-    { name = "pytest", marker = "extra == 'dev'" },
-    { name = "ruff", marker = "extra == 'dev'" },
-    { name = "tensorboard-plugin-wit", specifier = ">=1.8.1" },
-    { name = "tensorflow", extras = ["and-cuda"], marker = "extra == 'nvidia-gpu'", specifier = ">=2.14.0" },
-    { name = "tensorflow-macos", marker = "extra == 'apple-gpu'", specifier = ">=2.14.0,<2.16.0" },
-    { name = "tensorflow-metal", marker = "extra == 'apple-gpu'", specifier = ">=1.2.0" },
-    { name = "wandb", specifier = ">=0.22.0" },
-]
-provides-extras = ["apple-gpu", "nvidia-gpu", "dev"]
-
-[[package]]
 name = "certifi"
 version = "2025.8.3"
 source = { registry = "https://pypi.org/simple" }
@@ -743,6 +691,58 @@ sdist = { url = "https://files.pythonhosted.org/packages/20/f0/250bdaef408b27e55
 wheels = [
     { url = "https://files.pythonhosted.org/packages/4a/0d/e3b8a92da9b8f19f630fea300e94411fa5605b70bfa49e1c4fe20489a3a3/highway_env-1.10.1-py3-none-any.whl", hash = "sha256:37a9e71268e70c32fc5b7f01f14a6e3cb41f6f456cd67affe87d4ce04601521e", size = 104966, upload-time = "2024-08-19T21:59:04.811Z" },
 ]
+
+[[package]]
+name = "highway-rl"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "colorama" },
+    { name = "gymnasium", version = "1.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
+    { name = "gymnasium", version = "1.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "highway-env" },
+    { name = "numpy" },
+    { name = "opencv-python" },
+    { name = "psutil" },
+    { name = "tensorboard-plugin-wit" },
+    { name = "wandb" },
+]
+
+[package.optional-dependencies]
+apple-gpu = [
+    { name = "tensorflow-macos" },
+    { name = "tensorflow-metal" },
+]
+dev = [
+    { name = "mypy" },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "ruff" },
+]
+nvidia-gpu = [
+    { name = "tensorflow", version = "2.14.0", source = { registry = "https://pypi.org/simple" }, extra = ["and-cuda"], marker = "(python_full_version >= '3.10' and sys_platform == 'darwin') or (platform_machine == 'arm64' and sys_platform == 'darwin')" },
+    { name = "tensorflow", version = "2.15.1", source = { registry = "https://pypi.org/simple" }, extra = ["and-cuda"], marker = "(python_full_version < '3.10' and platform_machine != 'arm64') or sys_platform != 'darwin'" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "colorama", specifier = ">=0.4.4" },
+    { name = "gymnasium", specifier = ">=1.1.1" },
+    { name = "highway-env", specifier = ">=1.10.1" },
+    { name = "mypy", marker = "extra == 'dev'" },
+    { name = "numpy", specifier = ">=1.21.0" },
+    { name = "opencv-python", specifier = ">=4.5.0" },
+    { name = "pre-commit", marker = "extra == 'dev'" },
+    { name = "psutil", specifier = ">=5.8.0" },
+    { name = "pytest", marker = "extra == 'dev'" },
+    { name = "ruff", marker = "extra == 'dev'" },
+    { name = "tensorboard-plugin-wit", specifier = ">=1.8.1" },
+    { name = "tensorflow", extras = ["and-cuda"], marker = "extra == 'nvidia-gpu'", specifier = ">=2.14.0" },
+    { name = "tensorflow-macos", marker = "extra == 'apple-gpu'", specifier = ">=2.14.0,<2.16.0" },
+    { name = "tensorflow-metal", marker = "extra == 'apple-gpu'", specifier = ">=1.2.0" },
+    { name = "wandb", specifier = ">=0.22.0" },
+]
+provides-extras = ["apple-gpu", "nvidia-gpu", "dev"]
 
 [[package]]
 name = "identify"

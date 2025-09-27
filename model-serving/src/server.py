@@ -9,28 +9,28 @@ import os
 import time
 import uuid
 from contextlib import asynccontextmanager
-from typing import Dict, Any, Optional
+from typing import Any
 
-from fastapi import FastAPI, Request, Depends
+import uvicorn
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse
-from pydantic import ValidationError as PydanticValidationError
-import uvicorn
 
-from .io_schemas import (
-    PredictRequest, PredictResponse, HealthResponse, 
-    MetadataResponse, WarmupResponse, ErrorResponse
-)
 from .exceptions import (
-    CarlaRLServingException, ModelLoadingError, ServiceUnavailableError,
-    EXCEPTION_HANDLERS
+    EXCEPTION_HANDLERS,
+    ServiceUnavailableError,
 )
-from .version import APP_NAME, MODEL_NAME, MODEL_VERSION, GIT_SHA
-
+from .io_schemas import (
+    HealthResponse,
+    MetadataResponse,
+    PredictRequest,
+    PredictResponse,
+    WarmupResponse,
+)
+from .version import APP_NAME, GIT_SHA, MODEL_NAME, MODEL_VERSION
 
 # Global state for model and inference engine
-app_state: Dict[str, Any] = {
+app_state: dict[str, Any] = {
     "model_loaded": False,
     "inference_engine": None,
     "startup_time": None,
@@ -53,39 +53,41 @@ async def lifespan(app: FastAPI):
     """FastAPI lifespan context manager for startup and shutdown."""
     # Startup
     app_state["startup_time"] = time.time()
-    
+
     try:
         # Import here to avoid circular imports
-        from .model_loader import load_artifacts
-        from .inference import InferenceEngine
-        import torch
         from pathlib import Path
-        
+
+        import torch
+
+        from .inference import InferenceEngine
+        from .model_loader import load_artifacts
+
         # Configuration from environment
         artifact_dir = Path(os.getenv("ARTIFACT_DIR", "artifacts")) / MODEL_VERSION
         use_gpu = os.getenv("USE_GPU", "0") == "1"
         device = torch.device("cuda" if torch.cuda.is_available() and use_gpu else "cpu")
-        
+
         print(f"Loading model artifacts from: {artifact_dir}")
         print(f"Using device: {device}")
-        
+
         # Load model and preprocessor
         policy, preprocessor = load_artifacts(artifact_dir, device)
-        
+
         # Initialize inference engine
         app_state["inference_engine"] = InferenceEngine(policy, device, preprocessor)
         app_state["model_loaded"] = True
-        
+
         print(f"Model {MODEL_NAME} v{MODEL_VERSION} loaded successfully")
-        
+
     except Exception as e:
         print(f"Failed to load model: {str(e)}")
         # Don't raise here - let the service start but mark as unavailable
         app_state["model_loaded"] = False
         app_state["inference_engine"] = None
-    
+
     yield
-    
+
     # Shutdown
     print("Shutting down CarlaRL Policy Service...")
     app_state["inference_engine"] = None
@@ -113,7 +115,7 @@ app.add_middleware(
 )
 
 app.add_middleware(
-    TrustedHostMiddleware, 
+    TrustedHostMiddleware,
     allowed_hosts=os.getenv("ALLOWED_HOSTS", "*").split(",")
 )
 
@@ -123,14 +125,14 @@ async def add_request_id_middleware(request: Request, call_next):
     """Add unique request ID to each request for tracing."""
     request_id = str(uuid.uuid4())
     request.state.request_id = request_id
-    
+
     start_time = time.time()
     response = await call_next(request)
     process_time = time.time() - start_time
-    
+
     response.headers["X-Request-ID"] = request_id
     response.headers["X-Process-Time"] = str(process_time)
-    
+
     return response
 
 
@@ -143,13 +145,13 @@ for exception_type, handler in EXCEPTION_HANDLERS.items():
 async def health_check() -> HealthResponse:
     """
     Health check endpoint.
-    
+
     Returns service status, version information, and basic diagnostics.
     """
     import torch
-    
+
     device_str = "cuda" if torch.cuda.is_available() and os.getenv("USE_GPU", "0") == "1" else "cpu"
-    
+
     return HealthResponse(
         status="ok" if app_state["model_loaded"] else "degraded",
         version=MODEL_VERSION,
@@ -164,24 +166,23 @@ async def get_metadata(
 ) -> MetadataResponse:
     """
     Get model metadata and configuration.
-    
+
     Returns information about the loaded model including input/output shapes
     and action space bounds.
     """
-    import torch
-    
+
     device_str = str(inference_engine.device)
-    
+
     # Get input shape from a dummy forward pass or model inspection
     # This is a simplified version - actual implementation would inspect model
     input_shape = [5]  # speed + steering + 3 sensor values (example)
-    
+
     action_space = {
         "throttle": [0.0, 1.0],
-        "brake": [0.0, 1.0], 
+        "brake": [0.0, 1.0],
         "steer": [-1.0, 1.0]
     }
-    
+
     return MetadataResponse(
         modelName=MODEL_NAME,
         version=MODEL_VERSION,
@@ -197,12 +198,12 @@ async def warmup_model(
 ) -> WarmupResponse:
     """
     Warm up the model with dummy inference.
-    
+
     Performs JIT compilation and optimization to reduce cold start latency
     for subsequent inference requests.
     """
     start_time = time.time()
-    
+
     try:
         # Create dummy observation for warmup
         from .io_schemas import Observation
@@ -211,19 +212,19 @@ async def warmup_model(
             steering=0.0,
             sensors=[0.5] * 5
         )
-        
+
         # Perform dummy inference
         _, _ = inference_engine.predict([dummy_obs], deterministic=True)
-        
+
         app_state["warmup_completed"] = True
         timing_ms = (time.time() - start_time) * 1000.0
-        
+
         return WarmupResponse(
             status="warmed",
             timingMs=timing_ms,
             device=str(inference_engine.device)
         )
-        
+
     except Exception as e:
         raise ServiceUnavailableError(
             message="Warmup failed",
@@ -238,24 +239,24 @@ async def predict(
 ) -> PredictResponse:
     """
     Perform batch inference on observations.
-    
+
     Takes a batch of observations and returns corresponding actions
     with timing information and model version.
     """
     try:
         # Perform inference
         actions, timing_ms = inference_engine.predict(
-            request.observations, 
+            request.observations,
             request.deterministic or False
         )
-        
+
         return PredictResponse(
             actions=actions,
             version=MODEL_VERSION,
             timingMs=timing_ms,
             deterministic=request.deterministic or False
         )
-        
+
     except Exception as e:
         from .exceptions import InferenceError
         raise InferenceError(
@@ -273,25 +274,25 @@ async def predict(
 async def get_metrics():
     """
     Basic metrics endpoint for monitoring.
-    
+
     Returns simple text metrics compatible with Prometheus scraping.
     """
     uptime = time.time() - (app_state["startup_time"] or time.time())
-    
+
     metrics = [
-        f"# HELP carla_rl_uptime_seconds Service uptime in seconds",
-        f"# TYPE carla_rl_uptime_seconds counter",
+        "# HELP carla_rl_uptime_seconds Service uptime in seconds",
+        "# TYPE carla_rl_uptime_seconds counter",
         f"carla_rl_uptime_seconds {uptime:.2f}",
-        f"",
-        f"# HELP carla_rl_model_loaded Model loading status (1=loaded, 0=not loaded)",
-        f"# TYPE carla_rl_model_loaded gauge", 
+        "",
+        "# HELP carla_rl_model_loaded Model loading status (1=loaded, 0=not loaded)",
+        "# TYPE carla_rl_model_loaded gauge",
         f"carla_rl_model_loaded {1 if app_state['model_loaded'] else 0}",
-        f"",
-        f"# HELP carla_rl_warmup_completed Warmup completion status (1=completed, 0=not completed)",
-        f"# TYPE carla_rl_warmup_completed gauge",
+        "",
+        "# HELP carla_rl_warmup_completed Warmup completion status (1=completed, 0=not completed)",
+        "# TYPE carla_rl_warmup_completed gauge",
         f"carla_rl_warmup_completed {1 if app_state['warmup_completed'] else 0}",
     ]
-    
+
     return "\n".join(metrics)
 
 

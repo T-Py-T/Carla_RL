@@ -7,7 +7,6 @@ Detects architecture and installs appropriate TensorFlow packages
 import platform
 import subprocess
 import sys
-import os
 
 def get_platform_info():
     """Get detailed platform information"""

@@ -12,7 +12,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 import time
 import numpy as np
 import tensorflow as tf
-from typing import Dict, Tuple
 
 
 def benchmark_old_vs_new_patterns():
@@ -111,7 +110,7 @@ def compare_numpy_versions():
         start_time = time.time()
         num_runs = 100 if 'Matrix' not in op_name else 10
         for _ in range(num_runs):
-            result = op_func(a, b)
+            op_func(a, b)
         end_time = time.time()
         
         avg_time = (end_time - start_time) / num_runs
@@ -152,9 +151,9 @@ def demonstrate_advanced_features():
         
         rainbow_model = tf.keras.Model(inputs=inputs, outputs=q_values)
         
-        print(f"Rainbow DQN Model:")
+        print("Rainbow DQN Model:")
         print(f"Parameters: {rainbow_model.count_params():,}")
-        print(f"Features: Dueling + Distributional")
+        print("Features: Dueling + Distributional")
         
         # Test inference speed
         test_input = tf.random.normal([8] + list(input_shape))
@@ -174,7 +173,7 @@ def demonstrate_advanced_features():
         from carla_rl.curriculum_learning import CurriculumManager
         curriculum = CurriculumManager()
         
-        print(f"\nCurriculum Learning:")
+        print("\nCurriculum Learning:")
         print(f"Levels: {len(curriculum.difficulty_levels)}")
         print(f"Current: {curriculum.current_level.name}")
         print(f"Strategy: {curriculum.strategy.value}")

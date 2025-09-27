@@ -10,7 +10,7 @@ import tensorflow as tf
 from tensorflow import keras
 import random
 from collections import deque
-from typing import Tuple, Optional, Dict, Any
+from typing import Tuple, Dict, Any
 import os
 
 

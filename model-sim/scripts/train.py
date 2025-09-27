@@ -3,7 +3,6 @@ import time
 from collections import deque
 from multiprocessing import Process, Value, Array, Queue
 from threading import Thread
-import subprocess
 
 import settings
 from sources import start_carla, restart_carla
@@ -11,7 +10,7 @@ from sources import STOP, get_hparams
 from sources import run_agent, AGENT_STATE
 from sources import run_trainer, check_weights_size, TRAINER_STATE, CarlaEnv
 from sources import ConsoleStats, Commands
-from sources import get_carla_exec_command, kill_carla_processes, CarlaEnvSettings, CARLA_SETTINGS_STATE
+from sources import kill_carla_processes, CarlaEnvSettings, CARLA_SETTINGS_STATE
 
 
 if __name__ == '__main__':
