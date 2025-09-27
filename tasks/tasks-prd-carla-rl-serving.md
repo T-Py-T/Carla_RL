@@ -52,18 +52,18 @@ Based on PRD: `prd-carla-rl-serving.md`
   - [x] 1.10 Write unit tests for all endpoints with edge cases and error conditions
   - [x] 1.11 Write unit tests for schema validation and serialization/deserialization
 
-- [ ] 2.0 **Model Management Layer** (Agent 2: Model loading, preprocessing, artifact handling)
-  - [ ] 2.1 Create PolicyWrapper class for model encapsulation with deterministic/stochastic modes
-  - [ ] 2.2 Implement model loading utilities supporting TorchScript and ONNX formats
-  - [ ] 2.3 Create artifact integrity validation using hash pinning and checksums
-  - [ ] 2.4 Implement preprocessor loading and serialization (sklearn/custom pipelines)
-  - [ ] 2.5 Create feature pipeline with train-serve parity validation
-  - [ ] 2.6 Implement multi-version model support with semantic versioning
-  - [ ] 2.7 Add device selection logic (CPU/GPU) with automatic fallback
-  - [ ] 2.8 Create model metadata parsing from model_card.yaml files
-  - [ ] 2.9 Implement graceful error handling for missing or corrupted artifacts
-  - [ ] 2.10 Write unit tests for model loading with various artifact configurations
-  - [ ] 2.11 Write unit tests for preprocessing pipeline with edge cases and validation
+- [x] 2.0 **Model Management Layer** (Agent 2: Model loading, preprocessing, artifact handling)
+  - [x] 2.1 Create PolicyWrapper class for model encapsulation with deterministic/stochastic modes
+  - [x] 2.2 Implement model loading utilities supporting TorchScript and ONNX formats
+  - [x] 2.3 Create artifact integrity validation using hash pinning and checksums
+  - [x] 2.4 Implement preprocessor loading and serialization (sklearn/custom pipelines)
+  - [x] 2.5 Create feature pipeline with train-serve parity validation
+  - [x] 2.6 Implement multi-version model support with semantic versioning
+  - [x] 2.7 Add device selection logic (CPU/GPU) with automatic fallback
+  - [x] 2.8 Create model metadata parsing from model_card.yaml files
+  - [x] 2.9 Implement graceful error handling for missing or corrupted artifacts
+  - [x] 2.10 Write unit tests for model loading with various artifact configurations
+  - [x] 2.11 Write unit tests for preprocessing pipeline with edge cases and validation
 
 - [ ] 3.0 **Inference Engine Layer** (Agent 3: Inference optimization, performance, versioning)
   - [ ] 3.1 Create InferenceEngine class with batch processing and memory optimization
