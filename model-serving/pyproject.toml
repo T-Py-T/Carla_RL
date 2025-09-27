@@ -127,8 +127,6 @@ ignore = [
     "N803",    # argument name should be lowercase
     "N815",    # variable in class scope should not be mixedCase
     "N818",    # exception name should be named with an Error suffix
-    "F841",    # local variable assigned but never used
-    "F401",    # imported but unused
     "E402",    # module level import not at top of file
     "E722",    # do not use bare except
     "W291",    # trailing whitespace

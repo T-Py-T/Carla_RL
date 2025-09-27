@@ -6,10 +6,9 @@ recommendations for different CPU and GPU configurations.
 """
 
 import platform
-import subprocess
 import sys
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional
 
 import psutil
 import torch
@@ -261,12 +260,9 @@ class HardwareDetector:
 
     def _check_tensorrt(self) -> bool:
         """Check if TensorRT is available."""
-        try:
-            import tensorrt
+        import importlib.util
 
-            return True
-        except ImportError:
-            return False
+        return importlib.util.find_spec("tensorrt") is not None
 
     def _estimate_cache_size(self, cores: int) -> float:
         """Estimate CPU cache size based on core count."""
