@@ -2,7 +2,6 @@
 Unit tests for hardware detector.
 """
 
-import pytest
 from unittest.mock import Mock, patch
 
 from src.benchmarking.hardware_detector import (
