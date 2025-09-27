@@ -155,15 +155,6 @@ jobs:
         
         echo "Updated changelog with new entry"
         
-    - name: Clean up tasks folder
-      if: steps.check-tasks.outputs.has_tasks == 'true'
-      run: |
-        # Remove tasks folder after successful artifact creation
-        if [ -d "tasks" ]; then
-          echo "Cleaning up tasks/ folder after successful release artifact creation"
-          rm -rf tasks/
-        fi
-        
     - name: Commit and push artifacts
       if: steps.check-tasks.outputs.has_tasks == 'true'
       run: |
@@ -183,7 +174,7 @@ jobs:
           - Created artifact: release-artifacts/${{ steps.feature-info.outputs.feature_release_name }}/
           - Updated RELEASE_CHANGELOG.md with feature summary
           - Preserved tasks folder contents and metadata
-          - Cleaned up tasks/ folder for next feature
+          - Tasks folder will be cleaned up in final step
           
           Release ID: ${{ steps.feature-info.outputs.feature_release_name }}
           PR: #${{ steps.feature-info.outputs.pr_number }}
@@ -239,3 +230,15 @@ jobs:
         echo "Changelog: Updated RELEASE_CHANGELOG.md"
         echo "GitHub Release: ${{ steps.feature-info.outputs.feature_release_name }}"
         echo "View at: https://github.com/${{ github.repository }}/releases"
+        
+    - name: Final cleanup - Remove tasks folder
+      if: steps.check-tasks.outputs.has_tasks == 'true'
+      run: |
+        # Final step: Remove tasks folder after all artifacts are created and committed
+        if [ -d "tasks" ]; then
+          echo "Performing final cleanup: Removing tasks/ folder"
+          rm -rf tasks/
+          echo "Tasks folder successfully removed - ready for next feature"
+        else
+          echo "Tasks folder already cleaned up"
+        fi
