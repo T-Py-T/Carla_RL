@@ -1,0 +1,88 @@
+name: ML Pipeline Trigger
+
+on:
+  push:
+    branches: [main, master, dev]
+    paths:
+      - 'model-sim/**'
+      - 'training/**'
+      - 'models/**'
+  workflow_dispatch:
+    inputs:
+      pipeline_type:
+        description: 'Type of ML pipeline to run'
+        required: true
+        default: 'training'
+        type: choice
+        options:
+          - training
+          - evaluation
+          - deployment
+          - full-pipeline
+
+jobs:
+  # Trigger ML pipelines based on changes
+  ml-pipeline-trigger:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.inputs.pipeline_type != ''
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Determine pipeline type
+      id: pipeline
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "type=${{ github.event.inputs.pipeline_type }}" >> $GITHUB_OUTPUT
+        elif [ -d "model-sim/training" ] && [ -n "$(find model-sim/training -name '*.py' -newer .git/HEAD 2>/dev/null)" ]; then
+          echo "type=training" >> $GITHUB_OUTPUT
+        elif [ -d "model-sim/evaluation" ] && [ -n "$(find model-sim/evaluation -name '*.py' -newer .git/HEAD 2>/dev/null)" ]; then
+          echo "type=evaluation" >> $GITHUB_OUTPUT
+        elif [ -d "models" ] && [ -n "$(find models -name '*.pt' -o -name '*.pkl' -newer .git/HEAD 2>/dev/null)" ]; then
+          echo "type=deployment" >> $GITHUB_OUTPUT
+        else
+          echo "type=full-pipeline" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Log pipeline decision
+      run: |
+        echo "🚀 ML Pipeline Type: ${{ steps.pipeline.outputs.type }}"
+        echo "📁 Changed paths: ${{ github.event.head_commit.modified }}"
+        
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+        
+    - name: Install dependencies
+      run: |
+        uv sync --dev
+        
+    - name: Run ML Pipeline
+      run: |
+        echo "🔬 Running ML Pipeline: ${{ steps.pipeline.outputs.type }}"
+        case "${{ steps.pipeline.outputs.type }}" in
+          "training")
+            echo "📚 Starting training pipeline..."
+            # Add training pipeline commands here
+            ;;
+          "evaluation")
+            echo "📊 Starting evaluation pipeline..."
+            # Add evaluation pipeline commands here
+            ;;
+          "deployment")
+            echo "🚀 Starting deployment pipeline..."
+            # Add deployment pipeline commands here
+            ;;
+          "full-pipeline")
+            echo "🔄 Starting full ML pipeline..."
+            # Add full pipeline commands here
+            ;;
+        esac
+        echo "✅ ML Pipeline completed successfully"

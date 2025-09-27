@@ -1,14 +1,12 @@
-name: CI Checks
+name: PR Quality Checks
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  push:
-    branches: [main, master, dev]
 
 jobs:
-  # Basic linting and syntax checks
-  lint-and-syntax:
+  # Basic quality checks for PRs
+  pr-quality-checks:
     runs-on: ubuntu-latest
     
     steps:

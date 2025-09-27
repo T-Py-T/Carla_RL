@@ -1,60 +1,110 @@
 # GitHub Actions Workflows
 
-This directory contains automated workflows for the Highway RL project.
+This directory contains GitHub Actions workflows for automated CI/CD processes, organized by purpose and trigger type.
 
-## Workflows
+## Workflow Categories
 
-### Feature Release Artifact (`feature-release-artifact.yml`)
+### PR-Specific Workflows
 
-**Trigger:** When a pull request is merged to `main`/`master`
+#### pr-checks.yml
+**Purpose:** Basic quality checks for pull requests
+**Triggers:** Pull request opened, synchronized, or reopened
+**Features:**
+- Python syntax validation
+- Basic ruff linting (E9, F rules only)
+- Fast execution for quick feedback
+- Minimal resource usage
 
-**Purpose:** Automatically creates release artifacts from feature development
+### Merge-Specific Workflows
 
-**What it does:**
-1. **Extracts feature info** from the merged PR (branch name, title, author, etc.)
-2. **Creates artifact folder** in `release-artifacts/feature-{branch}-{pr-number}/`
-3. **Copies tasks folder** contents (PRDs, task lists, documentation)
-4. **Generates feature summary** with PR details, commits, and changed files
-5. **Updates release changelog** (`RELEASE_CHANGELOG.md`) with new entry
-6. **Creates GitHub release** with feature artifacts attached
-7. **Commits artifacts** back to the repository
+#### merge-validation.yml
+**Purpose:** Comprehensive validation for merges
+**Triggers:** Push to main, master, dev, staging, production branches
+**Features:**
+- Python syntax validation
+- Comprehensive test suite execution
+- Docker build validation
+- Configuration file validation
+- Full quality assurance
 
-**Artifacts Created:**
-```
-release-artifacts/F001-feature-name/
-├── prd-*.md                 # Product Requirements Document
-├── tasks-*.md               # Task breakdown and tracking
-├── FEATURE_SUMMARY.md       # Auto-generated feature summary
-└── metadata.json            # Machine-readable metadata
-```
+#### feature-release-artifact.yml
+**Purpose:** Automated feature release artifact creation
+**Triggers:** Pull request closed (merged)
+**Features:**
+- Extracts PR information and branch details
+- Creates structured release artifacts with F001-feature-name naming
+- Generates feature summaries and metadata
+- Updates release changelog
+- Creates GitHub releases
+- Cleans up working directories
 
-**Benefits:**
-- **Preserves feature planning** - PRDs and task lists are archived
-- **Maintains project history** - Complete feature development record
-- **Enables retrospectives** - Easy access to what was planned vs delivered
-- **Fully automated** - No manual work required
-- **GitHub releases** - Professional release management
+### ML Pipeline Workflows
+
+#### ml-pipeline-trigger.yml
+**Purpose:** Triggers ML pipelines based on code changes
+**Triggers:** 
+- Push to main/master/dev with changes to model-sim/, training/, models/
+- Manual workflow dispatch
+**Features:**
+- Automatic pipeline type detection (training, evaluation, deployment, full-pipeline)
+- Path-based change detection
+- Configurable pipeline execution
+- Ready for future ML pipeline integration
+
+### Security Workflows
+
+#### security-scan.yml
+**Purpose:** Security scanning and vulnerability detection
+**Triggers:**
+- Daily schedule (2 AM UTC)
+- Push to main/master/dev
+- Pull requests
+- Manual dispatch
+**Features:**
+- Dependency vulnerability scanning
+- Secret detection (with false positive filtering)
+- Security report generation
+- Artifact upload for reports
+
+## Workflow Design Principles
+
+1. **Separation of Concerns:** Different workflows for different purposes
+2. **Performance Optimization:** PR checks are fast, merge validation is comprehensive
+3. **Future-Ready:** ML pipeline workflows prepared for advanced ML operations
+4. **Security-First:** Dedicated security scanning with regular schedules
+5. **Maintainability:** Clear naming and purpose for each workflow
+
+## Benefits
+
+- **Automated documentation** of feature releases
+- **Structured artifact management** with professional naming
+- **Comprehensive quality assurance** at appropriate stages
+- **Security monitoring** with regular scans
+- **ML pipeline readiness** for future advanced operations
+- **Clean repository maintenance** with automated cleanup
 
 ## Usage
 
-1. **Develop feature** with tasks in `tasks/` folder
-2. **Create PR** to main branch
-3. **Merge PR** - Action automatically triggers
-4. **View artifacts** in `release-artifacts/` or GitHub Releases
+### For PRs
+- Basic quality checks run automatically
+- Fast feedback for developers
+- Minimal resource usage
+
+### For Merges
+- Comprehensive validation runs
+- Full test suite execution
+- Docker build validation
+- Feature artifacts created automatically
+
+### For ML Operations
+- Automatic pipeline detection based on file changes
+- Manual trigger for specific pipeline types
+- Ready for future ML workflow integration
 
 ## Configuration
 
-The workflow uses standard GitHub tokens and requires no additional setup. It will:
-- Only run on merged PRs to main/master
-- Skip if no `tasks/` folder exists
-- Auto-generate sequential feature numbers (F001, F002, etc.)
-- Create release tags like `F001-add-model-serving`
-- Use clean folder names with sanitized branch names
-
-## Customization
-
-You can customize the workflow by:
-- Modifying the changelog format in the workflow file
-- Adding additional artifact processing steps
-- Changing the release naming convention
-- Adding Slack/Teams notifications
+All workflows use standard GitHub tokens and require no additional setup. They are designed to:
+- Run automatically based on appropriate triggers
+- Provide clear feedback and reporting
+- Maintain security and quality standards
+- Support future ML pipeline development
