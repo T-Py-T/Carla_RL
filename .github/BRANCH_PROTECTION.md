@@ -23,29 +23,41 @@ To enable branch protection:
 
 ## Local Development
 
-While the CI runner handles all the tooling, you can still run basic checks locally:
+The project uses `uv` for dependency management. Run checks locally:
+
+```bash
+# Install dependencies (if not already done)
+uv sync --dev
+
+# Run all quality checks
+make check
+
+# Just run linting
+make lint
+
+# Auto-fix issues
+make fix
+
+# Show what would be fixed
+make diff
+```
+
+## Manual Commands
+
+If you prefer to run commands directly:
 
 ```bash
 # Check Python syntax
 find . -name "*.py" -exec python -m py_compile {} \;
 
 # Check code style (uses pyproject.toml config)
-ruff check .
+uv run ruff check .
 
 # Show what would be fixed
-ruff check . --diff
-```
+uv run ruff check --diff .
 
-## Auto-fix Commands
-
-If you want to fix issues locally before pushing:
-
-```bash
 # Fix all auto-fixable issues
-ruff check --fix .
-
-# Fix only specific rule types
-ruff check --fix --select=E,W,F .
+uv run ruff check --fix .
 ```
 
 ## Ruff Configuration

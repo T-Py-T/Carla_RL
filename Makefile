@@ -104,28 +104,23 @@ check:
 	@find . -name "*.py" -not -path "./.venv/*" -not -path "./.git/*" -exec python -m py_compile {} \;
 	@echo "✅ Python syntax check passed"
 	@echo "Running ruff linting..."
-	@which ruff >/dev/null 2>&1 || (echo "Installing ruff..." && pip install ruff)
-	@ruff check . || (echo "❌ Linting issues found. Run 'make fix' to auto-fix." && exit 1)
+	@uv run ruff check . || (echo "❌ Linting issues found. Run 'make fix' to auto-fix." && exit 1)
 	@echo "✅ All checks passed!"
 
 fix:
 	@echo "🔧 Auto-fixing code issues..."
-	@which ruff >/dev/null 2>&1 || (echo "Installing ruff..." && pip install ruff)
-	@ruff check --fix .
+	@uv run ruff check --fix .
 	@echo "✅ Code issues fixed!"
 
 lint:
 	@echo "🔍 Running ruff linting only..."
-	@which ruff >/dev/null 2>&1 || (echo "Installing ruff..." && pip install ruff)
-	@ruff check .
+	@uv run ruff check .
 
 format:
 	@echo "🎨 Auto-formatting code..."
-	@which ruff >/dev/null 2>&1 || (echo "Installing ruff..." && pip install ruff)
-	@ruff check --fix .
+	@uv run ruff check --fix .
 
 # Show what would be fixed without actually fixing
 diff:
 	@echo "📋 Showing what would be fixed..."
-	@which ruff >/dev/null 2>&1 || (echo "Installing ruff..." && pip install ruff)
-	@ruff check --diff .
+	@uv run ruff check --diff .
