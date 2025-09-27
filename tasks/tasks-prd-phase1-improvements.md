@@ -13,11 +13,15 @@
 - `model-serving/tests/benchmarking/test_hardware_detector.py` - Unit tests for hardware detection
 - `model-serving/scripts/run_benchmarks.py` - CLI tool for running performance benchmarks
 - `model-serving/src/versioning/` - Semantic versioning and artifact management
-- `model-serving/src/versioning/semantic_version.py` - Semantic version parser and validation
-- `model-serving/src/versioning/artifact_manager.py` - Artifact integrity and hash pinning
-- `model-serving/src/versioning/version_selector.py` - Multi-version model support
-- `model-serving/tests/versioning/test_semantic_version.py` - Unit tests for semantic versioning
-- `model-serving/tests/versioning/test_artifact_manager.py` - Unit tests for artifact management
+- `model-serving/src/versioning/__init__.py` - Versioning module initialization and exports  
+- `model-serving/src/versioning/semantic_version.py` - Semantic version parser and validation with comparison support
+- `model-serving/src/versioning/version_selector.py` - Multi-version model support with intelligent selection strategies
+- `model-serving/tests/versioning/` - Unit tests for versioning framework
+- `model-serving/tests/versioning/__init__.py` - Test module initialization
+- `model-serving/tests/versioning/test_semantic_version.py` - Unit tests for semantic versioning parser and validation
+- `model-serving/tests/versioning/test_version_selector.py` - Unit tests for version selection logic and multi-version support
+- `model-serving/src/server.py` - Updated FastAPI server with version selection integration and /versions endpoint
+- `model-serving/src/io_schemas.py` - Updated with VersionInfo and VersionsResponse schemas for version discovery API
 - `model-serving/scripts/artifact_manager.py` - CLI tool for artifact management
 - `model-serving/src/config/` - Configuration management system
 - `model-serving/src/config/settings.py` - Pydantic configuration models and validation
@@ -74,7 +78,7 @@
   - [ ] 2.3 Build artifact integrity validation on model loading with error handling
   - [ ] 2.4 Implement artifact rollback functionality to previous versions
   - [ ] 2.5 Create artifact validation CLI tool with comprehensive reporting
-  - [ ] 2.6 Build multi-version model support with version selection logic
+  - [x] 2.6 Build multi-version model support with version selection logic
   - [ ] 2.7 Implement artifact integrity reports with detailed validation results
   - [ ] 2.8 Create artifact migration tools for version upgrades
   - [ ] 2.9 Build content-addressable storage system for artifact integrity

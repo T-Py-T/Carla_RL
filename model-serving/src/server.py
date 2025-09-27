@@ -25,6 +25,8 @@ from .io_schemas import (
     MetadataResponse,
     PredictRequest,
     PredictResponse,
+    VersionInfo,
+    VersionsResponse,
     WarmupResponse,
 )
 from .version import APP_NAME, GIT_SHA, MODEL_NAME, MODEL_VERSION
@@ -62,14 +64,41 @@ async def lifespan(app: FastAPI):
 
         from .inference import InferenceEngine
         from .model_loader import load_artifacts
+        from .versioning import VersionSelector, VersionSelectionStrategy
+        from .versioning.version_selector import get_version_from_environment
 
         # Configuration from environment
-        artifact_dir = Path(os.getenv("ARTIFACT_DIR", "artifacts")) / MODEL_VERSION
+        artifacts_root = Path(os.getenv("ARTIFACT_DIR", "artifacts"))
         use_gpu = os.getenv("USE_GPU", "0") == "1"
         device = torch.device("cuda" if torch.cuda.is_available() and use_gpu else "cpu")
 
-        print(f"Loading model artifacts from: {artifact_dir}")
-        print(f"Using device: {device}")
+        # Select version using intelligent version selection
+        print(f"Discovering model versions in: {artifacts_root}")
+        selected_version = None
+        
+        try:
+            selected_version = get_version_from_environment(
+                artifacts_root,
+                env_var="MODEL_VERSION",
+                fallback_strategy=VersionSelectionStrategy.LATEST_STABLE
+            )
+            
+            if selected_version is None:
+                raise Exception("No suitable model version found")
+            
+            artifact_dir = artifacts_root / str(selected_version)
+            
+            print(f"Selected model version: {selected_version}")
+            print(f"Loading model artifacts from: {artifact_dir}")
+            print(f"Using device: {device}")
+
+        except Exception as e:
+            print(f"Version selection failed: {str(e)}")
+            # Fallback to old behavior for backward compatibility
+            artifact_dir = artifacts_root / MODEL_VERSION
+            selected_version = MODEL_VERSION
+            print(f"Falling back to static version: {MODEL_VERSION}")
+            print(f"Loading model artifacts from: {artifact_dir}")
 
         # Load model and preprocessor
         policy, preprocessor = load_artifacts(artifact_dir, device)
@@ -77,8 +106,11 @@ async def lifespan(app: FastAPI):
         # Initialize inference engine
         app_state["inference_engine"] = InferenceEngine(policy, device, preprocessor)
         app_state["model_loaded"] = True
+        app_state["selected_version"] = str(selected_version)
 
-        print(f"Model {MODEL_NAME} v{MODEL_VERSION} loaded successfully")
+        print(f"Model {MODEL_NAME} loaded successfully")
+        print(f"Version: {app_state['selected_version']}")
+        print(f"Device: {device}")
 
     except Exception as e:
         print(f"Failed to load model: {str(e)}")
@@ -174,9 +206,12 @@ async def get_metadata(inference_engine=Depends(get_inference_engine)) -> Metada
 
     action_space = {"throttle": [0.0, 1.0], "brake": [0.0, 1.0], "steer": [-1.0, 1.0]}
 
+    # Use selected version from app state if available
+    current_version = app_state.get("selected_version", MODEL_VERSION)
+    
     return MetadataResponse(
         modelName=MODEL_NAME,
-        version=MODEL_VERSION,
+        version=current_version,
         device=device_str,
         inputShape=input_shape,
         actionSpace=action_space,
@@ -274,6 +309,68 @@ async def get_metrics():
     ]
 
     return "\n".join(metrics)
+
+
+@app.get("/versions", response_model=VersionsResponse, tags=["Model"])
+async def get_versions() -> VersionsResponse:
+    """
+    Get available model versions and version selection information.
+    
+    Returns information about all discovered model versions, their metadata,
+    and the currently loaded version with selection strategy details.
+    """
+    from pathlib import Path
+    from .versioning import VersionSelector
+    
+    # Get artifacts root from environment
+    artifacts_root = Path(os.getenv("ARTIFACT_DIR", "artifacts"))
+    current_version = app_state.get("selected_version", MODEL_VERSION)
+    
+    try:
+        # Create version selector and discover versions
+        selector = VersionSelector(artifacts_root)
+        available_versions = selector.discover_versions()
+        
+        # Build version info list
+        version_info_list = []
+        for version in available_versions:
+            try:
+                info = selector.get_version_info(version)
+                version_info = VersionInfo(
+                    version=str(version),
+                    is_stable=version.is_stable(),
+                    is_current=(str(version) == current_version),
+                    performance_metrics=info.get('performance_metrics'),
+                    model_card=info.get('model_card')
+                )
+                version_info_list.append(version_info)
+            except Exception:
+                # Skip versions with invalid metadata
+                continue
+        
+        return VersionsResponse(
+            current_version=current_version,
+            available_versions=version_info_list,
+            selection_strategy="environment_with_fallback",
+            artifacts_root=str(artifacts_root)
+        )
+    
+    except Exception as e:
+        # Return minimal response if version discovery fails
+        return VersionsResponse(
+            current_version=current_version,
+            available_versions=[
+                VersionInfo(
+                    version=current_version,
+                    is_stable=True,
+                    is_current=True,
+                    performance_metrics=None,
+                    model_card=None
+                )
+            ],
+            selection_strategy="fallback",
+            artifacts_root=str(artifacts_root)
+        )
 
 
 if __name__ == "__main__":
