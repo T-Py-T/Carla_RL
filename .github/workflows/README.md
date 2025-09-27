@@ -18,11 +18,11 @@ This directory contains GitHub Actions workflows for automated CI/CD processes, 
 ### Merge-Specific Workflows
 
 #### merge-validation.yml
-**Purpose:** Comprehensive validation for merges
+**Purpose:** full validation for merges
 **Triggers:** Push to main, master, dev, staging, production branches
 **Features:**
 - Python syntax validation
-- Comprehensive test suite execution
+- full test suite execution
 - Docker build validation
 - Configuration file validation
 - Full quality assurance
@@ -69,7 +69,7 @@ This directory contains GitHub Actions workflows for automated CI/CD processes, 
 ## Workflow Design Principles
 
 1. **Separation of Concerns:** Different workflows for different purposes
-2. **Performance Optimization:** PR checks are fast, merge validation is comprehensive
+2. **Performance Optimization:** PR checks are fast, merge validation is full
 3. **Future-Ready:** ML pipeline workflows prepared for advanced ML operations
 4. **Security-First:** Dedicated security scanning with regular schedules
 5. **Maintainability:** Clear naming and purpose for each workflow
@@ -78,7 +78,7 @@ This directory contains GitHub Actions workflows for automated CI/CD processes, 
 
 - **Automated documentation** of feature releases
 - **Structured artifact management** with professional naming
-- **Comprehensive quality assurance** at appropriate stages
+- **full quality assurance** at appropriate stages
 - **Security monitoring** with regular scans
 - **ML pipeline readiness** for future advanced operations
 - **Clean repository maintenance** with automated cleanup
@@ -91,7 +91,7 @@ This directory contains GitHub Actions workflows for automated CI/CD processes, 
 - Minimal resource usage
 
 ### For Merges
-- Comprehensive validation runs
+- full validation runs
 - Full test suite execution
 - Docker build validation
 - Feature artifacts created automatically

@@ -1,7 +1,7 @@
 """
 QA Test Plan for CarlaRL Policy-as-a-Service API Layer.
 
-This module defines comprehensive test scenarios and validation criteria
+This module defines full test scenarios and validation criteria
 for ensuring the API layer meets all PRD requirements.
 """
 
@@ -11,7 +11,7 @@ from src.io_schemas import Action
 
 
 class TestQAPlan:
-    """Comprehensive QA test plan for API Layer validation."""
+    """full QA test plan for API Layer validation."""
 
     def test_prd_requirement_fr_1_1_healthz_endpoint(self, client):
         """
@@ -31,7 +31,7 @@ class TestQAPlan:
         assert isinstance(data["version"], str)
         assert isinstance(data["git"], str)
 
-        print("✅ FR-1.1: /healthz endpoint validated")
+        print(" FR-1.1: /healthz endpoint validated")
 
     def test_prd_requirement_fr_1_2_metadata_endpoint(self, client, mock_inference_engine):
         """
@@ -56,7 +56,7 @@ class TestQAPlan:
         assert "brake" in action_space
         assert "steer" in action_space
 
-        print("✅ FR-1.2: /metadata endpoint validated")
+        print(" FR-1.2: /metadata endpoint validated")
 
     def test_prd_requirement_fr_1_3_predict_endpoint_batch(self, client, mock_inference_engine):
         """
@@ -96,7 +96,7 @@ class TestQAPlan:
         assert len(data["actions"]) == 2
         assert len(data["actions"]) == len(request_data["observations"])
 
-        print("✅ FR-1.3: /predict batch processing validated")
+        print(" FR-1.3: /predict batch processing validated")
 
     def test_prd_requirement_fr_1_4_deterministic_mode(self, client, mock_inference_engine):
         """
@@ -127,7 +127,7 @@ class TestQAPlan:
             request_data["observations"], True
         )
 
-        print("✅ FR-1.4: Deterministic mode validated")
+        print(" FR-1.4: Deterministic mode validated")
 
     def test_prd_requirement_fr_1_5_warmup_endpoint(self, client, mock_inference_engine):
         """
@@ -146,7 +146,7 @@ class TestQAPlan:
         assert data["status"] == "warmed"
         assert isinstance(data["timingMs"], (int, float))
 
-        print("✅ FR-1.5: /warmup endpoint validated")
+        print(" FR-1.5: /warmup endpoint validated")
 
     def test_prd_requirement_fr_1_8_input_validation(self, client):
         """
@@ -173,7 +173,7 @@ class TestQAPlan:
         assert "timestamp" in data
         assert data["error"] == "VALIDATION_ERROR"
 
-        print("✅ FR-1.8: Input validation validated")
+        print(" FR-1.8: Input validation validated")
 
     def test_prd_requirement_fr_1_9_timing_information(self, client, mock_inference_engine):
         """
@@ -201,7 +201,7 @@ class TestQAPlan:
         assert isinstance(data["timingMs"], (int, float))
         assert data["timingMs"] >= 0
 
-        print("✅ FR-1.9: Timing information validated")
+        print(" FR-1.9: Timing information validated")
 
     def test_prd_requirement_fr_1_10_semantic_versioning(self, client, mock_inference_engine):
         """
@@ -234,7 +234,7 @@ class TestQAPlan:
         semver_pattern = r'^v\d+\.\d+\.\d+$'
         assert re.match(semver_pattern, version), f"Version {version} doesn't match semantic versioning"
 
-        print("✅ FR-1.10: Semantic versioning validated")
+        print(" FR-1.10: Semantic versioning validated")
 
 
 class TestPerformanceRequirements:
@@ -255,7 +255,7 @@ class TestPerformanceRequirements:
         assert response_time < 1.0, f"Response time {response_time}s exceeds threshold"
         assert response.status_code == 200
 
-        print(f"✅ Service response time: {response_time:.3f}s")
+        print(f" Service response time: {response_time:.3f}s")
 
     def test_warm_inference_latency_simulation(self, client, mock_inference_engine):
         """
@@ -283,7 +283,7 @@ class TestPerformanceRequirements:
         timing_ms = data["timingMs"]
         assert timing_ms < 10.0, f"Inference timing {timing_ms}ms exceeds 10ms requirement"
 
-        print(f"✅ Simulated inference latency: {timing_ms}ms")
+        print(f" Simulated inference latency: {timing_ms}ms")
 
     def test_batch_throughput_simulation(self, client, mock_inference_engine):
         """
@@ -314,7 +314,7 @@ class TestPerformanceRequirements:
         timing_ms = data["timingMs"]
         throughput = (batch_size / timing_ms) * 1000  # requests per second
 
-        print(f"✅ Simulated batch throughput: {throughput:.1f} requests/sec")
+        print(f" Simulated batch throughput: {throughput:.1f} requests/sec")
 
 
 class TestErrorHandlingRequirements:
@@ -372,7 +372,7 @@ class TestErrorHandlingRequirements:
             assert data["error"] == "VALIDATION_ERROR"
             assert "validation_errors" in data["details"]
 
-            print(f"✅ Structured error response validated for: {scenario['name']}")
+            print(f" Structured error response validated for: {scenario['name']}")
 
 
 def run_qa_validation():
@@ -382,12 +382,12 @@ def run_qa_validation():
     This function can be called to validate that all PRD requirements
     are met by the API layer implementation.
     """
-    print("🚀 Starting QA Validation for CarlaRL Policy-as-a-Service API Layer")
+    print(" Starting QA Validation for CarlaRL Policy-as-a-Service API Layer")
     print("=" * 70)
 
     # This would typically be run with pytest, but can also be called directly
     print("Run with: pytest tests/test_qa_plan.py -v")
-    print("✅ QA Test Plan Ready")
+    print(" QA Test Plan Ready")
 
 
 if __name__ == "__main__":

@@ -5,20 +5,20 @@ SERVICE_URL=${1:-"http://carla-rl-serving:8080"}
 REQUESTS=${2:-50}
 CONCURRENCY=${3:-5}
 
-echo "🔥 Load Testing CarlaRL Policy Service"
+echo "Load Testing CarlaRL Policy Service"
 echo "URL: $SERVICE_URL"
 echo "Requests: $REQUESTS"
 echo "Concurrency: $CONCURRENCY"
 echo "================================"
 
 # Wait for service to be ready
-echo "⏳ Waiting for service..."
+echo "Waiting for service..."
 until curl -s "$SERVICE_URL/healthz" > /dev/null; do
   echo "Waiting for service to be ready..."
   sleep 2
 done
 
-echo "✅ Service is ready!"
+echo "Service is ready!"
 
 # Test payload
 PAYLOAD='{
@@ -30,7 +30,7 @@ PAYLOAD='{
   "deterministic": true
 }'
 
-echo "🚀 Starting load test..."
+echo "Starting load test..."
 
 # Simple concurrent load test
 for i in $(seq 1 $CONCURRENCY); do
@@ -49,9 +49,9 @@ for i in $(seq 1 $CONCURRENCY); do
       
       http_code=${response: -3}
       if [ "$http_code" = "200" ]; then
-        echo "Worker $i Request $j: ${latency}ms ✅"
+        echo "Worker $i Request $j: ${latency}ms [SUCCESS]"
       else
-        echo "Worker $i Request $j: HTTP $http_code ❌"
+        echo "Worker $i Request $j: HTTP $http_code [FAILED]"
       fi
       
       # Small delay between requests
@@ -64,8 +64,8 @@ done
 # Wait for all workers to complete
 wait
 
-echo "🎉 Load test completed!"
+echo "Load test completed!"
 
 # Get final metrics
-echo "📊 Final service metrics:"
+echo "Final service metrics:"
 curl -s "$SERVICE_URL/metrics" | grep carla_rl || echo "No metrics available"

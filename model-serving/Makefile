@@ -163,7 +163,7 @@ undeploy-k8s: ## Remove from Kubernetes
 
 # Testing
 test-docker: docker-build create-artifacts ## Test with Docker (simple)
-	@echo "🧪 Testing Model Serving Service with Docker"
+	@echo "Testing Model Serving Service with Docker"
 	docker run --rm -d --name model-serving-test -p 8080:8080 \
 		-e ARTIFACT_DIR=/app/artifacts -e MODEL_VERSION=v0.1.0 \
 		model-serving:latest
@@ -177,7 +177,7 @@ test-docker: docker-build create-artifacts ## Test with Docker (simple)
 test-compose: docker-compose-test ## Test with Docker Compose (full stack)
 
 test-k8s: deploy-k8s ## Test Kubernetes deployment
-	@echo "🧪 Testing Kubernetes deployment"
+	@echo "Testing Kubernetes deployment"
 	kubectl wait --for=condition=ready pod -l app=model-serving --timeout=300s
 	kubectl port-forward svc/model-serving-service 8080:80 &
 	@sleep 10

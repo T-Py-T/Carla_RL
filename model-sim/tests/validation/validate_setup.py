@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Comprehensive validation script for the Carla RL project.
+full validation script for the Carla RL project.
 This script tests the project setup and provides guidance on what works and what needs to be fixed.
 """
 

@@ -2,7 +2,7 @@
 """
 Cluster validation script for CarlaRL Policy-as-a-Service.
 
-This script performs comprehensive testing on a running cluster deployment
+This script performs full testing on a running cluster deployment
 to validate production readiness and performance characteristics.
 """
 
@@ -27,7 +27,7 @@ class TestResult:
 
 
 class ClusterValidator:
-    """Comprehensive cluster validation for CarlaRL serving."""
+    """full cluster validation for CarlaRL serving."""
 
     def __init__(self, base_url: str = "http://localhost:8080"):
         self.base_url = base_url
@@ -36,7 +36,7 @@ class ClusterValidator:
     def log_result(self, result: TestResult) -> None:
         """Log test result."""
         self.results.append(result)
-        status = "✅ PASS" if result.passed else "❌ FAIL"
+        status = "PASS" if result.passed else "FAIL"
         print(f"{status} {result.name} ({result.duration_ms:.1f}ms)")
         if result.error:
             print(f"    Error: {result.error}")
@@ -458,7 +458,7 @@ class ClusterValidator:
 
     def run_all_tests(self) -> dict[str, Any]:
         """Run all validation tests."""
-        print("🧪 Starting Cluster Validation for CarlaRL Policy-as-a-Service")
+        print("Starting Cluster Validation for CarlaRL Policy-as-a-Service")
         print(f"Target: {self.base_url}")
         print("=" * 70)
 
@@ -486,9 +486,9 @@ class ClusterValidator:
         success_rate = passed_tests / total_tests if total_tests > 0 else 0
 
         print("=" * 70)
-        print("📊 VALIDATION SUMMARY")
+        print("VALIDATION SUMMARY")
         print(f"Tests Passed: {passed_tests}/{total_tests} ({success_rate:.1%})")
-        print(f"Overall Status: {'✅ PRODUCTION READY' if success_rate >= 0.9 else '⚠️  NEEDS ATTENTION'}")
+        print(f"Overall Status: {'PRODUCTION READY' if success_rate >= 0.9 else 'NEEDS ATTENTION'}")
 
         return {
             "total_tests": total_tests,
@@ -530,7 +530,7 @@ def main():
         import json
         with open(args.output, 'w') as f:
             json.dump(results, f, indent=2)
-        print(f"\n📄 Detailed results saved to: {args.output}")
+        print(f"\nDetailed results saved to: {args.output}")
 
     # Exit with appropriate code
     return 0 if results["production_ready"] else 1

@@ -231,7 +231,7 @@ def memory_efficiency_analysis():
 
 
 def main():
-    """Run comprehensive performance comparison"""
+    """Run full performance comparison"""
     print("Performance Comparison Suite")
     print("Demonstrating improvements from modern ML stack upgrade")
     print("=" * 70)

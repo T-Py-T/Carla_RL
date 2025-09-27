@@ -5,7 +5,7 @@ on:
     branches: [main, master, dev, staging, production]
 
 jobs:
-  # Comprehensive validation for merges
+  # full validation for merges
   merge-validation:
     runs-on: ubuntu-latest
     
@@ -42,9 +42,9 @@ jobs:
         done
         echo "Python syntax check passed"
         
-    - name: Run comprehensive tests
+    - name: Run full tests
       run: |
-        echo "Running comprehensive test suite..."
+        echo "Running full test suite..."
         # Run model-serving tests
         if [ -d "model-serving/tests" ]; then
           uv run pytest model-serving/tests/ -v --tb=short

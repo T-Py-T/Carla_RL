@@ -1,6 +1,8 @@
 ---
 alwaysApply: false
 ---
+**CRITICAL: See .cursor/rules/no-emojis.mdc - NO EMOJIS EVER**
+
 # Task List Management
 
 Guidelines for managing task lists in markdown files to track progress on completing a PRD

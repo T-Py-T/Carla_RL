@@ -426,7 +426,7 @@ class TestDockerIntegration:
             )
 
             if result.returncode == 0 and "healthy" in result.stdout:
-                print("✅ Docker container is healthy")
+                print("Docker container is healthy")
             else:
                 pytest.skip("Docker container not running or not healthy")
 
@@ -471,7 +471,7 @@ def run_integration_tests():
 
     This function can be called to validate the deployed service.
     """
-    print("🔧 Running Infrastructure Integration Tests")
+    print("Running Infrastructure Integration Tests")
     print("=" * 50)
 
     # Note: These tests require a running service instance

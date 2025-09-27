@@ -2,9 +2,9 @@
 set -e
 
 # CarlaRL Policy-as-a-Service Cluster Testing Script
-# This script performs comprehensive testing on OrbStack or any Kubernetes cluster
+# This script performs full testing on OrbStack or any Kubernetes cluster
 
-echo "🚀 CarlaRL Policy-as-a-Service Cluster Testing"
+echo "CarlaRL Policy-as-a-Service Cluster Testing"
 echo "=============================================="
 
 # Configuration
@@ -172,9 +172,9 @@ run_performance_tests() {
         
         http_code=${response: -3}
         if [[ "$http_code" == "200" ]]; then
-            echo "Request $i: ${latency}ms ✅"
+            echo "Request $i: ${latency}ms [SUCCESS]"
         else
-            echo "Request $i: HTTP $http_code ❌"
+            echo "Request $i: HTTP $http_code [FAILED]"
         fi
     done
 }

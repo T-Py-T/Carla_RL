@@ -78,7 +78,7 @@ deploy-k8s:
 
 # Utility Commands
 clean:
-	@echo "🧹 Cleaning all components..."
+	@echo "Cleaning all components..."
 	@cd model-sim && make clean || true
 	@cd model-serving && make clean || true
 

@@ -1,6 +1,8 @@
 ---
 alwaysApply: false
 ---
+**CRITICAL: See .cursor/rules/no-emojis.mdc - NO EMOJIS EVER**
+
 # Rule: Generating a Task List from a PRD
 
 ## Goal

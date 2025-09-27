@@ -1,7 +1,7 @@
 """
 Advanced Logging and Monitoring
 
-Weights & Biases integration for comprehensive training evaluation
+Weights & Biases integration for full training evaluation
 optimized for Apple Silicon performance monitoring.
 """
 

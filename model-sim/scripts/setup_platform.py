@@ -122,7 +122,7 @@ def detect_carla_support():
     return carla_info
 
 def print_platform_report():
-    """Print comprehensive platform report"""
+    """Print full platform report"""
     system_info = get_platform_info()
     gpu_info = detect_gpu_support()
     tf_rec = get_tensorflow_recommendation()

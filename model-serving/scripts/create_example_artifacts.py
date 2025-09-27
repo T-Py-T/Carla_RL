@@ -121,19 +121,19 @@ def create_artifacts(output_dir: Path, version: str = "v0.1.0"):
         scripted_model = torch.jit.trace(model, example_input)
         model_path = artifact_dir / "model.pt"
         torch.jit.save(scripted_model, model_path)
-        print(f"✅ Saved TorchScript model to {model_path}")
+        print(f" Saved TorchScript model to {model_path}")
     except Exception as e:
-        print(f"⚠️  TorchScript failed ({e}), saving regular PyTorch model")
+        print(f"WARNING  TorchScript failed ({e}), saving regular PyTorch model")
         model_path = artifact_dir / "model.pt"
         torch.save(model, model_path)
-        print(f"✅ Saved PyTorch model to {model_path}")
+        print(f" Saved PyTorch model to {model_path}")
 
     # Create preprocessor
     print("Creating example preprocessor...")
     preprocessor = create_example_preprocessor()
     preprocessor_path = artifact_dir / "preprocessor.pkl"
     preprocessor.save(preprocessor_path)
-    print(f"✅ Saved preprocessor to {preprocessor_path}")
+    print(f" Saved preprocessor to {preprocessor_path}")
 
     # Compute hashes
     model_hash = compute_file_hash(model_path)
@@ -157,11 +157,11 @@ def create_artifacts(output_dir: Path, version: str = "v0.1.0"):
         with open(model_card_path, 'w') as f:
             yaml.dump(model_card, f, default_flow_style=False)
 
-        print(f"✅ Updated model card with hashes at {model_card_path}")
+        print(f" Updated model card with hashes at {model_card_path}")
     else:
-        print("⚠️  Model card not found, hashes not updated")
+        print("WARNING  Model card not found, hashes not updated")
 
-    print("\n🎉 Example artifacts created successfully!")
+    print("\n Example artifacts created successfully!")
     print(f"Artifact directory: {artifact_dir}")
     print("Files created:")
     for file_path in artifact_dir.iterdir():
@@ -192,13 +192,13 @@ def main():
 
     try:
         artifact_dir = create_artifacts(args.output, args.version)
-        print(f"\n✅ Success! Artifacts ready at: {artifact_dir}")
+        print(f"\n Success! Artifacts ready at: {artifact_dir}")
         print("\nTo test the artifacts:")
         print("  make dev")
         print("  curl http://localhost:8080/healthz")
 
     except Exception as e:
-        print(f"\n❌ Failed to create artifacts: {e}")
+        print(f"\n Failed to create artifacts: {e}")
         return 1
 
     return 0

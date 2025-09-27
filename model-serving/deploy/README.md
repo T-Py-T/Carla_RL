@@ -43,18 +43,18 @@ make undeploy-k8s
 
 ## What Gets Tested
 
-The `scripts/cluster_validation.py` runs comprehensive tests:
+The `scripts/cluster_validation.py` runs full tests:
 
-- ✅ Service health and availability
-- ✅ Model metadata and configuration
-- ✅ Single and batch predictions
-- ✅ Performance and latency
-- ✅ Error handling
-- ✅ Concurrent request handling
-- ✅ Metrics endpoint
+- Service health and availability
+- Model metadata and configuration
+- Single and batch predictions
+- Performance and latency
+- Error handling
+- Concurrent request handling
+- Metrics endpoint
 
 ## Results
 
 Tests output a summary and optionally save detailed results to JSON for analysis.
 
-**That's it!** The Makefile handles all the complexity. 🎯
+**That's it!** The Makefile handles all the complexity.

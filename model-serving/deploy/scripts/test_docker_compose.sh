@@ -4,7 +4,7 @@ set -e
 # Docker Compose Testing Script for OrbStack
 # Simplified testing approach using Docker Compose
 
-echo "🐳 CarlaRL Policy-as-a-Service Docker Compose Testing"
+echo "CarlaRL Policy-as-a-Service Docker Compose Testing"
 echo "===================================================="
 
 # Configuration
@@ -187,23 +187,23 @@ check_service_status() {
     
     # Health check
     if curl -s http://localhost:8080/healthz | jq . 2>/dev/null; then
-        echo "✅ Health endpoint working"
+        echo "[SUCCESS] Health endpoint working"
     else
-        echo "❌ Health endpoint failed"
+        echo "[FAILED] Health endpoint failed"
     fi
     
     # Metadata
     if curl -s http://localhost:8080/metadata | jq . 2>/dev/null; then
-        echo "✅ Metadata endpoint working"
+        echo "[SUCCESS] Metadata endpoint working"
     else
-        echo "❌ Metadata endpoint failed"
+        echo "[FAILED] Metadata endpoint failed"
     fi
     
     # Metrics
     if curl -s http://localhost:8080/metrics | head -5; then
-        echo "✅ Metrics endpoint working"
+        echo "[SUCCESS] Metrics endpoint working"
     else
-        echo "❌ Metrics endpoint failed"
+        echo "[FAILED] Metrics endpoint failed"
     fi
     
     # Show recent logs
@@ -297,7 +297,7 @@ main() {
     
     # Final summary
     if [[ $validation_exit_code -eq 0 ]]; then
-        log_success "🎉 All Docker Compose tests passed!"
+        log_success "All Docker Compose tests passed!"
         echo ""
         echo "Service is running at: http://localhost:8080"
         echo "Test results saved to: docker_test_results.json"
@@ -306,7 +306,7 @@ main() {
             echo "Service will continue running (use 'docker-compose -f $COMPOSE_FILE down' to stop)"
         fi
     else
-        log_error "❌ Some tests failed"
+        log_error "Some tests failed"
         exit 1
     fi
 }

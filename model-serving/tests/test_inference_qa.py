@@ -86,7 +86,7 @@ class TestInferenceEngineQA:
             memory_stats = engine.get_memory_usage()
             assert memory_stats["preallocated_tensors"] >= 0
 
-        print("✅ FR-3.1: Batch processing and memory optimization validated")
+        print(" FR-3.1: Batch processing and memory optimization validated")
 
     def test_qa_fr_3_2_tensor_preallocation_memory_pinning(self):
         """
@@ -111,7 +111,7 @@ class TestInferenceEngineQA:
         memory_stats_after = engine.get_memory_usage()
         assert memory_stats_after["preallocated_tensors"] == memory_stats["preallocated_tensors"]
 
-        print("✅ FR-3.2: Tensor pre-allocation and memory pinning validated")
+        print(" FR-3.2: Tensor pre-allocation and memory pinning validated")
 
     def test_qa_fr_3_3_torch_no_grad_jit_optimization(self):
         """
@@ -137,7 +137,7 @@ class TestInferenceEngineQA:
             assert abs(orig.brake - opt.brake) < 0.1
             assert abs(orig.steer - opt.steer) < 0.1
 
-        print("✅ FR-3.3: torch.no_grad() and JIT optimization validated")
+        print(" FR-3.3: torch.no_grad() and JIT optimization validated")
 
     def test_qa_fr_3_4_deterministic_inference_reproducible_outputs(self):
         """
@@ -164,7 +164,7 @@ class TestInferenceEngineQA:
             assert abs(a1.brake - a3.brake) < 1e-6
             assert abs(a1.steer - a3.steer) < 1e-6
 
-        print("✅ FR-3.4: Deterministic inference with reproducible outputs validated")
+        print(" FR-3.4: Deterministic inference with reproducible outputs validated")
 
     def test_qa_fr_3_5_performance_timing_metrics_collection(self):
         """
@@ -182,7 +182,7 @@ class TestInferenceEngineQA:
         # Get performance statistics
         stats = engine.get_performance_stats()
 
-        # Validate comprehensive metrics
+        # Validate full metrics
         required_fields = [
             "total_requests", "total_observations", "error_count",
             "latency_ms", "throughput", "timing_breakdown_ms"
@@ -206,7 +206,7 @@ class TestInferenceEngineQA:
         assert stats["total_requests"] == 10
         assert stats["total_observations"] == 55  # Sum of 1+2+...+10
 
-        print("✅ FR-3.5: Performance timing and metrics collection validated")
+        print(" FR-3.5: Performance timing and metrics collection validated")
 
     def test_qa_fr_3_6_batch_size_optimization_dynamic_batching(self):
         """
@@ -242,7 +242,7 @@ class TestInferenceEngineQA:
         efficiency_ratio = large_batch_efficiency / small_batch_efficiency
         assert efficiency_ratio <= 2.0, f"Large batch efficiency ratio {efficiency_ratio} too high"
 
-        print("✅ FR-3.6: Batch size optimization and dynamic batching validated")
+        print(" FR-3.6: Batch size optimization and dynamic batching validated")
 
     def test_qa_fr_3_7_version_management_git_sha_tracking(self):
         """
@@ -271,7 +271,7 @@ class TestInferenceEngineQA:
         assert stats2["model_version"] == model_version
         assert stats2["git_sha"] == git_sha
 
-        print("✅ FR-3.7: Version management and git SHA tracking validated")
+        print(" FR-3.7: Version management and git SHA tracking validated")
 
     def test_qa_fr_3_8_inference_result_caching(self):
         """
@@ -307,7 +307,7 @@ class TestInferenceEngineQA:
         assert memory_stats["cache_enabled"] is True
         assert memory_stats["cache_size"] > 0
 
-        print("✅ FR-3.8: Inference result caching validated")
+        print(" FR-3.8: Inference result caching validated")
 
     def test_qa_fr_3_9_graceful_degradation_error_recovery(self):
         """
@@ -346,7 +346,7 @@ class TestInferenceEngineQA:
         # Error count should remain at 2 (no new errors)
         assert engine.metrics.error_count == 2
 
-        print("✅ FR-3.9: Graceful degradation and error recovery validated")
+        print(" FR-3.9: Graceful degradation and error recovery validated")
 
     def test_qa_performance_requirements_latency(self):
         """
@@ -383,7 +383,7 @@ class TestInferenceEngineQA:
         # In a real deployment, this would validate against actual hardware targets
         assert p50_latency < 100.0, f"P50 latency {p50_latency}ms too high for test environment"
 
-        print("✅ Performance Requirements: Latency targets validated")
+        print(" Performance Requirements: Latency targets validated")
 
     def test_qa_performance_requirements_throughput(self):
         """
@@ -414,7 +414,7 @@ class TestInferenceEngineQA:
         # Target is 1000+ requests/sec, but we test observations/sec here
         assert throughput_obs_per_sec > 100, f"Throughput {throughput_obs_per_sec} too low for test environment"
 
-        print("✅ Performance Requirements: High-throughput batch inference validated")
+        print(" Performance Requirements: High-throughput batch inference validated")
 
     def test_qa_memory_management(self):
         """
@@ -443,7 +443,7 @@ class TestInferenceEngineQA:
         if final_stats["cache_enabled"]:
             assert final_stats["cache_size"] >= 0
 
-        print("✅ Memory management and resource utilization validated")
+        print(" Memory management and resource utilization validated")
 
 
 def run_inference_engine_qa():
@@ -473,12 +473,12 @@ def run_inference_engine_qa():
         qa_test.test_qa_performance_requirements_throughput()
         qa_test.test_qa_memory_management()
 
-        print("\n🎉 Inference Engine Layer QA: ALL TESTS PASSED")
-        print("✅ Ready for high-performance production inference")
+        print("\n Inference Engine Layer QA: ALL TESTS PASSED")
+        print(" Ready for high-performance production inference")
         return True
 
     except Exception as e:
-        print("\n❌ Inference Engine Layer QA: FAILED")
+        print("\n Inference Engine Layer QA: FAILED")
         print(f"Error: {str(e)}")
         return False
 

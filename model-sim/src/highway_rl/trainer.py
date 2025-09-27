@@ -1,7 +1,7 @@
 """
 Highway RL Trainer
 
-Modern training pipeline for highway-env with comprehensive evaluation
+Modern training pipeline for highway-env with full evaluation
 and Apple Silicon optimizations.
 """
 

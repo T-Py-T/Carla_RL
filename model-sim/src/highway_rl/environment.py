@@ -105,7 +105,7 @@ class HighwayEnvironment:
         return obs, reward, terminated, truncated, info
     
     def get_episode_summary(self) -> Dict[str, Any]:
-        """Get comprehensive episode metrics."""
+        """Get full episode metrics."""
         rewards = self.episode_metrics['rewards']
         
         return {

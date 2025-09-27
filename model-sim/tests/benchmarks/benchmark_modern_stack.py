@@ -230,7 +230,7 @@ def benchmark_memory_usage():
 
 
 def main():
-    """Run comprehensive benchmark"""
+    """Run full benchmark"""
     print("Modern ML Stack Performance Benchmark")
     print("=" * 60)
     print("Testing the upgraded TensorFlow 2.20 + Keras 3.x + NumPy 2.x stack")

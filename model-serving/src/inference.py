@@ -440,7 +440,7 @@ class InferenceEngine:
             )
 
     def get_performance_stats(self) -> dict[str, Any]:
-        """Get comprehensive performance statistics."""
+        """Get full performance statistics."""
         latency_stats = self.metrics.get_latency_percentiles()
         throughput_stats = self.metrics.get_throughput_stats()
 

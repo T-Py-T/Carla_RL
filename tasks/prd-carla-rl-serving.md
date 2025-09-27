@@ -6,7 +6,7 @@ The CarlaRL Policy-as-a-Service system transforms trained reinforcement learning
 
 **Problem Statement:** Currently, trained RL policies exist as research artifacts without a standardized way to deploy them for real-time inference in production autonomous vehicle systems. There's no consistent interface for policy serving, model versioning, or performance monitoring.
 
-**Goal:** Create a comprehensive MLOps pipeline that enables seamless deployment of trained CarlaRL policies as scalable, monitored microservices with millisecond-latency inference capabilities.
+**Goal:** Create a full MLOps pipeline that enables seamless deployment of trained CarlaRL policies as scalable, monitored microservices with millisecond-latency inference capabilities.
 
 ## Goals
 
@@ -205,7 +205,7 @@ carla-rl-serving/
 
 1. **Immediate (Week 1):** Export existing trained models to standardized artifact format
 2. **Phase 1 Implementation (Weeks 1-3):** Build core serving infrastructure per functional requirements
-3. **Testing & Validation (Week 3):** Comprehensive testing of inference parity and performance
+3. **Testing & Validation (Week 3):** full testing of inference parity and performance
 4. **Documentation (Week 4):** Complete API documentation and deployment guides
 5. **Phase 2 Planning (Week 4):** Detailed design for episode orchestrator and advanced monitoring
 

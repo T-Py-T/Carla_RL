@@ -41,7 +41,7 @@ def main():
         pickle.dump(create_dummy_preprocessor(), f)
     print(f"Created dummy preprocessor: {preprocessor_path}")
 
-    print("✅ Dummy artifacts created successfully!")
+    print("Dummy artifacts created successfully!")
 
 if __name__ == "__main__":
     main()

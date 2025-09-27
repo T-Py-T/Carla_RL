@@ -2,7 +2,7 @@
 
 High-performance serving infrastructure for CarlaRL reinforcement learning policies. This service transforms trained RL models into production-ready microservices with millisecond-latency inference capabilities.
 
-## 🚀 Features
+## Features
 
 - **High-Performance Inference**: Sub-10ms P50 latency for single predictions on CPU
 - **Batch Processing**: Efficient batch inference supporting 1000+ requests/sec
@@ -14,7 +14,7 @@ High-performance serving infrastructure for CarlaRL reinforcement learning polic
 - **Multi-format Support**: PyTorch and TorchScript model formats
 - **Container Native**: Docker-first deployment with Kubernetes support
 
-## 📋 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -80,7 +80,7 @@ High-performance serving infrastructure for CarlaRL reinforcement learning polic
    docker-compose --profile monitoring up -d
    ```
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
@@ -95,7 +95,7 @@ High-performance serving infrastructure for CarlaRL reinforcement learning polic
 └─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 carla-rl-serving/
@@ -125,7 +125,7 @@ carla-rl-serving/
 └── README.md             # This file
 ```
 
-## 🔧 API Reference
+## API Reference
 
 ### Health & Metadata
 
@@ -170,7 +170,7 @@ carla-rl-serving/
 }
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -208,7 +208,7 @@ artifact_hashes:
   preprocessor.pkl: "sha256:def456..."
 ```
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Run all tests
@@ -227,7 +227,7 @@ make test-performance
 make quality
 ```
 
-## 📊 Monitoring
+## Monitoring
 
 The service exposes metrics compatible with Prometheus:
 
@@ -245,7 +245,7 @@ docker-compose --profile monitoring up -d
 # Access Grafana at http://localhost:3000 (admin/admin)
 ```
 
-## 🚢 Deployment
+## Deployment
 
 ### Kubernetes
 
@@ -274,7 +274,7 @@ kubectl scale deployment carla-rl-serving --replicas=3
    - Monitor memory usage with `/metrics`
    - Use resource limits in containers
 
-## 🔍 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -315,7 +315,7 @@ docker logs carla-rl-serving
 docker logs -f carla-rl-serving
 ```
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
@@ -340,11 +340,11 @@ make docker-build
 make docker-run
 ```
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - [FastAPI](https://fastapi.tiangolo.com/) for the high-performance web framework
 - [PyTorch](https://pytorch.org/) for the machine learning framework
@@ -353,4 +353,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Built with ❤️ for the autonomous driving research community**
+**Built for the autonomous driving research community**

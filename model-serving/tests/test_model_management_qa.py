@@ -116,7 +116,7 @@ class TestModelManagementQA:
         output3 = wrapper(x, deterministic=False)
         assert output3.shape == output1.shape, "Output shapes should match regardless of mode"
 
-        print("✅ FR-2.1: PolicyWrapper deterministic/stochastic modes validated")
+        print("FR-2.1: PolicyWrapper deterministic/stochastic modes validated")
 
     def test_qa_fr_2_2_model_loading_formats(self):
         """
@@ -142,7 +142,7 @@ class TestModelManagementQA:
             torchscript_wrapper = load_pytorch_model(torchscript_path, torch.device('cpu'))
             assert torchscript_wrapper.model_type == "torchscript"
 
-            print("✅ FR-2.2: Model loading formats (PyTorch/TorchScript) validated")
+            print("FR-2.2: Model loading formats (PyTorch/TorchScript) validated")
 
     def test_qa_fr_2_3_artifact_integrity_validation(self):
         """
@@ -165,7 +165,7 @@ class TestModelManagementQA:
             with pytest.raises(ArtifactValidationError):
                 validate_artifact_integrity(temp_path, model_card)
 
-            print("✅ FR-2.3: Artifact integrity validation with hash pinning validated")
+            print(" FR-2.3: Artifact integrity validation with hash pinning validated")
 
     def test_qa_fr_2_4_preprocessor_serialization(self):
         """
@@ -194,7 +194,7 @@ class TestModelManagementQA:
             assert np.allclose(original_features, loaded_features)
             assert loaded_preprocessor.is_fitted is True
 
-            print("✅ FR-2.4: Preprocessor serialization validated")
+            print(" FR-2.4: Preprocessor serialization validated")
 
     def test_qa_fr_2_5_train_serve_parity(self):
         """
@@ -221,7 +221,7 @@ class TestModelManagementQA:
             )
             assert result is True
 
-            print("✅ FR-2.5: Train-serve parity validation implemented")
+            print(" FR-2.5: Train-serve parity validation implemented")
 
     def test_qa_fr_2_6_multi_version_support(self):
         """
@@ -253,7 +253,7 @@ class TestModelManagementQA:
             assert isinstance(policy, PolicyWrapper)
             assert preprocessor is not None
 
-            print("✅ FR-2.6: Multi-version model support validated")
+            print(" FR-2.6: Multi-version model support validated")
 
     def test_qa_fr_2_7_device_selection(self):
         """
@@ -276,7 +276,7 @@ class TestModelManagementQA:
             policy_moved = policy_cpu.to(torch.device('cpu'))
             assert policy_moved.device.type == 'cpu'
 
-            print("✅ FR-2.7: Device selection logic validated")
+            print(" FR-2.7: Device selection logic validated")
 
     def test_qa_fr_2_8_model_metadata_parsing(self):
         """
@@ -299,7 +299,7 @@ class TestModelManagementQA:
             assert model_card["version"] == "v0.1.0"
             assert model_card["model_type"] == "pytorch"
 
-            print("✅ FR-2.8: Model metadata parsing validated")
+            print(" FR-2.8: Model metadata parsing validated")
 
     def test_qa_fr_2_9_error_handling(self):
         """
@@ -330,7 +330,7 @@ class TestModelManagementQA:
                 load_artifacts(temp_path, torch.device('cpu'))
             assert "Failed to parse model card YAML" in str(exc_info.value)
 
-        print("✅ FR-2.9: Error handling for missing/corrupted artifacts validated")
+        print(" FR-2.9: Error handling for missing/corrupted artifacts validated")
 
     def test_qa_preprocessing_edge_cases(self):
         """
@@ -354,7 +354,7 @@ class TestModelManagementQA:
         assert features.shape[0] == 2
         assert features.shape[1] == 2 + 4  # speed + steering + max_sensor_length
 
-        print("✅ Preprocessing edge cases validated")
+        print(" Preprocessing edge cases validated")
 
     def test_qa_model_compatibility_validation(self):
         """
@@ -376,7 +376,7 @@ class TestModelManagementQA:
         with pytest.raises(ArtifactValidationError):
             validate_model_compatibility(invalid_model_card)
 
-        print("✅ Model compatibility validation implemented")
+        print(" Model compatibility validation implemented")
 
 
 def run_model_management_qa():
@@ -386,7 +386,7 @@ def run_model_management_qa():
     This function validates that all Model Management Layer requirements
     from the PRD are properly implemented.
     """
-    print("🔍 Running QA Validation for Model Management Layer")
+    print(" Running QA Validation for Model Management Layer")
     print("=" * 60)
 
     # Run all QA tests
@@ -405,12 +405,12 @@ def run_model_management_qa():
         qa_test.test_qa_preprocessing_edge_cases()
         qa_test.test_qa_model_compatibility_validation()
 
-        print("\n🎉 Model Management Layer QA: ALL TESTS PASSED")
-        print("✅ Ready for integration with other layers")
+        print("\n Model Management Layer QA: ALL TESTS PASSED")
+        print(" Ready for integration with other layers")
         return True
 
     except Exception as e:
-        print("\n❌ Model Management Layer QA: FAILED")
+        print("\n Model Management Layer QA: FAILED")
         print(f"Error: {str(e)}")
         return False
 

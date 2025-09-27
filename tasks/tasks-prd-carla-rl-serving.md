@@ -4,12 +4,12 @@ Based on PRD: `prd-carla-rl-serving.md`
 
 ## Relevant Files
 
-- `carla-rl-serving/src/io_schemas.py` - Pydantic schemas for API request/response validation with comprehensive field validation (Agent 1: API Layer)
+- `carla-rl-serving/src/io_schemas.py` - Pydantic schemas for API request/response validation with full field validation (Agent 1: API Layer)
 - `carla-rl-serving/src/exceptions.py` - Custom exception classes and error handling models with FastAPI integration (Agent 1: API Layer)
 - `carla-rl-serving/src/server.py` - FastAPI application with all endpoints, middleware, and error handling (Agent 1: API Layer)
 - `carla-rl-serving/src/version.py` - Version management and git metadata utilities (Agent 1: API Layer)
 - `carla-rl-serving/tests/test_api_endpoints.py` - Integration tests for all FastAPI endpoints with mocked dependencies (Agent 1: API Layer)
-- `carla-rl-serving/tests/test_schemas.py` - Comprehensive unit tests for Pydantic schemas with validation edge cases (Agent 1: API Layer)
+- `carla-rl-serving/tests/test_schemas.py` - full unit tests for Pydantic schemas with validation edge cases (Agent 1: API Layer)
 - `carla-rl-serving/tests/test_exceptions.py` - Unit tests for exception handling and error response creation (Agent 1: API Layer)
 - `carla-rl-serving/tests/test_qa_plan.py` - QA validation test plan ensuring all PRD requirements are met (Agent 1: API Layer)
 - `carla-rl-serving/src/model_loader.py` - Model loading and artifact management utilities (Agent 2: Model Layer)
@@ -47,7 +47,7 @@ Based on PRD: `prd-carla-rl-serving.md`
   - [x] 1.5 Implement `/metadata` endpoint returning model info, device, input shape, and action space
   - [x] 1.6 Implement `/predict` endpoint with batch processing and deterministic mode support
   - [x] 1.7 Implement `/warmup` endpoint for JIT compilation and model optimization
-  - [x] 1.8 Add comprehensive input validation and structured error responses
+  - [x] 1.8 Add full input validation and structured error responses
   - [x] 1.9 Generate OpenAPI/Swagger documentation with proper examples
   - [x] 1.10 Write unit tests for all endpoints with edge cases and error conditions
   - [x] 1.11 Write unit tests for schema validation and serialization/deserialization
@@ -88,7 +88,7 @@ Based on PRD: `prd-carla-rl-serving.md`
   - [x] 4.7 Create health check configuration for container orchestration
   - [x] 4.8 Implement resource limits and memory constraints in container
   - [x] 4.9 Create docker-compose.yml for local development and testing
-  - [x] 4.10 Write comprehensive README with setup, usage, and deployment instructions
+  - [x] 4.10 Write full README with setup, usage, and deployment instructions
   - [x] 4.11 Create integration tests for containerized deployment
 
 - [x] 5.0 **Artifact Management System** (Agent 5: Model artifacts, validation, export pipeline)
