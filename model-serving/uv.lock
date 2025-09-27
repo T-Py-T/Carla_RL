@@ -59,6 +59,7 @@ source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "numpy" },
+    { name = "psutil" },
     { name = "pydantic" },
     { name = "python-multipart" },
     { name = "pyyaml" },
@@ -108,6 +109,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.24.0,<2.0.0" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=3.5.0,<4.0.0" },
     { name = "prometheus-client", marker = "extra == 'monitoring'", specifier = ">=0.17.0,<0.18.0" },
+    { name = "psutil", specifier = ">=5.9.8" },
     { name = "psutil", marker = "extra == 'monitoring'", specifier = ">=5.9.0,<6.0.0" },
     { name = "pydantic", specifier = ">=2.5.0,<3.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.4.0,<8.0.0" },

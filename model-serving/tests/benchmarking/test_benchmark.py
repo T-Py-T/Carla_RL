@@ -55,17 +55,34 @@ class TestLatencyStats:
             std_ms=2.0,
             min_ms=1.0,
             max_ms=25.0,
-            total_measurements=100
+            total_measurements=100,
+            p90_ms=8.0,
+            p99_9_ms=30.0,
+            skewness=0.5,
+            kurtosis=2.0,
+            outlier_count=2,
+            outlier_percentage=2.0
         )
         
         assert stats.p50_ms == 5.0
         assert stats.p95_ms == 10.0
         assert stats.p99_ms == 20.0
+        assert stats.p90_ms == 8.0
+        assert stats.p99_9_ms == 30.0
         assert stats.mean_ms == 6.0
         assert stats.std_ms == 2.0
         assert stats.min_ms == 1.0
         assert stats.max_ms == 25.0
         assert stats.total_measurements == 100
+        assert stats.skewness == 0.5
+        assert stats.kurtosis == 2.0
+        assert stats.outlier_count == 2
+        assert stats.outlier_percentage == 2.0
+        
+        # Test post-init calculations
+        assert stats.median_ms == 5.0  # Should equal p50_ms
+        assert stats.variance_ms2 == 4.0  # Should equal std_ms^2
+        assert stats.coefficient_of_variation == 2.0/6.0  # std/mean
 
 
 class TestThroughputStats:
@@ -149,7 +166,53 @@ class TestBenchmarkEngine:
         assert stats.p50_ms > 0
         assert stats.p95_ms > 0
         assert stats.p99_ms > 0
+        assert stats.p90_ms > 0
+        assert stats.p99_9_ms > 0
         assert stats.mean_ms > 0
+        assert stats.skewness is not None
+        assert stats.kurtosis is not None
+        assert stats.outlier_count >= 0
+        assert stats.outlier_percentage >= 0
+    
+    def test_statistical_calculations(self):
+        """Test statistical calculation methods."""
+        engine = BenchmarkEngine()
+        
+        # Test with known data
+        test_data = np.array([1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0])
+        
+        # Test skewness calculation
+        skewness = engine._calculate_skewness(test_data)
+        assert isinstance(skewness, float)
+        
+        # Test kurtosis calculation
+        kurtosis = engine._calculate_kurtosis(test_data)
+        assert isinstance(kurtosis, float)
+        
+        # Test outlier detection
+        outlier_count, outlier_percentage = engine._detect_outliers(test_data)
+        assert isinstance(outlier_count, int)
+        assert isinstance(outlier_percentage, float)
+        assert outlier_count >= 0
+        assert outlier_percentage >= 0.0
+    
+    def test_statistical_validation(self):
+        """Test statistical validation methods."""
+        engine = BenchmarkEngine()
+        
+        # Test with normal data
+        normal_data = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+        engine._validate_latency_statistics(normal_data, 3.0, 1.0)  # Should not raise
+        
+        # Test with negative values (should raise)
+        negative_data = np.array([-1.0, 2.0, 3.0, 4.0, 5.0])
+        with pytest.raises(ValueError):
+            engine._validate_latency_statistics(negative_data, 2.6, 1.0)
+        
+        # Test with high variance (should warn)
+        high_variance_data = np.array([1.0, 2.0, 3.0, 4.0, 100.0])
+        # This should not raise but might print a warning
+        engine._validate_latency_statistics(high_variance_data, 22.0, 50.0)
     
     def test_measure_throughput(self):
         """Test throughput measurement."""
