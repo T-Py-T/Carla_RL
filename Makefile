@@ -19,10 +19,11 @@ help:
 	@echo "  make test             - Run all tests"
 	@echo ""
 	@echo "🔍 Quality Checks:"
-	@echo "  make lint             - Run linting (ruff, black, isort, mypy)"
-	@echo "  make security         - Run security checks (bandit, safety)"
-	@echo "  make docker-check     - Test Docker builds"
-	@echo "  make ci-checks        - Run all CI checks locally"
+	@echo "  make check            - Run all quality checks (syntax + linting)"
+	@echo "  make lint             - Run ruff linting only"
+	@echo "  make fix              - Auto-fix code issues"
+	@echo "  make format           - Auto-format code (same as fix)"
+	@echo "  make diff             - Show what would be fixed"
 	@echo ""
 	@echo "🚀 Quick Commands:"
 	@echo "  make train-highway    - Train Highway RL model"
@@ -96,5 +97,35 @@ serving-shell:
 	@echo "🐚 Entering serving environment shell..."
 	@cd model-serving && bash
 
-# Note: Quality checks are handled by GitHub Actions CI
-# Run 'make help' to see available commands
+# Quality checks (run these before committing)
+check:
+	@echo "🔍 Running code quality checks..."
+	@echo "Checking Python syntax..."
+	@find . -name "*.py" -not -path "./.venv/*" -not -path "./.git/*" -exec python -m py_compile {} \;
+	@echo "✅ Python syntax check passed"
+	@echo "Running ruff linting..."
+	@which ruff >/dev/null 2>&1 || (echo "Installing ruff..." && pip install ruff)
+	@ruff check . || (echo "❌ Linting issues found. Run 'make fix' to auto-fix." && exit 1)
+	@echo "✅ All checks passed!"
+
+fix:
+	@echo "🔧 Auto-fixing code issues..."
+	@which ruff >/dev/null 2>&1 || (echo "Installing ruff..." && pip install ruff)
+	@ruff check --fix .
+	@echo "✅ Code issues fixed!"
+
+lint:
+	@echo "🔍 Running ruff linting only..."
+	@which ruff >/dev/null 2>&1 || (echo "Installing ruff..." && pip install ruff)
+	@ruff check .
+
+format:
+	@echo "🎨 Auto-formatting code..."
+	@which ruff >/dev/null 2>&1 || (echo "Installing ruff..." && pip install ruff)
+	@ruff check --fix .
+
+# Show what would be fixed without actually fixing
+diff:
+	@echo "📋 Showing what would be fixed..."
+	@which ruff >/dev/null 2>&1 || (echo "Installing ruff..." && pip install ruff)
+	@ruff check --diff .
