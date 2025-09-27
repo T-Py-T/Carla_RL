@@ -11,7 +11,8 @@ Guidelines for managing task lists in markdown files to track progress on comple
 - **One sub-task at a time:** Do **NOT** start the next sub‑task until you ask the user for permission and they say "yes" or "y"
 - **Completion protocol:**  
   1. When you finish a **sub‑task**, immediately mark it as completed by changing `[ ]` to `[x]`.
-  2. If **all** subtasks underneath a parent task are now `[x]`, follow this sequence:
+  2. **No quality checks needed after individual subtasks** - continue working on the next subtask.
+  3. If **all** subtasks underneath a parent task are now `[x]`, follow this sequence:
     - **First**: Run comprehensive quality checks:
       - **Linting**: Run `make lint` or equivalent linting tool
       - **Fix Issues**: Address all linting errors and warnings
@@ -64,7 +65,8 @@ When working with task lists, the AI must:
 
 1. Regularly update the task list file after finishing any significant work.
 2. Follow the completion protocol:
-   - Mark each finished **sub‑task** `[x]`.
+   - Mark each finished **sub‑task** `[x]` and continue to the next subtask.
+   - **No quality checks needed after individual subtasks** - only when all subtasks are complete.
    - **CRITICAL**: Before marking a parent task complete, run ALL quality checks:
      - `make lint` (must pass with exit code 0)
      - `make format` (fix any formatting issues)
