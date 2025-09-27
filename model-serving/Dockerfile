@@ -2,7 +2,7 @@
 # Optimized for production deployment with security and performance
 
 # Stage 1: Base image with system dependencies
-FROM python:3.11-slim as base
+FROM python:3.11-slim AS base
 
 # Set environment variables for Python
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -20,7 +20,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Stage 2: Dependencies installation
-FROM base as dependencies
+FROM base AS dependencies
 
 # Create virtual environment
 RUN python -m venv /opt/venv
@@ -33,7 +33,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Stage 3: Production image
-FROM python:3.11-slim as production
+FROM python:3.11-slim AS production
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -53,7 +53,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean
 
 # Create non-root user for security
-RUN groupadd -r carlarl && useradd -r -g carlarl -s /bin/false carlarl
+RUN groupadd -r modelserving && useradd -r -g modelserving -s /bin/false modelserving
 
 # Copy virtual environment from dependencies stage
 COPY --from=dependencies /opt/venv /opt/venv
@@ -63,14 +63,14 @@ WORKDIR /app
 
 # Create necessary directories
 RUN mkdir -p /app/artifacts /app/logs \
-    && chown -R carlarl:carlarl /app
+    && chown -R modelserving:modelserving /app
 
 # Copy application code
-COPY --chown=carlarl:carlarl src/ ./src/
-COPY --chown=carlarl:carlarl artifacts/ ./artifacts/
+COPY --chown=modelserving:modelserving src/ ./src/
+COPY --chown=modelserving:modelserving artifacts/ ./artifacts/
 
 # Create startup script
-COPY --chown=carlarl:carlarl <<EOF /app/entrypoint.sh
+COPY --chown=modelserving:modelserving <<EOF /app/entrypoint.sh
 #!/bin/bash
 set -e
 
