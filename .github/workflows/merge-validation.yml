@@ -61,6 +61,7 @@ jobs:
           -not -path "./*/build/*" \
           -not -path "./*/dist/*" \
           -exec python3 -m py_compile {} \; || (echo "Python syntax check failed" && exit 1)
+          
         echo "Python syntax check passed"
         
     - name: Run full tests
