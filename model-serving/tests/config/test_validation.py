@@ -108,9 +108,15 @@ class TestConfigValidator:
                 return {"server": {"port": -1}}
             def model_validate(self, data):
                 from pydantic import ValidationError
-                raise ValidationError.from_exception_data("ValidationError", [
-                    {"type": "greater_than_equal", "loc": ("server", "port"), "msg": "Input should be greater than or equal to 1", "input": -1}
-                ])
+                from pydantic_core import ErrorDetails
+                error_details = ErrorDetails(
+                    type="greater_than_equal",
+                    loc=("server", "port"),
+                    msg="Input should be greater than or equal to 1",
+                    input=-1,
+                    ctx={"ge": 1}
+                )
+                raise ValidationError.from_exception_data("ValidationError", [error_details])
         
         config = MockConfig()
         result = validator.validate(config)
