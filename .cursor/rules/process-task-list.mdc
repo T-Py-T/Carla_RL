@@ -8,12 +8,18 @@ alwaysApply: false
 Guidelines for managing task lists in markdown files to track progress on completing a PRD
 
 ## Task Implementation
-- **One sub-task at a time:** Do **NOT** start the next sub‑task until you ask the user for permission and they say "yes" or "y"
+- **One sub-task at a time:** Do **NOT** start the next sub‑task until you have completed and tested the current task.
 - **Completion protocol:**  
   1. When you finish a **sub‑task**, immediately mark it as completed by changing `[ ]` to `[x]`.
-  2. If **all** subtasks underneath a parent task are now `[x]`, follow this sequence:
-    - **First**: Run the full test suite (`pytest`, `npm test`, `bin/rails test`, etc.)
-    - **Only if all tests pass**: Stage changes (`git add .`)
+  2. **No quality checks needed after individual subtasks** - continue working on the next subtask.
+  3. If **all** subtasks underneath a parent task are now `[x]`, follow this sequence:
+    - **First**: Run comprehensive quality checks:
+      - **Linting**: Run `make lint` or equivalent linting tool
+      - **Fix Issues**: Address all linting errors and warnings
+      - **Formatting**: Run `make format` or equivalent formatting tool
+      - **Testing**: Run the full test suite (`pytest`, `npm test`, `bin/rails test`, etc.)
+      - **Quality Validation**: Run `make quality` or equivalent quality checks
+    - **Only if ALL quality checks pass**: Stage changes (`git add .`)
     - **Clean up**: Remove any temporary files and temporary code before committing
     - **Commit**: Use a descriptive commit message that:
       - Uses conventional commit format (`feat:`, `fix:`, `refactor:`, etc.)
@@ -26,7 +32,19 @@ Guidelines for managing task lists in markdown files to track progress on comple
         git commit -m "feat: add payment validation logic" -m "- Validates card type and expiry" -m "- Adds unit tests for edge cases" -m "Related to T123 in PRD"
         ```
   3. Once all the subtasks are marked completed and changes have been committed, mark the **parent task** as completed.
-- Stop after each sub‑task and wait for the user's go‑ahead.
+
+## Quality Requirements
+
+**CRITICAL**: Before committing any parent task completion, the code must meet the highest quality standards:
+
+1. **Linting**: All linting errors must be resolved (exit code 0)
+2. **Formatting**: All code must be properly formatted
+3. **Testing**: All tests must pass (or be appropriately skipped with justification)
+4. **Code Quality**: All quality checks must pass
+5. **No Temporary Code**: Remove any debug prints, temporary variables, or test code
+6. **Documentation**: Ensure all new functions/classes have proper docstrings
+
+**Failure to meet these standards will result in rejected commits and require rework.**
 
 ## Task List Maintenance
 
@@ -46,9 +64,17 @@ When working with task lists, the AI must:
 
 1. Regularly update the task list file after finishing any significant work.
 2. Follow the completion protocol:
-   - Mark each finished **sub‑task** `[x]`.
-   - Mark the **parent task** `[x]` once **all** its subtasks are `[x]`.
+   - Mark each finished **sub‑task** `[x]` and continue to the next subtask.
+   - **No quality checks needed after individual subtasks** - only when all subtasks are complete.
+   - **CRITICAL**: Before marking a parent task complete, run ALL quality checks:
+     - `make lint` (must pass with exit code 0)
+     - `make format` (fix any formatting issues)
+     - `make test` (run test suite)
+     - `make quality` (comprehensive quality validation)
+   - Only commit if ALL quality checks pass
+   - Mark the **parent task** `[x]` once **all** its subtasks are `[x]` AND quality checks pass.
 3. Add newly discovered tasks.
 4. Keep "Relevant Files" accurate and up to date.
 5. Before starting work, check which sub‑task is next.
-6. After implementing a sub‑task, update the file and then pause for user approval.
+6. After implementing a sub‑task, update the file.
+7. **Never commit code that fails quality checks** - this is a hard requirement.
