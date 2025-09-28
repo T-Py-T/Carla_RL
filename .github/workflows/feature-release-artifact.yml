@@ -3,9 +3,9 @@ name: Feature Release Artifact
 on:
   pull_request:
     types: [closed]
+
     branches: [release]
     # Only triggers on merge to 'release' branch to avoid creating releases on every merge
-
 
 jobs:
   create-feature-artifact:
