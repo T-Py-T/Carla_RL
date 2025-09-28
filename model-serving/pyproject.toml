@@ -66,6 +66,13 @@ dev = [
 
 gpu = [
     "torch>=2.1.0,<3.0.0",
+    "tensorrt>=8.0.0,<9.0.0",
+]
+
+optimization = [
+    "numpy>=1.24.0,<2.0.0",
+    "psutil>=5.9.0,<6.0.0",
+    "py-cpuinfo>=9.0.0,<10.0.0",
 ]
 
 monitoring = [
@@ -74,7 +81,7 @@ monitoring = [
 ]
 
 all = [
-    "carla-rl-serving[dev,gpu,monitoring]"
+    "carla-rl-serving[dev,gpu,optimization,monitoring]"
 ]
 
 [project.urls]

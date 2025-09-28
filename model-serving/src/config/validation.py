@@ -305,7 +305,10 @@ def validate_environment_consistency(config: AppConfig) -> List[ValidationIssue]
     """Validate environment-specific configuration consistency."""
     issues = []
     
-    if config.environment.value == "production":
+    # Handle both enum objects and strings
+    environment = config.environment.value if hasattr(config.environment, 'value') else str(config.environment)
+    
+    if environment == "production":
         # Production-specific validations
         if config.debug:
             issues.append(ValidationIssue(
@@ -351,11 +354,14 @@ def validate_database_config(config: AppConfig) -> List[ValidationIssue]:
     issues = []
     db_config = config.database
     
-    if db_config.backend.value in ["postgresql", "mysql"]:
+    # Handle both enum objects and strings
+    backend = db_config.backend.value if hasattr(db_config.backend, 'value') else str(db_config.backend)
+    
+    if backend in ["postgresql", "mysql"]:
         if not db_config.host and not db_config.url:
             issues.append(ValidationIssue(
                 field="database.host",
-                message=f"Host or URL required for {db_config.backend.value}",
+                message=f"Host or URL required for {backend}",
                 severity=ValidationSeverity.ERROR,
                 suggestion="Provide database host or connection URL"
             ))
@@ -363,7 +369,7 @@ def validate_database_config(config: AppConfig) -> List[ValidationIssue]:
         if not db_config.username:
             issues.append(ValidationIssue(
                 field="database.username",
-                message=f"Username required for {db_config.backend.value}",
+                message=f"Username required for {backend}",
                 severity=ValidationSeverity.ERROR,
                 suggestion="Provide database username"
             ))
@@ -376,11 +382,14 @@ def validate_cache_config(config: AppConfig) -> List[ValidationIssue]:
     issues = []
     cache_config = config.cache
     
-    if cache_config.backend.value in ["redis", "memcached"]:
+    # Handle both enum objects and strings
+    backend = cache_config.backend.value if hasattr(cache_config.backend, 'value') else str(cache_config.backend)
+    
+    if backend in ["redis", "memcached"]:
         if not cache_config.host:
             issues.append(ValidationIssue(
                 field="cache.host",
-                message=f"Host required for {cache_config.backend.value}",
+                message=f"Host required for {backend}",
                 severity=ValidationSeverity.ERROR,
                 suggestion="Provide cache host address"
             ))
