@@ -59,20 +59,16 @@ class TestInfrastructureIntegration:
         """Test prediction endpoint with real request."""
         request_data = {
             "observations": [
-                {
-                    "speed": 25.5,
-                    "steering": 0.1,
-                    "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]
-                }
+                {"speed": 25.5, "steering": 0.1, "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]}
             ],
-            "deterministic": True
+            "deterministic": True,
         }
 
         response = requests.post(
             f"{service_url}/predict",
             json=request_data,
             headers={"Content-Type": "application/json"},
-            timeout=30
+            timeout=30,
         )
 
         assert response.status_code == 200
@@ -121,30 +117,18 @@ class TestInfrastructureIntegration:
         """Test batch prediction with multiple observations."""
         request_data = {
             "observations": [
-                {
-                    "speed": 20.0,
-                    "steering": 0.0,
-                    "sensors": [0.1, 0.2, 0.3, 0.4, 0.5]
-                },
-                {
-                    "speed": 30.0,
-                    "steering": 0.2,
-                    "sensors": [0.6, 0.7, 0.8, 0.9, 1.0]
-                },
-                {
-                    "speed": 40.0,
-                    "steering": -0.1,
-                    "sensors": [0.2, 0.4, 0.6, 0.8, 1.0]
-                }
+                {"speed": 20.0, "steering": 0.0, "sensors": [0.1, 0.2, 0.3, 0.4, 0.5]},
+                {"speed": 30.0, "steering": 0.2, "sensors": [0.6, 0.7, 0.8, 0.9, 1.0]},
+                {"speed": 40.0, "steering": -0.1, "sensors": [0.2, 0.4, 0.6, 0.8, 1.0]},
             ],
-            "deterministic": False
+            "deterministic": False,
         }
 
         response = requests.post(
             f"{service_url}/predict",
             json=request_data,
             headers={"Content-Type": "application/json"},
-            timeout=30
+            timeout=30,
         )
 
         assert response.status_code == 200
@@ -169,7 +153,7 @@ class TestInfrastructureIntegration:
                 {
                     "speed": -10.0,  # Invalid negative speed
                     "steering": 0.0,
-                    "sensors": [0.1, 0.2, 0.3]
+                    "sensors": [0.1, 0.2, 0.3],
                 }
             ]
         }
@@ -178,7 +162,7 @@ class TestInfrastructureIntegration:
             f"{service_url}/predict",
             json=invalid_request,
             headers={"Content-Type": "application/json"},
-            timeout=10
+            timeout=10,
         )
 
         assert response.status_code == 422
@@ -261,14 +245,8 @@ class TestPerformanceIntegration:
         assert warmup_response.status_code == 200
 
         request_data = {
-            "observations": [
-                {
-                    "speed": 25.0,
-                    "steering": 0.0,
-                    "sensors": [0.5] * 5
-                }
-            ],
-            "deterministic": True
+            "observations": [{"speed": 25.0, "steering": 0.0, "sensors": [0.5] * 5}],
+            "deterministic": True,
         }
 
         # Measure latencies
@@ -280,7 +258,7 @@ class TestPerformanceIntegration:
                 f"{service_url}/predict",
                 json=request_data,
                 headers={"Content-Type": "application/json"},
-                timeout=10
+                timeout=10,
             )
 
             end_time = time.perf_counter()
@@ -310,14 +288,10 @@ class TestPerformanceIntegration:
         batch_size = 10
         request_data = {
             "observations": [
-                {
-                    "speed": 20.0 + i,
-                    "steering": i * 0.1,
-                    "sensors": [0.1 * j for j in range(5)]
-                }
+                {"speed": 20.0 + i, "steering": i * 0.1, "sensors": [0.1 * j for j in range(5)]}
                 for i in range(batch_size)
             ],
-            "deterministic": True
+            "deterministic": True,
         }
 
         # Measure throughput
@@ -329,7 +303,7 @@ class TestPerformanceIntegration:
                 f"{service_url}/predict",
                 json=request_data,
                 headers={"Content-Type": "application/json"},
-                timeout=30
+                timeout=30,
             )
             assert response.status_code == 200
 
@@ -353,15 +327,7 @@ class TestPerformanceIntegration:
         warmup_response = requests.post(f"{service_url}/warmup", timeout=30)
         assert warmup_response.status_code == 200
 
-        request_data = {
-            "observations": [
-                {
-                    "speed": 25.0,
-                    "steering": 0.0,
-                    "sensors": [0.5] * 5
-                }
-            ]
-        }
+        request_data = {"observations": [{"speed": 25.0, "steering": 0.0, "sensors": [0.5] * 5}]}
 
         results_queue = queue.Queue()
 
@@ -371,7 +337,7 @@ class TestPerformanceIntegration:
                     f"{service_url}/predict",
                     json=request_data,
                     headers={"Content-Type": "application/json"},
-                    timeout=10
+                    timeout=10,
                 )
                 results_queue.put(("success", response.status_code))
             except Exception as e:
@@ -422,7 +388,7 @@ class TestDockerIntegration:
                 ["docker", "ps", "--filter", "name=carla-rl-serving", "--format", "{{.Status}}"],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
 
             if result.returncode == 0 and "healthy" in result.stdout:
@@ -438,17 +404,24 @@ class TestDockerIntegration:
         try:
             # Get container stats
             result = subprocess.run(
-                ["docker", "stats", "carla-rl-serving", "--no-stream", "--format", "table {{.CPUPerc}}\t{{.MemUsage}}"],
+                [
+                    "docker",
+                    "stats",
+                    "carla-rl-serving",
+                    "--no-stream",
+                    "--format",
+                    "table {{.CPUPerc}}\t{{.MemUsage}}",
+                ],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
 
             if result.returncode == 0:
-                lines = result.stdout.strip().split('\n')
+                lines = result.stdout.strip().split("\n")
                 if len(lines) > 1:
-                    stats = lines[1].split('\t')
-                    cpu_percent = float(stats[0].replace('%', ''))
+                    stats = lines[1].split("\t")
+                    cpu_percent = float(stats[0].replace("%", ""))
                     memory_usage = stats[1]
 
                     print(f"Container CPU usage: {cpu_percent}%")

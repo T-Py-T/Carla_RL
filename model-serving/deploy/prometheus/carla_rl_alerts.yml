@@ -1,0 +1,170 @@
+groups:
+  - name: carla_rl_serving
+    rules:
+      # High latency alerts
+      - alert: HighInferenceLatency
+        expr: histogram_quantile(0.95, rate(carla_rl_inference_duration_seconds_bucket[5m])) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          service: carla-rl-serving
+        annotations:
+          summary: "High inference latency detected"
+          description: "P95 inference latency is {{ $value }}s, above threshold of 0.05s"
+          
+      - alert: CriticalInferenceLatency
+        expr: histogram_quantile(0.95, rate(carla_rl_inference_duration_seconds_bucket[5m])) > 0.1
+        for: 1m
+        labels:
+          severity: critical
+          service: carla-rl-serving
+        annotations:
+          summary: "Critical inference latency detected"
+          description: "P95 inference latency is {{ $value }}s, above critical threshold of 0.1s"
+          
+      # Error rate alerts
+      - alert: HighErrorRate
+        expr: rate(carla_rl_errors_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          service: carla-rl-serving
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }} errors/sec, above threshold of 0.1"
+          
+      - alert: CriticalErrorRate
+        expr: rate(carla_rl_errors_total[5m]) > 1.0
+        for: 1m
+        labels:
+          severity: critical
+          service: carla-rl-serving
+        annotations:
+          summary: "Critical error rate detected"
+          description: "Error rate is {{ $value }} errors/sec, above critical threshold of 1.0"
+          
+      # Model status alerts
+      - alert: ModelNotLoaded
+        expr: carla_rl_model_loaded == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: carla-rl-serving
+        annotations:
+          summary: "Model not loaded"
+          description: "Model is not loaded on instance {{ $labels.instance }}"
+          
+      - alert: ModelNotWarmedUp
+        expr: carla_rl_model_warmed_up == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: carla-rl-serving
+        annotations:
+          summary: "Model not warmed up"
+          description: "Model is loaded but not warmed up on instance {{ $labels.instance }}"
+          
+      # System resource alerts
+      - alert: HighCPUUsage
+        expr: carla_rl_cpu_usage_percent > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: carla-rl-serving
+        annotations:
+          summary: "High CPU usage"
+          description: "CPU usage is {{ $value }}% on instance {{ $labels.instance }}"
+          
+      - alert: CriticalCPUUsage
+        expr: carla_rl_cpu_usage_percent > 90
+        for: 2m
+        labels:
+          severity: critical
+          service: carla-rl-serving
+        annotations:
+          summary: "Critical CPU usage"
+          description: "CPU usage is {{ $value }}% on instance {{ $labels.instance }}"
+          
+      - alert: HighMemoryUsage
+        expr: carla_rl_memory_usage_percent > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: carla-rl-serving
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is {{ $value }}% on instance {{ $labels.instance }}"
+          
+      - alert: CriticalMemoryUsage
+        expr: carla_rl_memory_usage_percent > 95
+        for: 2m
+        labels:
+          severity: critical
+          service: carla-rl-serving
+        annotations:
+          summary: "Critical memory usage"
+          description: "Memory usage is {{ $value }}% on instance {{ $labels.instance }}"
+          
+      # GPU alerts
+      - alert: HighGPUUtilization
+        expr: carla_rl_gpu_utilization_percent > 90
+        for: 5m
+        labels:
+          severity: warning
+          service: carla-rl-serving
+        annotations:
+          summary: "High GPU utilization"
+          description: "GPU {{ $labels.device_id }} utilization is {{ $value }}% on instance {{ $labels.instance }}"
+          
+      - alert: HighGPUMemoryUsage
+        expr: carla_rl_gpu_memory_usage_bytes / 1024 / 1024 / 1024 > 8
+        for: 5m
+        labels:
+          severity: warning
+          service: carla-rl-serving
+        annotations:
+          summary: "High GPU memory usage"
+          description: "GPU {{ $labels.device_id }} memory usage is {{ $value }}GB on instance {{ $labels.instance }}"
+          
+      # Service availability alerts
+      - alert: ServiceDown
+        expr: up{job="carla-rl-serving"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          service: carla-rl-serving
+        annotations:
+          summary: "Service is down"
+          description: "CarlaRL serving instance {{ $labels.instance }} is down"
+          
+      - alert: ServiceUnreachable
+        expr: up{job="carla-rl-serving"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: carla-rl-serving
+        annotations:
+          summary: "Service unreachable"
+          description: "CarlaRL serving instance {{ $labels.instance }} has been unreachable for more than 1 minute"
+          
+      # Throughput alerts
+      - alert: LowThroughput
+        expr: rate(carla_rl_inference_requests_total[5m]) < 0.1
+        for: 10m
+        labels:
+          severity: warning
+          service: carla-rl-serving
+        annotations:
+          summary: "Low throughput detected"
+          description: "Throughput is {{ $value }} requests/sec, below expected threshold"
+          
+      # Request duration alerts
+      - alert: HighRequestDuration
+        expr: histogram_quantile(0.95, rate(carla_rl_request_duration_seconds_bucket[5m])) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          service: carla-rl-serving
+        annotations:
+          summary: "High request duration"
+          description: "P95 request duration is {{ $value }}s on endpoint {{ $labels.endpoint }}"

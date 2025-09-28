@@ -50,7 +50,7 @@ class TestInferenceMetrics:
             batch_size=2,
             inference_time_ms=10.0,
             preprocessing_time_ms=2.0,
-            postprocessing_time_ms=1.0
+            postprocessing_time_ms=1.0,
         )
 
         assert metrics.total_requests == 1
@@ -139,11 +139,7 @@ class TestInferenceCache:
         """Create test observations."""
         observations = []
         for i in range(n):
-            obs = Observation(
-                speed=20.0 + i,
-                steering=i * 0.1,
-                sensors=[0.1 * j for j in range(3)]
-            )
+            obs = Observation(speed=20.0 + i, steering=i * 0.1, sensors=[0.1 * j for j in range(3)])
             observations.append(obs)
         return observations
 
@@ -255,11 +251,11 @@ class TestInferenceEngine:
 
         engine = InferenceEngine(
             policy=policy,
-            device=torch.device('cpu'),
+            device=torch.device("cpu"),
             preprocessor=preprocessor,
             enable_cache=enable_cache,
             cache_size=100,
-            max_batch_size=10
+            max_batch_size=10,
         )
 
         return engine
@@ -268,11 +264,7 @@ class TestInferenceEngine:
         """Create test observations."""
         observations = []
         for i in range(n):
-            obs = Observation(
-                speed=20.0 + i,
-                steering=i * 0.1,
-                sensors=[0.1, 0.2, 0.3, 0.4, 0.5]
-            )
+            obs = Observation(speed=20.0 + i, steering=i * 0.1, sensors=[0.1, 0.2, 0.3, 0.4, 0.5])
             observations.append(obs)
         return observations
 
@@ -280,7 +272,7 @@ class TestInferenceEngine:
         """Test InferenceEngine initialization."""
         engine = self.create_test_engine()
 
-        assert engine.device.type == 'cpu'
+        assert engine.device.type == "cpu"
         assert engine.preprocessor is not None
         assert engine.cache is not None
         assert engine.max_batch_size == 10
@@ -408,9 +400,16 @@ class TestInferenceEngine:
 
         # Check required fields
         required_fields = [
-            "model_version", "git_sha", "device", "warmed_up",
-            "total_requests", "total_observations", "error_count",
-            "cache_size", "latency_ms", "throughput"
+            "model_version",
+            "git_sha",
+            "device",
+            "warmed_up",
+            "total_requests",
+            "total_observations",
+            "error_count",
+            "cache_size",
+            "latency_ms",
+            "throughput",
         ]
 
         for field in required_fields:
@@ -543,9 +542,7 @@ class TestInferenceEngineEdgeCases:
         engine = TestInferenceEngine().create_test_engine()
 
         # Create observations with extreme values
-        observations = [
-            Observation(speed=1000.0, steering=10.0, sensors=[1e6, -1e6, 0.0])
-        ]
+        observations = [Observation(speed=1000.0, steering=10.0, sensors=[1e6, -1e6, 0.0])]
 
         actions, timing_ms = engine.predict(observations)
 
@@ -561,6 +558,7 @@ class TestInferenceEngineEdgeCases:
         observations = TestInferenceEngine().create_test_observations(1)
 
         import threading
+
         results = []
         errors = []
 

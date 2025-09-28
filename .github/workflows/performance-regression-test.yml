@@ -1,0 +1,103 @@
+name: Performance Regression Test
+
+on:
+  push:
+    branches: [ dev, staging, main ]
+    paths:
+      - 'model-serving/**'
+      - '.github/workflows/performance-regression-test.yml'
+  pull_request:
+    branches: [ dev, staging, main ]
+    paths:
+      - 'model-serving/**'
+      - '.github/workflows/performance-regression-test.yml'
+
+jobs:
+  performance-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install uv
+      uses: astral-sh/setup-uv@v4
+      
+    - name: Install dependencies
+      run: |
+        cd model-serving
+        uv sync --dev
+        
+    - name: Run environment-aware performance test
+      run: |
+        cd model-serving
+        # Set environment variables for CI testing
+        export MOCK_INFERENCE_DELAY_MS=2.0
+        export MOCK_INFERENCE_JITTER_MS=1.0
+        
+        # Run environment-aware performance test
+        uv run python scripts/environment_aware_performance_test.py \
+          --environment ci \
+          --iterations 100 \
+          --config config/performance-thresholds.yaml \
+          --output performance_results.json \
+          --exit-on-failure
+          
+    - name: Upload performance results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: performance-test-results
+        path: model-serving/performance_results.json
+        
+    - name: Comment PR with results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          try {
+            const results = JSON.parse(fs.readFileSync('model-serving/performance_results.json', 'utf8'));
+            
+            const comment = `## Performance Regression Test Results
+            
+            **Status:** ${results.test_passed ? '✅ PASSED' : '❌ FAILED'}
+            **Regression Detected:** ${results.regression_detected ? 'YES' : 'NO'}
+            
+            ### Performance Metrics
+            - **P50 Latency:** ${results.performance_metrics.p50_latency_ms.toFixed(2)}ms
+            - **P95 Latency:** ${results.performance_metrics.p95_latency_ms.toFixed(2)}ms
+            - **P99 Latency:** ${results.performance_metrics.p99_latency_ms.toFixed(2)}ms
+            - **Throughput:** ${results.performance_metrics.throughput_rps.toFixed(1)} RPS
+            - **Memory Usage:** ${results.performance_metrics.memory_usage_mb.toFixed(1)} MB
+            
+            ### Requirements Met
+            - **P50 Requirement:** ${results.requirements_met.p50_requirement ? '✅' : '❌'}
+            - **P95 Requirement:** ${results.requirements_met.p95_requirement ? '✅' : '❌'}
+            - **P99 Requirement:** ${results.requirements_met.p99_requirement ? '✅' : '❌'}
+            - **Throughput Requirement:** ${results.requirements_met.throughput_requirement ? '✅' : '❌'}
+            - **Memory Requirement:** ${results.requirements_met.memory_requirement ? '✅' : '❌'}
+            
+            ${results.baseline_comparison ? `
+            ### Baseline Comparison
+            - **P50 Latency Change:** ${results.baseline_comparison.p50_latency_diff_percent.toFixed(1)}%
+            - **P95 Latency Change:** ${results.baseline_comparison.p95_latency_diff_percent.toFixed(1)}%
+            - **Throughput Change:** ${results.baseline_comparison.throughput_diff_percent.toFixed(1)}%
+            - **Significant Regression:** ${results.baseline_comparison.significant_regression ? 'YES' : 'NO'}
+            ` : ''}
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          } catch (error) {
+            console.log('Could not parse performance results:', error);
+          }

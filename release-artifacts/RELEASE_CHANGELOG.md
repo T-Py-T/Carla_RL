@@ -4,6 +4,30 @@ This file tracks all feature releases and their associated artifacts.
 
 ## Release History
 
+### F005 - [Staging](https://github.com/T-Py-T/Carla_RL/pull/14) - 2025-09-28 17:25:54 UTC
+
+**Release ID:** `F005-staging-20250928-172555`  
+**Branch:** `staging`  
+**Author:** T-Py-T  
+**Artifact:** `release-artifacts/F005-staging-20250928-172555/`
+
+
+
+**Key Changes:**
+- .actrc
+- .cursor/rules/process-task-list.mdc
+- .github/workflows/feature-release-artifact.yml
+- .github/workflows/merge-validation.yml
+- .github/workflows/performance-regression-test.yml
+- .github/workflows/pr-checks.yml
+- .github/workflows/security-scan.yml
+- model-serving/BENCHMARKING_GUIDE.md
+- model-serving/HARDWARE_OPTIMIZATION_SUMMARY.md
+- model-serving/Makefile
+- ... and 135 more files
+
+---
+
 ### F003 - [Staging to Release](https://github.com/T-Py-T/Carla_RL/pull/7) - 2025-09-27 21:22:58 UTC
 
 **Release ID:** `F003-staging`  
