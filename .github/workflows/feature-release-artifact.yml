@@ -32,8 +32,16 @@ jobs:
         PR_TITLE="${{ github.event.pull_request.title }}"
         MERGE_DATE=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
         
-        # Generate feature release number by counting existing releases
-        RELEASE_COUNT=$(find release-artifacts -maxdepth 1 -name "F*" -type d 2>/dev/null | wc -l)
+        # Generate feature release number by counting existing releases using GitHub API
+        RELEASE_COUNT=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+          "https://api.github.com/repos/${{ github.repository }}/releases" | \
+          jq '[.[] | select(.tag_name | startswith("F"))] | length')
+        
+        # Fallback to local count if API fails
+        if [ -z "$RELEASE_COUNT" ] || [ "$RELEASE_COUNT" = "null" ]; then
+          RELEASE_COUNT=$(find release-artifacts -maxdepth 1 -name "F*" -type d 2>/dev/null | wc -l)
+        fi
+        
         FEATURE_NUMBER=$(printf "F%03d" $((RELEASE_COUNT + 1)))
         
         # Clean branch name for folder (remove special characters, convert to lowercase)
@@ -41,6 +49,10 @@ jobs:
         
         # Create feature release name: F001-branch-name
         FEATURE_RELEASE_NAME="${FEATURE_NUMBER}-${CLEAN_BRANCH}"
+        
+        # Add timestamp to ensure uniqueness
+        TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
+        FEATURE_RELEASE_NAME="${FEATURE_RELEASE_NAME}-${TIMESTAMP}"
         
         echo "branch_name=${BRANCH_NAME}" >> $GITHUB_OUTPUT
         echo "target_branch=${TARGET_BRANCH}" >> $GITHUB_OUTPUT
@@ -193,8 +205,23 @@ jobs:
           git push
         fi
         
-    - name: Create GitHub Release
+    - name: Check if tag exists
       if: steps.check-tasks.outputs.has_tasks == 'true'
+      id: check-tag
+      run: |
+        TAG_NAME="${{ steps.feature-info.outputs.feature_release_name }}"
+        
+        # Check if tag already exists
+        if git rev-parse --verify "refs/tags/${TAG_NAME}" >/dev/null 2>&1; then
+          echo "tag_exists=true" >> $GITHUB_OUTPUT
+          echo "Tag ${TAG_NAME} already exists, skipping release creation"
+        else
+          echo "tag_exists=false" >> $GITHUB_OUTPUT
+          echo "Tag ${TAG_NAME} does not exist, proceeding with release creation"
+        fi
+        
+    - name: Create GitHub Release
+      if: steps.check-tasks.outputs.has_tasks == 'true' && steps.check-tag.outputs.tag_exists == 'false'
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -221,8 +248,15 @@ jobs:
         draft: false
         prerelease: false
         
+    - name: Handle existing tag
+      if: steps.check-tasks.outputs.has_tasks == 'true' && steps.check-tag.outputs.tag_exists == 'true'
+      run: |
+        echo "Tag already exists, skipping GitHub release creation"
+        echo "Artifacts have been created and committed to the repository"
+        echo "Release artifacts are available at: release-artifacts/${{ steps.feature-info.outputs.feature_release_name }}/"
+        
     - name: Upload artifact to release
-      if: steps.check-tasks.outputs.has_tasks == 'true'
+      if: steps.check-tasks.outputs.has_tasks == 'true' && steps.check-tag.outputs.tag_exists == 'false'
       run: |
         # Create a zip of the artifact folder
         cd release-artifacts
@@ -238,8 +272,13 @@ jobs:
         echo "Release ID: ${{ steps.feature-info.outputs.feature_release_name }}"
         echo "Artifact: release-artifacts/${{ steps.feature-info.outputs.feature_release_name }}/"
         echo "Changelog: Updated release-artifacts/RELEASE_CHANGELOG.md"
-        echo "GitHub Release: ${{ steps.feature-info.outputs.feature_release_name }}"
-        echo "View at: https://github.com/${{ github.repository }}/releases"
+        
+        if [ "${{ steps.check-tag.outputs.tag_exists }}" = "false" ]; then
+          echo "GitHub Release: ${{ steps.feature-info.outputs.feature_release_name }}"
+          echo "View at: https://github.com/${{ github.repository }}/releases"
+        else
+          echo "Note: Tag already existed, artifacts committed to repository only"
+        fi
         
     - name: Final cleanup - Remove tasks folder
       if: steps.check-tasks.outputs.has_tasks == 'true'

@@ -46,7 +46,7 @@ class InferenceMetrics:
         batch_size: int,
         inference_time_ms: float,
         preprocessing_time_ms: float = 0.0,
-        postprocessing_time_ms: float = 0.0
+        postprocessing_time_ms: float = 0.0,
     ) -> None:
         """Add metrics for a completed request."""
         with self._lock:
@@ -57,12 +57,14 @@ class InferenceMetrics:
             self.total_postprocessing_time_ms += postprocessing_time_ms
 
             # Track latency per observation
-            latency_per_obs = inference_time_ms / batch_size if batch_size > 0 else inference_time_ms
+            latency_per_obs = (
+                inference_time_ms / batch_size if batch_size > 0 else inference_time_ms
+            )
             self.latency_history.append(latency_per_obs)
 
             # Maintain history size limit
             if len(self.latency_history) > self.max_history_size:
-                self.latency_history = self.latency_history[-self.max_history_size:]
+                self.latency_history = self.latency_history[-self.max_history_size :]
 
     def add_error(self) -> None:
         """Record an inference error."""
@@ -82,7 +84,7 @@ class InferenceMetrics:
             return {
                 "p50": sorted_latencies[int(n * 0.5)],
                 "p95": sorted_latencies[int(n * 0.95)],
-                "p99": sorted_latencies[int(n * 0.99)]
+                "p99": sorted_latencies[int(n * 0.99)],
             }
 
     def get_throughput_stats(self) -> dict[str, float]:
@@ -95,7 +97,7 @@ class InferenceMetrics:
 
             return {
                 "requests_per_second": self.total_requests / total_time_seconds,
-                "observations_per_second": self.total_observations / total_time_seconds
+                "observations_per_second": self.total_observations / total_time_seconds,
             }
 
     def reset(self) -> None:
@@ -131,7 +133,9 @@ class InferenceCache:
 
         return f"{hash(obs_str)}_{deterministic}"
 
-    def get(self, observations: list[Observation], deterministic: bool) -> tuple[list[Action], float] | None:
+    def get(
+        self, observations: list[Observation], deterministic: bool
+    ) -> tuple[list[Action], float] | None:
         """Get cached result if available."""
         key = self._make_key(observations, deterministic)
 
@@ -144,7 +148,12 @@ class InferenceCache:
 
         return None
 
-    def put(self, observations: list[Observation], deterministic: bool, result: tuple[list[Action], float]) -> None:
+    def put(
+        self,
+        observations: list[Observation],
+        deterministic: bool,
+        result: tuple[list[Action], float],
+    ) -> None:
         """Cache inference result."""
         key = self._make_key(observations, deterministic)
 
@@ -185,7 +194,7 @@ class InferenceEngine:
         enable_cache: bool = True,
         cache_size: int = 1000,
         max_batch_size: int = 1000,
-        enable_memory_pinning: bool = True
+        enable_memory_pinning: bool = True,
     ):
         self.policy = policy
         self.device = device
@@ -220,18 +229,18 @@ class InferenceEngine:
         with self._tensor_lock:
             if key not in self._preallocated_tensors:
                 tensor = torch.zeros(
-                    batch_size, feature_dim,
-                    device=self.device,
-                    dtype=torch.float32
+                    batch_size, feature_dim, device=self.device, dtype=torch.float32
                 )
-                if self.enable_memory_pinning and self.device.type == 'cpu':
+                if self.enable_memory_pinning and self.device.type == "cpu":
                     tensor = tensor.pin_memory()
 
                 self._preallocated_tensors[key] = tensor
 
             return self._preallocated_tensors[key]
 
-    def _preprocess_observations(self, observations: list[Observation]) -> tuple[torch.Tensor, float]:
+    def _preprocess_observations(
+        self, observations: list[Observation]
+    ) -> tuple[torch.Tensor, float]:
         """
         Preprocess observations to feature tensor.
 
@@ -257,7 +266,9 @@ class InferenceEngine:
                         input_tensor = tensor[:batch_size, :feature_dim]
                     except Exception:
                         # Fallback to direct tensor creation
-                        input_tensor = torch.from_numpy(features).to(self.device, dtype=torch.float32)
+                        input_tensor = torch.from_numpy(features).to(
+                            self.device, dtype=torch.float32
+                        )
                 else:
                     input_tensor = torch.from_numpy(features).to(self.device, dtype=torch.float32)
             else:
@@ -271,8 +282,10 @@ class InferenceEngine:
                 f"Preprocessing failed: {str(e)}",
                 details={
                     "num_observations": len(observations),
-                    "preprocessor_type": type(self.preprocessor).__name__ if self.preprocessor else "minimal"
-                }
+                    "preprocessor_type": type(self.preprocessor).__name__
+                    if self.preprocessor
+                    else "minimal",
+                },
             )
 
     def _postprocess_outputs(self, model_outputs: torch.Tensor) -> tuple[list[Action], float]:
@@ -286,7 +299,7 @@ class InferenceEngine:
 
         try:
             # Convert to numpy for processing
-            if model_outputs.device != torch.device('cpu'):
+            if model_outputs.device != torch.device("cpu"):
                 outputs_np = model_outputs.detach().cpu().numpy()
             else:
                 outputs_np = model_outputs.detach().numpy()
@@ -309,15 +322,12 @@ class InferenceEngine:
                 f"Postprocessing failed: {str(e)}",
                 details={
                     "output_shape": list(model_outputs.shape),
-                    "output_device": str(model_outputs.device)
-                }
+                    "output_device": str(model_outputs.device),
+                },
             )
 
     def predict(
-        self,
-        observations: list[Observation],
-        deterministic: bool = False,
-        use_cache: bool = True
+        self, observations: list[Observation], deterministic: bool = False, use_cache: bool = True
     ) -> tuple[list[Action], float]:
         """
         Perform inference on batch of observations.
@@ -340,7 +350,7 @@ class InferenceEngine:
         if batch_size > self.max_batch_size:
             raise InferenceError(
                 f"Batch size {batch_size} exceeds maximum {self.max_batch_size}",
-                details={"max_batch_size": self.max_batch_size}
+                details={"max_batch_size": self.max_batch_size},
             )
 
         total_start_time = time.perf_counter()
@@ -377,10 +387,7 @@ class InferenceEngine:
 
             # Update metrics
             self.metrics.add_request(
-                batch_size,
-                inference_time_ms,
-                preprocessing_time_ms,
-                postprocessing_time_ms
+                batch_size, inference_time_ms, preprocessing_time_ms, postprocessing_time_ms
             )
 
             return actions, total_time_ms
@@ -396,8 +403,8 @@ class InferenceEngine:
                     details={
                         "batch_size": batch_size,
                         "deterministic": deterministic,
-                        "device": str(self.device)
-                    }
+                        "device": str(self.device),
+                    },
                 )
 
     def warmup(self, warmup_batches: int = 3, warmup_batch_size: int = 1) -> float:
@@ -415,11 +422,7 @@ class InferenceEngine:
 
         try:
             # Create dummy observations
-            dummy_obs = Observation(
-                speed=25.0,
-                steering=0.0,
-                sensors=[0.5] * 5
-            )
+            dummy_obs = Observation(speed=25.0, steering=0.0, sensors=[0.5] * 5)
 
             for _ in range(warmup_batches):
                 dummy_batch = [dummy_obs] * warmup_batch_size
@@ -433,10 +436,7 @@ class InferenceEngine:
         except Exception as e:
             raise InferenceError(
                 f"Warmup failed: {str(e)}",
-                details={
-                    "warmup_batches": warmup_batches,
-                    "warmup_batch_size": warmup_batch_size
-                }
+                details={"warmup_batches": warmup_batches, "warmup_batch_size": warmup_batch_size},
             )
 
     def get_performance_stats(self) -> dict[str, Any]:
@@ -458,8 +458,8 @@ class InferenceEngine:
             "timing_breakdown_ms": {
                 "total_inference": self.metrics.total_inference_time_ms,
                 "total_preprocessing": self.metrics.total_preprocessing_time_ms,
-                "total_postprocessing": self.metrics.total_postprocessing_time_ms
-            }
+                "total_postprocessing": self.metrics.total_postprocessing_time_ms,
+            },
         }
 
     def reset_metrics(self) -> None:
@@ -506,13 +506,15 @@ class InferenceEngine:
         stats = {
             "preallocated_tensors": len(self._preallocated_tensors),
             "cache_enabled": self.cache is not None,
-            "cache_size": self.cache.size() if self.cache else 0
+            "cache_size": self.cache.size() if self.cache else 0,
         }
 
-        if torch.cuda.is_available() and self.device.type == 'cuda':
-            stats.update({
-                "gpu_memory_allocated_mb": torch.cuda.memory_allocated(self.device) / 1024**2,
-                "gpu_memory_cached_mb": torch.cuda.memory_reserved(self.device) / 1024**2
-            })
+        if torch.cuda.is_available() and self.device.type == "cuda":
+            stats.update(
+                {
+                    "gpu_memory_allocated_mb": torch.cuda.memory_allocated(self.device) / 1024**2,
+                    "gpu_memory_cached_mb": torch.cuda.memory_reserved(self.device) / 1024**2,
+                }
+            )
 
         return stats
