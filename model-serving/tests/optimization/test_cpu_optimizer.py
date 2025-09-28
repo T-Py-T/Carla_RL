@@ -8,7 +8,6 @@ and multi-threading optimizations.
 import pytest
 import torch
 import torch.nn as nn
-from unittest.mock import Mock, patch
 
 from src.optimization.cpu_optimizer import CPUOptimizer, CPUOptimizationConfig
 from src.benchmarking.hardware_detector import HardwareInfo, CPUInfo, GPUInfo, MemoryInfo

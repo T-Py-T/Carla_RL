@@ -8,7 +8,7 @@ based on hardware capabilities and performance requirements.
 import pytest
 import torch
 import torch.nn as nn
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from src.optimization.optimization_manager import OptimizationManager, OptimizationProfile
 from src.optimization.cpu_optimizer import CPUOptimizationConfig

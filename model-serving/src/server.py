@@ -69,7 +69,7 @@ async def lifespan(app: FastAPI):
     initialize_metrics()
     logger = get_logger("carla_rl_server")
     metrics = get_metrics_collector()
-    health_checker = get_health_checker(app_state)
+    get_health_checker(app_state)
     tracer = get_tracer("carla-rl-serving")
     
     logger.info("Starting CarlaRL Policy Service", event_type="startup")

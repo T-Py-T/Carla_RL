@@ -478,7 +478,7 @@ def _apply_deployment_rule(rule_name: str, rule_config: Dict[str, Any], diff_res
     
     elif rule_name == "allowed_categories":
         allowed = set(rule_config.get("categories", []))
-        changed_categories = set(result.categories.keys())
+        changed_categories = set(diff_result.categories.keys())
         return changed_categories.issubset(allowed)
     
     return True

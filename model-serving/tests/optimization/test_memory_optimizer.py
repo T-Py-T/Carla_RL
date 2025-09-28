@@ -8,7 +8,7 @@ allocation strategies, and hardware-specific memory management.
 import pytest
 import torch
 import torch.nn as nn
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from src.optimization.memory_optimizer import MemoryOptimizer, MemoryOptimizationConfig, MemoryPool
 from src.benchmarking.hardware_detector import HardwareInfo, CPUInfo, GPUInfo, MemoryInfo

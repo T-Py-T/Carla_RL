@@ -11,7 +11,7 @@ This module provides comprehensive tracing capabilities including:
 
 import time
 import uuid
-from typing import Any, Dict, Optional, List, Union, Callable
+from typing import Any, Dict, Optional, List
 from dataclasses import dataclass, field
 from contextlib import contextmanager
 from contextvars import ContextVar

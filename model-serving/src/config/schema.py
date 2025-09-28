@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Union
 from dataclasses import dataclass, field
 from enum import Enum
 
-from .settings import AppConfig, BaseConfig, Environment, LogLevel, ModelBackend, CacheBackend, DatabaseBackend
+from .settings import AppConfig, Environment
 
 
 class SchemaFormat(str, Enum):
@@ -206,16 +206,16 @@ class SchemaGenerator:
         """Group fields by configuration section."""
         sections = {}
         
-        for field in fields:
+        for field_info in fields:
             # Determine section based on field name
-            if "." in field.name:
-                section = field.name.split(".")[0]
+            if "." in field_info.name:
+                section = field_info.name.split(".")[0]
             else:
                 section = "general"
             
             if section not in sections:
                 sections[section] = []
-            sections[section].append(field)
+            sections[section].append(field_info)
         
         return sections
     
@@ -477,13 +477,13 @@ class SchemaGenerator:
                     required_text = "Yes" if field.required else "No"
                     default_text = str(field.default) if field.default is not None else "-"
                     
-                    lines.append(f"<tr>")
+                    lines.append("<tr>")
                     lines.append(f"<td><code>{field.name}</code></td>")
                     lines.append(f"<td>{field.type}</td>")
                     lines.append(f"<td class='{required_class}'>{required_text}</td>")
                     lines.append(f"<td>{default_text}</td>")
                     lines.append(f"<td>{field.description or '-'}</td>")
-                    lines.append(f"</tr>")
+                    lines.append("</tr>")
                 
                 lines.append("</table>")
         

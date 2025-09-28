@@ -7,7 +7,7 @@ mixed precision, and memory management for maximum inference performance.
 
 import os
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple
 
 import torch
 import torch.nn as nn

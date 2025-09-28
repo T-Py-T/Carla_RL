@@ -2,7 +2,6 @@
 Unit tests for structured logging module.
 """
 
-import pytest
 import json
 import logging
 from unittest.mock import patch, MagicMock

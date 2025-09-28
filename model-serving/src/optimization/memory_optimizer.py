@@ -8,9 +8,8 @@ allocation strategies, and hardware-specific memory management.
 import gc
 import threading
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
-import numpy as np
 import torch
 import torch.nn as nn
 from torch import Tensor

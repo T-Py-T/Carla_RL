@@ -5,13 +5,12 @@ Provides automatic configuration reloading when files change,
 with callback support for handling configuration updates.
 """
 
-import os
 import time
 import threading
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Union
+from typing import Callable, Dict, List, Optional, Union
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileModifiedEvent, FileMovedEvent
+from watchdog.events import FileSystemEventHandler
 
 from .settings import AppConfig, BaseConfig
 from .loader import ConfigLoader
@@ -213,7 +212,6 @@ class ConfigHotReloader:
             
             # Update current configuration
             with self._config_lock:
-                old_config = self._current_config
                 self._current_config = new_config
             
             # Clear last error

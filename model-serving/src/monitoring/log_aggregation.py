@@ -7,8 +7,7 @@ from the CarlaRL serving infrastructure for monitoring and debugging purposes.
 
 import json
 import re
-import time
-from typing import Dict, List, Any, Optional, Iterator, Tuple
+from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from collections import defaultdict, Counter

@@ -239,7 +239,7 @@ class TestMetricsCollector:
         mock_process.return_value.cpu_percent.return_value = 25.0
         mock_process.return_value.memory_info.return_value.rss = 512**3
         
-        collector = MetricsCollector()
+        MetricsCollector()
         
         # Wait a bit for background collection to run
         time.sleep(0.1)

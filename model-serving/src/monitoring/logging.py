@@ -10,8 +10,6 @@ This module provides comprehensive logging capabilities including:
 
 import json
 import logging
-import time
-import uuid
 from typing import Any, Dict, Optional, Union
 from datetime import datetime, timezone
 import threading

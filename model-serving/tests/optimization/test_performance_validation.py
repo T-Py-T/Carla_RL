@@ -9,13 +9,10 @@ import pytest
 import torch
 import torch.nn as nn
 import time
-from typing import Dict, List, Tuple
-from unittest.mock import Mock, patch
+from typing import Dict
+from unittest.mock import patch
 
 from src.optimization.optimization_manager import OptimizationManager
-from src.optimization.cpu_optimizer import CPUOptimizationConfig
-from src.optimization.gpu_optimizer import GPUOptimizationConfig
-from src.optimization.memory_optimizer import MemoryOptimizationConfig
 from src.benchmarking.hardware_detector import HardwareInfo, CPUInfo, GPUInfo, MemoryInfo
 
 

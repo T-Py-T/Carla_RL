@@ -6,16 +6,14 @@ and multi-threading optimizations for maximum inference performance.
 """
 
 import os
-import threading
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple
 
-import numpy as np
 import torch
 from torch import nn
 from torch.jit import ScriptModule
 
-from ..benchmarking.hardware_detector import CPUInfo, HardwareInfo
+from ..benchmarking.hardware_detector import HardwareInfo
 
 
 @dataclass

@@ -10,15 +10,12 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from optimization.optimization_manager import OptimizationManager
-from optimization.cpu_optimizer import CPUOptimizationConfig
-from optimization.gpu_optimizer import GPUOptimizationConfig
-from optimization.memory_optimizer import MemoryOptimizationConfig
 from benchmarking.hardware_detector import HardwareDetector
 
 
@@ -51,14 +48,14 @@ def print_hardware_info(hardware_info) -> None:
         print("\nGPU: Not available")
     
     # Memory Info
-    print(f"\nMemory:")
+    print("\nMemory:")
     print(f"  Total: {hardware_info.memory.total_gb:.1f} GB")
     print(f"  Available: {hardware_info.memory.available_gb:.1f} GB")
     print(f"  Swap: {hardware_info.memory.swap_gb:.1f} GB")
     print(f"  Type: {hardware_info.memory.memory_type}")
     
     # System Info
-    print(f"\nSystem:")
+    print("\nSystem:")
     print(f"  Platform: {hardware_info.platform}")
     print(f"  Python Version: {hardware_info.python_version}")
     print(f"  PyTorch Version: {hardware_info.torch_version}")
@@ -93,7 +90,7 @@ def print_performance_metrics(metrics: Dict) -> None:
     # CPU optimizations
     if "cpu_optimizations" in metrics:
         cpu_metrics = metrics["cpu_optimizations"]
-        print(f"\nCPU Optimizations:")
+        print("\nCPU Optimizations:")
         print(f"  Thread Count: {cpu_metrics.get('thread_count', 'N/A')}")
         print(f"  MKL-DNN Enabled: {'Yes' if cpu_metrics.get('mkldnn_enabled') else 'No'}")
         print(f"  MKL Enabled: {'Yes' if cpu_metrics.get('mkl_enabled') else 'No'}")
@@ -103,7 +100,7 @@ def print_performance_metrics(metrics: Dict) -> None:
     # GPU optimizations
     if "gpu_optimizations" in metrics:
         gpu_metrics = metrics["gpu_optimizations"]
-        print(f"\nGPU Optimizations:")
+        print("\nGPU Optimizations:")
         print(f"  Device: {gpu_metrics.get('device', 'N/A')}")
         print(f"  cuDNN Enabled: {'Yes' if gpu_metrics.get('cudnn_enabled') else 'No'}")
         print(f"  cuDNN Benchmark: {'Yes' if gpu_metrics.get('cudnn_benchmark') else 'No'}")
@@ -119,7 +116,7 @@ def print_performance_metrics(metrics: Dict) -> None:
     # Memory optimizations
     if "memory_optimizations" in metrics:
         memory_metrics = metrics["memory_optimizations"]
-        print(f"\nMemory Optimizations:")
+        print("\nMemory Optimizations:")
         print(f"  Memory Pooling: {'Yes' if memory_metrics.get('memory_pooling_enabled') else 'No'}")
         if memory_metrics.get('total_tensors'):
             print(f"  Pooled Tensors: {memory_metrics['total_tensors']}")

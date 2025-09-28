@@ -6,14 +6,12 @@ and environment-specific template management.
 """
 
 import os
-import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, Callable
+from typing import Any, Dict, List, Optional, Union
 from dataclasses import dataclass
-from jinja2 import Environment, FileSystemLoader, Template, TemplateError
+from jinja2 import Environment, FileSystemLoader, Template
 
-from .settings import AppConfig, Environment
-from .profiles import ConfigProfile, ProfileManager
+from .settings import Environment as ConfigEnvironment
 
 
 @dataclass
@@ -137,7 +135,7 @@ class TemplateEngine:
         dev_template = ConfigTemplate(
             name="development",
             description="Development environment configuration",
-            environment=Environment.DEVELOPMENT,
+            environment=ConfigEnvironment.DEVELOPMENT,
             template_content="""
 # Development Configuration
 debug: true
@@ -180,7 +178,7 @@ security:
         prod_template = ConfigTemplate(
             name="production",
             description="Production environment configuration",
-            environment=Environment.PRODUCTION,
+            environment=ConfigEnvironment.PRODUCTION,
             template_content="""
 # Production Configuration
 debug: false
@@ -263,7 +261,7 @@ cache:
         test_template = ConfigTemplate(
             name="testing",
             description="Testing environment configuration",
-            environment=Environment.TESTING,
+            environment=ConfigEnvironment.TESTING,
             template_content="""
 # Testing Configuration
 debug: true
