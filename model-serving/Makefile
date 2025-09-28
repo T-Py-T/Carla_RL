@@ -11,65 +11,74 @@ help: ## Show this help message
 
 # Development setup
 install: ## Install production dependencies
-	pip install -e .
+	uv sync
 
 install-dev: ## Install development dependencies
-	pip install -e ".[dev]"
-	pre-commit install
+	uv sync --dev
+	uv run pre-commit install
 
 install-gpu: ## Install with GPU support
-	pip install -e ".[gpu]"
+	uv sync --extra gpu
 
 install-all: ## Install all dependencies
-	pip install -e ".[all]"
+	uv sync --all-extras
 
 # Testing
 test: ## Run unit tests
-	pytest tests/ -v
+	uv run pytest tests/ -v
 
 test-cov: ## Run tests with coverage report
-	pytest tests/ -v --cov=src --cov-report=html --cov-report=term
+	uv run pytest tests/ -v --cov=src --cov-report=html --cov-report=term
 
 test-integration: ## Run integration tests
-	pytest tests/ -v -m integration
+	uv run pytest tests/ -v -m integration
 
 test-performance: ## Run performance tests
-	pytest tests/ -v -m slow
+	uv run pytest tests/ -v -m slow
+
+test-benchmark: ## Run performance benchmarks
+	uv run python scripts/run_benchmarks.py --iterations 100
+
+test-latency: ## Validate P50 < 10ms latency requirement
+	uv run python scripts/validate_latency_requirements.py --iterations 1000
+
+test-regression: ## Run performance regression tests
+	uv run python scripts/performance_regression_test.py --iterations 100
 
 test-all: ## Run all tests including slow ones
-	pytest tests/ -v --cov=src --cov-report=html
+	uv run pytest tests/ -v --cov=src --cov-report=html
 
 # Code quality
 lint: ## Run linting with ruff
-	ruff check src/ tests/
+	uv run ruff check src/ tests/
 
 lint-fix: ## Fix linting issues automatically
-	ruff check --fix src/ tests/
+	uv run ruff check --fix src/ tests/
 
-format: ## Format code with black
-	black src/ tests/
+format: ## Format code with ruff
+	uv run ruff format src/ tests/
 
 format-check: ## Check code formatting
-	black --check src/ tests/
+	uv run ruff format --check src/ tests/
 
 type-check: ## Run type checking with mypy
-	mypy src/
+	uv run mypy src/
 
-quality: lint format-check type-check ## Run all code quality checks
+quality: lint format-check ## Run all code quality checks
 
 # Development server
 dev: ## Run development server with auto-reload
-	ARTIFACT_DIR=artifacts MODEL_VERSION=v0.1.0 uvicorn src.server:app --reload --host 0.0.0.0 --port 8080
+	ARTIFACT_DIR=artifacts MODEL_VERSION=v0.1.0 uv run uvicorn src.server:app --reload --host 0.0.0.0 --port 8080
 
 dev-gpu: ## Run development server with GPU support
-	ARTIFACT_DIR=artifacts MODEL_VERSION=v0.1.0 USE_GPU=1 uvicorn src.server:app --reload --host 0.0.0.0 --port 8080
+	ARTIFACT_DIR=artifacts MODEL_VERSION=v0.1.0 USE_GPU=1 uv run uvicorn src.server:app --reload --host 0.0.0.0 --port 8080
 
 # Production server
 serve: ## Run production server
-	ARTIFACT_DIR=artifacts MODEL_VERSION=v0.1.0 uvicorn src.server:app --host 0.0.0.0 --port 8080 --workers 1
+	ARTIFACT_DIR=artifacts MODEL_VERSION=v0.1.0 uv run uvicorn src.server:app --host 0.0.0.0 --port 8080 --workers 1
 
 serve-multi: ## Run production server with multiple workers
-	ARTIFACT_DIR=artifacts MODEL_VERSION=v0.1.0 uvicorn src.server:app --host 0.0.0.0 --port 8080 --workers 4
+	ARTIFACT_DIR=artifacts MODEL_VERSION=v0.1.0 uv run uvicorn src.server:app --host 0.0.0.0 --port 8080 --workers 4
 
 # Docker operations
 docker-build: ## Build Docker image

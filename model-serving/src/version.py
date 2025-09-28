@@ -13,16 +13,14 @@ APP_NAME = "carla-rl-serving"
 MODEL_NAME = "carla-ppo"
 MODEL_VERSION = os.getenv("MODEL_VERSION", "v0.1.0")
 
+
 # Git information
 def get_git_sha() -> str:
     """Get current git commit SHA, fallback to environment variable."""
     try:
         # Try to get git SHA from git command
         result = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"],
-            capture_output=True,
-            text=True,
-            timeout=5
+            ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, timeout=5
         )
         if result.returncode == 0:
             return result.stdout.strip()
@@ -31,6 +29,7 @@ def get_git_sha() -> str:
 
     # Fallback to environment variable
     return os.getenv("GIT_SHA", "unknown")
+
 
 GIT_SHA = get_git_sha()
 
@@ -45,7 +44,7 @@ VERSION_INFO = {
     "model_version": MODEL_VERSION,
     "git_sha": GIT_SHA,
     "build_date": BUILD_DATE,
-    "build_number": BUILD_NUMBER
+    "build_number": BUILD_NUMBER,
 }
 
 

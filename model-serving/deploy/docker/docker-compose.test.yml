@@ -1,7 +1,7 @@
 version: '3.8'
 
-# Simplified Docker Compose for testing on OrbStack
-# This version focuses on core functionality without external dependencies
+# Comprehensive Docker Compose testing setup
+# This version includes monitoring, testing, and validation services
 
 services:
   # CarlaRL Policy Serving Service
@@ -21,6 +21,9 @@ services:
       - WORKERS=1
       - CORS_ORIGINS=*
       - ALLOWED_HOSTS=*
+      - ENABLE_METRICS=true
+      - ENABLE_TRACING=true
+      - ENABLE_HEALTH_CHECKS=true
     volumes:
       - ../../artifacts:/app/artifacts:ro
       - ../../logs:/app/logs
@@ -34,6 +37,47 @@ services:
     networks:
       - carla-rl-test
 
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: carla-rl-prometheus-test
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=1h'
+      - '--web.enable-lifecycle'
+    networks:
+      - carla-rl-test
+    profiles:
+      - monitoring
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: carla-rl-grafana-test
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana-dashboard.json:/etc/grafana/provisioning/dashboards/dashboard.json:ro
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    networks:
+      - carla-rl-test
+    profiles:
+      - monitoring
+    depends_on:
+      - prometheus
+
   # Test runner service
   test-runner:
     build:
@@ -42,12 +86,14 @@ services:
       target: dependencies
     container_name: carla-rl-test-runner
     volumes:
-      - ../../scripts:/app/scripts:ro
       - ../../tests:/app/tests:ro
+      - ../../scripts:/app/scripts:ro
       - .:/app/deploy/docker:ro
     working_dir: /app
     environment:
       - SERVICE_URL=http://carla-rl-serving:8080
+      - PROMETHEUS_URL=http://prometheus:9090
+      - GRAFANA_URL=http://grafana:3000
     networks:
       - carla-rl-test
     profiles:
@@ -59,17 +105,27 @@ services:
       sh -c "
         echo 'Waiting for service to be ready...' &&
         sleep 10 &&
-        echo 'Running validation tests...' &&
-        python scripts/cluster_validation.py --url http://carla-rl-serving:8080 --output /tmp/test_results.json &&
-        echo 'Tests completed successfully!'
+        echo 'Running comprehensive deployment tests...' &&
+        python -m pytest tests/integration/test_deployment.py -v --tb=short --json-report --json-report-file=/tmp/test_results.json &&
+        echo 'Running load tests...' &&
+        python scripts/load_test.py --url http://carla-rl-serving:8080 --duration 60 --output /tmp/load_test_results.json &&
+        echo 'Running monitoring tests...' &&
+        python scripts/monitoring_test.py --service-url http://carla-rl-serving:8080 --prometheus-url http://prometheus:9090 --output /tmp/monitoring_test_results.json &&
+        echo 'All tests completed successfully!'
       "
 
-  # Load testing service (optional)
+  # Load testing service
   load-tester:
-    image: alpine/curl:latest
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: dependencies
     container_name: carla-rl-load-tester
     volumes:
-      - ./load_test.sh:/load_test.sh:ro
+      - ../../scripts:/app/scripts:ro
+    working_dir: /app
+    environment:
+      - SERVICE_URL=http://carla-rl-serving:8080
     networks:
       - carla-rl-test
     profiles:
@@ -77,7 +133,93 @@ services:
     depends_on:
       carla-rl-serving:
         condition: service_healthy
-    command: ["/load_test.sh", "http://carla-rl-serving:8080"]
+    command: >
+      sh -c "
+        echo 'Starting load testing...' &&
+        python scripts/load_test.py --url http://carla-rl-serving:8080 --duration 300 --concurrent 10 --output /tmp/load_test_results.json &&
+        echo 'Load testing completed!'
+      "
+
+  # Monitoring validation service
+  monitoring-validator:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: dependencies
+    container_name: carla-rl-monitoring-validator
+    volumes:
+      - ../../scripts:/app/scripts:ro
+    working_dir: /app
+    environment:
+      - SERVICE_URL=http://carla-rl-serving:8080
+      - PROMETHEUS_URL=http://prometheus:9090
+      - GRAFANA_URL=http://grafana:3000
+    networks:
+      - carla-rl-test
+    profiles:
+      - monitoring
+    depends_on:
+      - carla-rl-serving
+      - prometheus
+      - grafana
+    command: >
+      sh -c "
+        echo 'Waiting for monitoring stack to be ready...' &&
+        sleep 30 &&
+        echo 'Validating monitoring setup...' &&
+        python scripts/monitoring_test.py --service-url http://carla-rl-serving:8080 --prometheus-url http://prometheus:9090 --grafana-url http://grafana:3000 --output /tmp/monitoring_validation.json &&
+        echo 'Monitoring validation completed!'
+      "
+
+  # Performance benchmark service
+  performance-benchmark:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: dependencies
+    container_name: carla-rl-performance-benchmark
+    volumes:
+      - ../../scripts:/app/scripts:ro
+    working_dir: /app
+    environment:
+      - SERVICE_URL=http://carla-rl-serving:8080
+    networks:
+      - carla-rl-test
+    profiles:
+      - performance
+    depends_on:
+      carla-rl-serving:
+        condition: service_healthy
+    command: >
+      sh -c "
+        echo 'Starting performance benchmark...' &&
+        python scripts/performance_benchmark.py --url http://carla-rl-serving:8080 --output /tmp/performance_benchmark.json &&
+        echo 'Performance benchmark completed!'
+      "
+
+  # Health check service
+  health-checker:
+    image: alpine/curl:latest
+    container_name: carla-rl-health-checker
+    networks:
+      - carla-rl-test
+    profiles:
+      - health-check
+    depends_on:
+      carla-rl-serving:
+        condition: service_healthy
+    command: >
+      sh -c "
+        echo 'Running health checks...' &&
+        curl -f http://carla-rl-serving:8080/healthz &&
+        curl -f http://carla-rl-serving:8080/metrics &&
+        curl -f http://carla-rl-serving:8080/metadata &&
+        echo 'Health checks passed!'
+      "
+
+volumes:
+  prometheus_data:
+  grafana_data:
 
 networks:
   carla-rl-test:
