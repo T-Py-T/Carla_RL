@@ -1,4 +1,5 @@
 """
+<<<<<<< HEAD
 Semantic versioning and artifact management utilities.
 
 This module provides comprehensive version management, artifact integrity
@@ -72,3 +73,15 @@ __all__ = [
     "ContentStorageError",
     "ContentAddressableArtifactManager",
 ]
+=======
+Versioning and artifact management for CarlaRL Policy-as-a-Service.
+
+This module provides semantic versioning, version selection logic,
+and artifact management capabilities for multi-version model support.
+"""
+
+from .semantic_version import SemanticVersion
+from .version_selector import VersionSelector
+
+__all__ = ["SemanticVersion", "VersionSelector"]
+>>>>>>> origin/dev
