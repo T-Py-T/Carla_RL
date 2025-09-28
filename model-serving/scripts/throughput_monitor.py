@@ -13,7 +13,6 @@ import sys
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
-import threading
 import queue
 
 # Add model-serving to path
@@ -164,7 +163,7 @@ class ThroughputMonitor:
     
     def monitor_loop(self):
         """Main monitoring loop."""
-        print(f"Starting throughput monitoring...")
+        print("Starting throughput monitoring...")
         print(f"Threshold: {self.threshold_rps} RPS")
         print(f"Check interval: {self.check_interval} seconds")
         print(f"Warning threshold: {self.warning_threshold * 100:.0f}%")

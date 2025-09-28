@@ -8,9 +8,9 @@ detailed error reporting and validation results.
 import re
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Union, Callable, Tuple
+from typing import Any, Dict, List, Optional, Callable
 from dataclasses import dataclass
-from pydantic import BaseModel, ValidationError, Field, validator
+from pydantic import ValidationError
 
 from .settings import BaseConfig, AppConfig
 

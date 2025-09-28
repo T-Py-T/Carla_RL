@@ -6,7 +6,7 @@ including inference latency, throughput, error rates, and system resource utiliz
 """
 
 import time
-from typing import Dict, Any, Optional
+from typing import Optional
 from prometheus_client import (
     Counter,
     Histogram,

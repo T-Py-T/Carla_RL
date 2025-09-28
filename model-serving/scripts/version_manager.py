@@ -17,7 +17,7 @@ from typing import Optional, List
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from versioning import (
-    VersionManager, VersionSelector, VersionSelectionStrategy,
+    VersionSelector, VersionSelectionStrategy,
     VersionSelectionError, ArtifactManager
 )
 from semantic_version import parse_version

@@ -10,7 +10,6 @@ import argparse
 import sys
 import json
 import time
-from pathlib import Path
 from typing import Dict, List, Any, Optional
 import logging
 
@@ -100,7 +99,7 @@ class DeploymentTestRunner:
     def print_summary(self):
         """Print test summary."""
         print(f"\n{'='*60}")
-        print(f"COMPREHENSIVE DEPLOYMENT TEST RESULTS")
+        print("COMPREHENSIVE DEPLOYMENT TEST RESULTS")
         print(f"{'='*60}")
         
         # Overall results
@@ -109,7 +108,7 @@ class DeploymentTestRunner:
         
         # Docker Compose results
         docker_results = self.results.get("docker_compose", {})
-        print(f"\nDocker Compose Tests:")
+        print("\nDocker Compose Tests:")
         print(f"  Success: {'PASSED' if docker_results.get('success', False) else 'FAILED'}")
         print(f"  Duration: {docker_results.get('duration', 0):.2f} seconds")
         print(f"  Services Started: {docker_results.get('services_started', False)}")
@@ -126,7 +125,7 @@ class DeploymentTestRunner:
         
         # Kubernetes results
         k8s_results = self.results.get("kubernetes", {})
-        print(f"\nKubernetes Tests:")
+        print("\nKubernetes Tests:")
         print(f"  Success: {'PASSED' if k8s_results.get('success', False) else 'FAILED'}")
         print(f"  Duration: {k8s_results.get('duration', 0):.2f} seconds")
         print(f"  Cluster Connected: {k8s_results.get('cluster_connected', False)}")

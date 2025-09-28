@@ -9,9 +9,7 @@ performance reports with recommendations.
 import argparse
 import json
 import sys
-from pathlib import Path
-from typing import Dict, List, Any, Optional
-import statistics
+from typing import Dict, Any
 
 def load_benchmark_results(file_path: str) -> Dict[str, Any]:
     """Load benchmark results from JSON file."""

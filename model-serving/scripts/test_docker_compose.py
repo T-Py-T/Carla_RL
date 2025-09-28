@@ -11,8 +11,7 @@ import sys
 import time
 import json
 import argparse
-from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 import requests
 import logging
 
@@ -422,7 +421,7 @@ def main():
         logger.info(f"Test results saved to {args.output}")
     
     # Print summary
-    print(f"\n=== Docker Compose Test Results ===")
+    print("\n=== Docker Compose Test Results ===")
     print(f"Services Started: {results['services_started']}")
     print(f"Overall Success: {results['success']}")
     print(f"Duration: {results.get('duration', 0):.2f} seconds")

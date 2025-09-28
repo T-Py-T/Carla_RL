@@ -1,20 +1,16 @@
 """
-<<<<<<< HEAD
 Semantic versioning parser and validation utilities.
 
 This module provides comprehensive semantic version parsing, validation,
 and comparison functionality following the vMAJOR.MINOR.PATCH format.
-=======
 Semantic versioning parser and validation for model artifacts.
 
 This module implements semantic versioning (SemVer) parsing with validation
 for model version management and comparison.
->>>>>>> origin/dev
 """
 
 import re
 from dataclasses import dataclass
-<<<<<<< HEAD
 from typing import Optional, Union, List, Tuple
 
 
@@ -37,7 +33,6 @@ class SemanticVersion:
     - PATCH: Bug fixes (backward compatible)
     """
 
-=======
 from typing import Optional
 
 
@@ -52,12 +47,10 @@ class SemanticVersion:
     - Immutable dataclass for safe use in collections
     """
     
->>>>>>> origin/dev
     major: int
     minor: int
     patch: int
     prerelease: Optional[str] = None
-<<<<<<< HEAD
     build_metadata: Optional[str] = None
 
     def __post_init__(self):
@@ -383,7 +376,6 @@ def get_stable_versions(versions: List[Union[str, SemanticVersion]]) -> List[Sem
             continue  # Skip invalid versions
 
     return sorted(parsed_versions)
-=======
     build: Optional[str] = None
     
     # Regex pattern for semantic version parsing
@@ -574,4 +566,3 @@ def sort_versions(versions: list[str], descending: bool = True) -> list[str]:
     parsed_versions = [(SemanticVersion.parse(v), v) for v in versions]
     parsed_versions.sort(key=lambda x: x[0], reverse=descending)
     return [v[1] for v in parsed_versions]
->>>>>>> origin/dev

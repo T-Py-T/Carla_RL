@@ -11,14 +11,13 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from versioning import ArtifactManager, MigrationManager, MigrationError
 from versioning.migration_manager import create_builtin_migration_steps
-from semantic_version import parse_version
 
 
 # Configure logging

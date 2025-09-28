@@ -8,12 +8,10 @@ hardware optimizations and measure empirical performance data.
 
 import argparse
 import json
-import os
 import sys
 import time
-import subprocess
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any
 import platform
 import psutil
 

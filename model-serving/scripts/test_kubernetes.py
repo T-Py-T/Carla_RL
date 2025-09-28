@@ -11,8 +11,7 @@ import sys
 import time
 import json
 import argparse
-from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 import requests
 import logging
 
@@ -504,7 +503,7 @@ def main():
         logger.info(f"Test results saved to {args.output}")
     
     # Print summary
-    print(f"\n=== Kubernetes Test Results ===")
+    print("\n=== Kubernetes Test Results ===")
     print(f"Cluster Connected: {results['cluster_connected']}")
     print(f"Application Deployed: {results['application_deployed']}")
     print(f"Deployment Ready: {results['deployment_ready']}")

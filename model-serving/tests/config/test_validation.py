@@ -4,8 +4,6 @@ Tests for configuration validation and error reporting system.
 
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-import pytest
 
 from src.config.validation import (
     ValidationSeverity, ValidationIssue, ValidationResult, ValidationError,
@@ -14,7 +12,7 @@ from src.config.validation import (
     validate_database_config, validate_cache_config, validate_model_config,
     create_default_validator, validate_config, format_validation_result
 )
-from src.config.settings import AppConfig, ServerConfig, ModelConfig, DatabaseConfig, CacheConfig, SecurityConfig, Environment, DatabaseBackend, CacheBackend
+from src.config.settings import AppConfig, Environment, DatabaseBackend, CacheBackend
 
 
 class TestValidationIssue:

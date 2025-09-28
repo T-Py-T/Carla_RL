@@ -9,9 +9,7 @@ without requiring PyTorch or other heavy dependencies.
 import argparse
 import json
 import platform
-import sys
 import time
-from pathlib import Path
 
 def check_dependencies():
     """Check which dependencies are available."""
@@ -253,7 +251,7 @@ def main():
     
     # Dependencies
     deps = system_info["dependencies"]
-    print(f"\nDependencies:")
+    print("\nDependencies:")
     print(f"  PyTorch: {'✓' if deps['torch'] else '✗'}")
     print(f"  NumPy: {'✓' if deps['numpy'] else '✗'}")
     print(f"  psutil: {'✓' if deps['psutil'] else '✗'}")
@@ -269,7 +267,7 @@ def main():
         print(f"GPU Performance: {analysis['capabilities'].get('gpu_performance', 'Unknown')}")
         
         if analysis["recommendations"]:
-            print(f"\nRecommendations:")
+            print("\nRecommendations:")
             for rec in analysis["recommendations"]:
                 print(f"  • {rec}")
     

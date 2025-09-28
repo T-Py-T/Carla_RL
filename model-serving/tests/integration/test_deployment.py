@@ -6,15 +6,11 @@ including health checks, API functionality, performance validation,
 and monitoring verification.
 """
 
-import asyncio
 import json
 import time
-import subprocess
 import requests
-import pytest
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
-from pathlib import Path
 import logging
 
 # Configure logging
@@ -555,7 +551,7 @@ def main():
     
     # Print summary
     summary = report['summary']
-    print(f"\n=== Deployment Test Results ===")
+    print("\n=== Deployment Test Results ===")
     print(f"Total Tests: {summary['total_tests']}")
     print(f"Passed: {summary['passed']}")
     print(f"Failed: {summary['failed']}")
@@ -565,7 +561,7 @@ def main():
     # Print failed tests
     failed_tests = [r for r in results if not r.success]
     if failed_tests:
-        print(f"\n=== Failed Tests ===")
+        print("\n=== Failed Tests ===")
         for result in failed_tests:
             print(f"- {result.test_name}: {result.error_message}")
     
