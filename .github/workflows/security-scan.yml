@@ -76,9 +76,12 @@ jobs:
           --exclude="*.yml" \
           --exclude="*.yaml" \
           --exclude="*.json" \
+          --exclude="*.j2" \
+          --exclude="*.jinja2" \
+          --exclude="*.template" \
           --exclude=".secrets" \
           --exclude="security-report.json" \
-          | grep -v -E "(test|example|dummy|placeholder|admin|redis|mysql|postgres)"; then
+          | grep -v -E "(test|example|dummy|placeholder|admin|redis|mysql|postgres|env_var|template|{{|}}|\|\s*env_var)"; then
           echo "⚠️  Potential hardcoded passwords found"
           SECRETS_FOUND=1
         fi

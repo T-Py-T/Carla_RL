@@ -1,0 +1,30 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "carla_rl_alerts.yml"
+
+scrape_configs:
+  - job_name: 'carla-rl-serving'
+    static_configs:
+      - targets: ['localhost:8080']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+    scrape_timeout: 10s
+    
+  - job_name: 'carla-rl-serving-cluster'
+    static_configs:
+      - targets: 
+        - 'carla-rl-1:8080'
+        - 'carla-rl-2:8080'
+        - 'carla-rl-3:8080'
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+    scrape_timeout: 10s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
