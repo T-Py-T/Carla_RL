@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 import uvicorn
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
@@ -30,6 +30,14 @@ from .io_schemas import (
     WarmupResponse,
 )
 from .version import APP_NAME, GIT_SHA, MODEL_NAME, MODEL_VERSION
+from .monitoring import (
+    get_metrics_collector,
+    get_logger,
+    get_health_checker,
+    get_tracer,
+    initialize_metrics,
+    configure_logging
+)
 
 # Global state for model and inference engine
 app_state: dict[str, Any] = {
@@ -55,6 +63,16 @@ async def lifespan(app: FastAPI):
     """FastAPI lifespan context manager for startup and shutdown."""
     # Startup
     app_state["startup_time"] = time.time()
+    
+    # Initialize monitoring
+    configure_logging(level=os.getenv("LOG_LEVEL", "INFO"))
+    initialize_metrics()
+    logger = get_logger("carla_rl_server")
+    metrics = get_metrics_collector()
+    get_health_checker(app_state)
+    tracer = get_tracer("carla-rl-serving")
+    
+    logger.info("Starting CarlaRL Policy Service", event_type="startup")
 
     try:
         # Import here to avoid circular imports
@@ -100,20 +118,48 @@ async def lifespan(app: FastAPI):
             print(f"Falling back to static version: {MODEL_VERSION}")
             print(f"Loading model artifacts from: {artifact_dir}")
 
-        # Load model and preprocessor
-        policy, preprocessor = load_artifacts(artifact_dir, device)
+        # Load model and preprocessor with tracing
+        with tracer.trace_model_loading(str(selected_version), str(device)):
+            start_time = time.time()
+            policy, preprocessor = load_artifacts(artifact_dir, device)
+            loading_duration = (time.time() - start_time) * 1000
+            
+            # Record model loading metrics
+            metrics.record_model_loading(str(selected_version), loading_duration / 1000)
+            logger.log_model_loading(
+                model_version=str(selected_version),
+                device=str(device),
+                duration_ms=loading_duration,
+                status="success"
+            )
 
         # Initialize inference engine
         app_state["inference_engine"] = InferenceEngine(policy, device, preprocessor)
         app_state["model_loaded"] = True
         app_state["selected_version"] = str(selected_version)
+        
+        # Set model status metrics
+        metrics.set_model_status(str(selected_version), str(device), True, False)
+        
+        # Set service startup time
+        metrics.set_service_startup_time(app_state["startup_time"])
 
-        print(f"Model {MODEL_NAME} loaded successfully")
-        print(f"Version: {app_state['selected_version']}")
-        print(f"Device: {device}")
+        logger.info(
+            "Model loaded successfully",
+            event_type="model_loaded",
+            model_name=MODEL_NAME,
+            version=str(selected_version),
+            device=str(device),
+            loading_duration_ms=loading_duration
+        )
 
     except Exception as e:
-        print(f"Failed to load model: {str(e)}")
+        logger.error(
+            "Failed to load model",
+            event_type="model_loading_error",
+            error=str(e),
+            error_type=type(e).__name__
+        )
         # Don't raise here - let the service start but mark as unavailable
         app_state["model_loaded"] = False
         app_state["inference_engine"] = None
@@ -121,7 +167,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
-    print("Shutting down CarlaRL Policy Service...")
+    logger.info("Shutting down CarlaRL Policy Service", event_type="shutdown")
     app_state["inference_engine"] = None
     app_state["model_loaded"] = False
 
@@ -155,9 +201,74 @@ async def add_request_id_middleware(request: Request, call_next):
     request_id = str(uuid.uuid4())
     request.state.request_id = request_id
 
+    # Get monitoring components
+    logger = get_logger("carla_rl_server")
+    metrics = get_metrics_collector()
+    tracer = get_tracer("carla-rl-serving")
+    
+    # Set correlation ID for logging
+    logger.set_correlation_id(request_id)
+    
+    # Start request tracing
+    span = tracer.trace_request(
+        method=request.method,
+        endpoint=request.url.path,
+        request_id=request_id,
+        user_agent=request.headers.get("user-agent")
+    )
+    
     start_time = time.time()
-    response = await call_next(request)
-    process_time = time.time() - start_time
+    
+    try:
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        
+        # Record request metrics
+        metrics.record_request(
+            method=request.method,
+            endpoint=request.url.path,
+            status_code=response.status_code,
+            duration_seconds=process_time
+        )
+        
+        # Log request
+        logger.log_request(
+            method=request.method,
+            endpoint=request.url.path,
+            status_code=response.status_code,
+            duration_ms=process_time * 1000,
+            user_agent=request.headers.get("user-agent")
+        )
+        
+        # Finish tracing span
+        tracer.finish_span(span.span_id)
+        
+    except Exception as e:
+        process_time = time.time() - start_time
+        
+        # Record error metrics
+        metrics.record_error(
+            error_type=type(e).__name__,
+            endpoint=request.url.path,
+            model_version=app_state.get("selected_version", "unknown")
+        )
+        
+        # Log error
+        logger.log_error(
+            error_type=type(e).__name__,
+            error_message=str(e),
+            endpoint=request.url.path,
+            model_version=app_state.get("selected_version", "unknown"),
+            exception=e
+        )
+        
+        # Finish tracing span with error
+        tracer.finish_span(span.span_id, status="error", error=e)
+        
+        raise
+    finally:
+        # Clear correlation ID
+        logger.clear_correlation_id()
 
     response.headers["X-Request-ID"] = request_id
     response.headers["X-Process-Time"] = str(process_time)
@@ -178,12 +289,29 @@ async def health_check() -> HealthResponse:
     Returns service status, version information, and basic diagnostics.
     """
     import torch
-
+    
+    # Get monitoring components
+    health_checker = get_health_checker(app_state)
+    logger = get_logger("carla_rl_server")
+    
+    # Run health checks
+    start_time = time.time()
+    health_summary = health_checker.get_health_summary()
+    duration_ms = (time.time() - start_time) * 1000
+    
+    # Log health check
+    logger.log_health_check(
+        status=health_summary["status"],
+        checks=health_summary["checks"],
+        duration_ms=duration_ms
+    )
+    
     device_str = "cuda" if torch.cuda.is_available() and os.getenv("USE_GPU", "0") == "1" else "cpu"
+    current_version = app_state.get("selected_version", MODEL_VERSION)
 
     return HealthResponse(
-        status="ok" if app_state["model_loaded"] else "degraded",
-        version=MODEL_VERSION,
+        status=health_summary["status"],
+        version=current_version,
         git=GIT_SHA,
         device=device_str,
     )
@@ -226,26 +354,62 @@ async def warmup_model(inference_engine=Depends(get_inference_engine)) -> Warmup
     Performs JIT compilation and optimization to reduce cold start latency
     for subsequent inference requests.
     """
-    start_time = time.time()
+    # Get monitoring components
+    logger = get_logger("carla_rl_server")
+    metrics = get_metrics_collector()
+    tracer = get_tracer("carla-rl-serving")
+    
+    model_version = app_state.get("selected_version", MODEL_VERSION)
+    
+    # Start warmup tracing
+    with tracer.trace_model_warmup(model_version):
+        start_time = time.time()
 
-    try:
-        # Create dummy observation for warmup
-        from .io_schemas import Observation
+        try:
+            # Create dummy observation for warmup
+            from .io_schemas import Observation
 
-        dummy_obs = Observation(speed=25.0, steering=0.0, sensors=[0.5] * 5)
+            dummy_obs = Observation(speed=25.0, steering=0.0, sensors=[0.5] * 5)
 
-        # Perform dummy inference
-        _, _ = inference_engine.predict([dummy_obs], deterministic=True)
+            # Perform dummy inference
+            _, _ = inference_engine.predict([dummy_obs], deterministic=True)
 
-        app_state["warmup_completed"] = True
-        timing_ms = (time.time() - start_time) * 1000.0
+            app_state["warmup_completed"] = True
+            timing_ms = (time.time() - start_time) * 1000.0
+            
+            # Record warmup metrics
+            metrics.record_model_warmup(model_version, timing_ms / 1000)
+            metrics.set_model_status(model_version, str(inference_engine.device), True, True)
+            
+            # Log warmup
+            logger.log_model_warmup(
+                model_version=model_version,
+                duration_ms=timing_ms,
+                status="success"
+            )
 
-        return WarmupResponse(
-            status="warmed", timingMs=timing_ms, device=str(inference_engine.device)
-        )
+            return WarmupResponse(
+                status="warmed", timingMs=timing_ms, device=str(inference_engine.device)
+            )
 
-    except Exception as e:
-        raise ServiceUnavailableError(message="Warmup failed", details={"error": str(e)})
+        except Exception as e:
+            # Record error metrics
+            metrics.record_error(
+                error_type=type(e).__name__,
+                endpoint="/warmup",
+                model_version=model_version
+            )
+            
+            # Log error
+            logger.log_error(
+                error_type=type(e).__name__,
+                error_message=str(e),
+                endpoint="/warmup",
+                model_version=model_version,
+                exception=e
+            )
+            
+            raise ServiceUnavailableError(message="Warmup failed", details={"error": str(e)})
 
 
 @app.post("/predict", response_model=PredictResponse, tags=["Inference"])
@@ -258,57 +422,109 @@ async def predict(
     Takes a batch of observations and returns corresponding actions
     with timing information and model version.
     """
-    try:
-        # Perform inference
-        actions, timing_ms = inference_engine.predict(
-            request.observations, request.deterministic or False
-        )
+    # Get monitoring components
+    logger = get_logger("carla_rl_server")
+    metrics = get_metrics_collector()
+    tracer = get_tracer("carla-rl-serving")
+    
+    model_version = app_state.get("selected_version", MODEL_VERSION)
+    batch_size = len(request.observations)
+    deterministic = request.deterministic or False
+    
+    # Start inference tracing
+    with tracer.trace_inference(
+        model_version=model_version,
+        device=str(inference_engine.device),
+        batch_size=batch_size,
+        deterministic=deterministic
+    ):
+        try:
+            # Perform inference with metrics collection
+            with metrics.inference_timer(
+                model_version=model_version,
+                device=str(inference_engine.device),
+                batch_size=batch_size,
+                deterministic=deterministic
+            ):
+                actions, timing_ms = inference_engine.predict(
+                    request.observations, deterministic
+                )
 
-        return PredictResponse(
-            actions=actions,
-            version=MODEL_VERSION,
-            timingMs=timing_ms,
-            deterministic=request.deterministic or False,
-        )
+            # Log inference
+            logger.log_inference(
+                model_version=model_version,
+                device=str(inference_engine.device),
+                batch_size=batch_size,
+                duration_ms=timing_ms,
+                deterministic=deterministic,
+                status="success"
+            )
 
-    except Exception as e:
-        from .exceptions import InferenceError
+            return PredictResponse(
+                actions=actions,
+                version=model_version,
+                timingMs=timing_ms,
+                deterministic=deterministic,
+            )
 
-        raise InferenceError(
-            message="Inference failed",
-            details={
-                "batch_size": len(request.observations),
-                "deterministic": request.deterministic,
-                "error": str(e),
-            },
-        )
+        except Exception as e:
+            # Record error metrics
+            metrics.record_error(
+                error_type=type(e).__name__,
+                endpoint="/predict",
+                model_version=model_version
+            )
+            
+            # Log error
+            logger.log_error(
+                error_type=type(e).__name__,
+                error_message=str(e),
+                endpoint="/predict",
+                model_version=model_version,
+                exception=e,
+                batch_size=batch_size,
+                deterministic=deterministic
+            )
+            
+            from .exceptions import InferenceError
+
+            raise InferenceError(
+                message="Inference failed",
+                details={
+                    "batch_size": batch_size,
+                    "deterministic": deterministic,
+                    "error": str(e),
+                },
+            )
 
 
-# Optional metrics endpoint (basic implementation)
 @app.get("/metrics", tags=["Monitoring"])
-async def get_metrics():
+async def get_metrics() -> Response:
     """
-    Basic metrics endpoint for monitoring.
+    Prometheus metrics endpoint for monitoring.
 
-    Returns simple text metrics compatible with Prometheus scraping.
+    Returns comprehensive metrics in Prometheus format including:
+    - Inference performance metrics
+    - System resource utilization
+    - Error rates and types
+    - Model status and health
+    - Request processing statistics
     """
+    # Get metrics collector
+    metrics_collector = get_metrics_collector()
+    
+    # Update uptime metric
     uptime = time.time() - (app_state["startup_time"] or time.time())
-
-    metrics = [
-        "# HELP carla_rl_uptime_seconds Service uptime in seconds",
-        "# TYPE carla_rl_uptime_seconds counter",
-        f"carla_rl_uptime_seconds {uptime:.2f}",
-        "",
-        "# HELP carla_rl_model_loaded Model loading status (1=loaded, 0=not loaded)",
-        "# TYPE carla_rl_model_loaded gauge",
-        f"carla_rl_model_loaded {1 if app_state['model_loaded'] else 0}",
-        "",
-        "# HELP carla_rl_warmup_completed Warmup completion status (1=completed, 0=not completed)",
-        "# TYPE carla_rl_warmup_completed gauge",
-        f"carla_rl_warmup_completed {1 if app_state['warmup_completed'] else 0}",
-    ]
-
-    return "\n".join(metrics)
+    metrics_collector.set_service_uptime(uptime)
+    
+    # Get metrics in Prometheus format
+    metrics_data = metrics_collector.get_metrics()
+    content_type = metrics_collector.get_metrics_content_type()
+    
+    return Response(
+        content=metrics_data,
+        media_type=content_type
+    )
 
 
 @app.get("/versions", response_model=VersionsResponse, tags=["Model"])
