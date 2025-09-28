@@ -1,0 +1,157 @@
+# Deployment Testing Makefile
+# This Makefile provides easy commands for running comprehensive deployment tests
+
+.PHONY: help test-docker test-k8s test-all test-integration test-load test-monitoring test-performance clean-docker clean-k8s clean-all
+
+# Default target
+help:
+	@echo "CarlaRL Deployment Testing Commands"
+	@echo "===================================="
+	@echo ""
+	@echo "Docker Compose Testing:"
+	@echo "  test-docker              Run Docker Compose tests"
+	@echo "  test-docker-load         Run Docker Compose load tests"
+	@echo "  test-docker-monitoring   Run Docker Compose monitoring tests"
+	@echo "  test-docker-performance  Run Docker Compose performance tests"
+	@echo ""
+	@echo "Kubernetes Testing:"
+	@echo "  test-k8s                 Run Kubernetes tests"
+	@echo "  test-k8s-deploy          Deploy to Kubernetes only"
+	@echo "  test-k8s-cleanup         Clean up Kubernetes resources"
+	@echo ""
+	@echo "Comprehensive Testing:"
+	@echo "  test-all                 Run all deployment tests"
+	@echo "  test-integration         Run integration tests only"
+	@echo "  test-load                Run load tests only"
+	@echo "  test-monitoring          Run monitoring tests only"
+	@echo "  test-performance         Run performance tests only"
+	@echo ""
+	@echo "Cleanup:"
+	@echo "  clean-docker             Clean up Docker Compose resources"
+	@echo "  clean-k8s                Clean up Kubernetes resources"
+	@echo "  clean-all                Clean up all resources"
+	@echo ""
+	@echo "Utilities:"
+	@echo "  build-image              Build Docker image for testing"
+	@echo "  check-deps               Check required dependencies"
+	@echo "  install-deps             Install required dependencies"
+
+# Check dependencies
+check-deps:
+	@echo "Checking dependencies..."
+	@command -v docker >/dev/null 2>&1 || { echo "Docker is required but not installed. Aborting." >&2; exit 1; }
+	@command -v docker-compose >/dev/null 2>&1 || { echo "docker-compose is required but not installed. Aborting." >&2; exit 1; }
+	@command -v kubectl >/dev/null 2>&1 || { echo "kubectl is required but not installed. Aborting." >&2; exit 1; }
+	@command -v python3 >/dev/null 2>&1 || { echo "Python 3 is required but not installed. Aborting." >&2; exit 1; }
+	@echo "All dependencies are installed."
+
+# Install dependencies
+install-deps:
+	@echo "Installing Python dependencies..."
+	pip install -r requirements.txt
+	@echo "Dependencies installed."
+
+# Build Docker image
+build-image:
+	@echo "Building Docker image..."
+	docker build -t model-serving:latest .
+	@echo "Docker image built successfully."
+
+# Docker Compose Tests
+test-docker: check-deps build-image
+	@echo "Running Docker Compose tests..."
+	python3 scripts/test_docker_compose.py --profiles testing
+
+test-docker-load: check-deps build-image
+	@echo "Running Docker Compose load tests..."
+	python3 scripts/test_docker_compose.py --profiles testing load-testing
+
+test-docker-monitoring: check-deps build-image
+	@echo "Running Docker Compose monitoring tests..."
+	python3 scripts/test_docker_compose.py --profiles testing monitoring
+
+test-docker-performance: check-deps build-image
+	@echo "Running Docker Compose performance tests..."
+	python3 scripts/test_docker_compose.py --profiles testing performance
+
+# Kubernetes Tests
+test-k8s: check-deps build-image
+	@echo "Running Kubernetes tests..."
+	python3 scripts/test_kubernetes.py
+
+test-k8s-deploy: check-deps build-image
+	@echo "Deploying to Kubernetes..."
+	python3 scripts/test_kubernetes.py --deploy-only
+
+test-k8s-cleanup:
+	@echo "Cleaning up Kubernetes resources..."
+	python3 scripts/test_kubernetes.py --cleanup-only
+
+# Comprehensive Tests
+test-all: check-deps build-image
+	@echo "Running comprehensive deployment tests..."
+	python3 scripts/run_deployment_tests.py
+
+test-integration: check-deps build-image
+	@echo "Running integration tests..."
+	python3 scripts/run_deployment_tests.py --docker-profiles testing --k8s-only
+
+test-load: check-deps build-image
+	@echo "Running load tests..."
+	python3 scripts/run_deployment_tests.py --docker-profiles load-testing --k8s-only
+
+test-monitoring: check-deps build-image
+	@echo "Running monitoring tests..."
+	python3 scripts/run_deployment_tests.py --docker-profiles monitoring --k8s-only
+
+test-performance: check-deps build-image
+	@echo "Running performance tests..."
+	python3 scripts/run_deployment_tests.py --docker-profiles performance --k8s-only
+
+# Cleanup Commands
+clean-docker:
+	@echo "Cleaning up Docker Compose resources..."
+	docker-compose -f deploy/docker/docker-compose.test.yml down -v
+	docker system prune -f
+
+clean-k8s:
+	@echo "Cleaning up Kubernetes resources..."
+	kubectl delete -f deploy/k8s/test-deployment.yaml --ignore-not-found=true
+	kubectl delete jobs -l test=true --ignore-not-found=true
+
+clean-all: clean-docker clean-k8s
+	@echo "All resources cleaned up."
+
+# Development helpers
+start-docker-dev: check-deps build-image
+	@echo "Starting Docker Compose development environment..."
+	docker-compose -f deploy/docker/docker-compose.test.yml up -d
+	@echo "Development environment started."
+	@echo "CarlaRL Service: http://localhost:8080"
+	@echo "Prometheus: http://localhost:9090"
+	@echo "Grafana: http://localhost:3000 (admin/admin)"
+
+stop-docker-dev:
+	@echo "Stopping Docker Compose development environment..."
+	docker-compose -f deploy/docker/docker-compose.test.yml down
+
+# CI/CD helpers
+ci-test: check-deps build-image
+	@echo "Running CI/CD test suite..."
+	python3 scripts/run_deployment_tests.py --output ci-test-results.json
+	@echo "CI/CD tests completed. Results saved to ci-test-results.json"
+
+# Quick validation
+quick-test: check-deps
+	@echo "Running quick validation tests..."
+	python3 -m pytest tests/integration/test_deployment.py -v --tb=short
+
+# Performance benchmark
+benchmark: check-deps build-image
+	@echo "Running performance benchmark..."
+	python3 scripts/performance_benchmark.py --url http://localhost:8080 --output benchmark-results.json
+
+# Monitoring validation
+monitor-test: check-deps build-image
+	@echo "Running monitoring validation..."
+	python3 scripts/monitoring_test.py --service-url http://localhost:8080 --output monitoring-results.json
