@@ -21,6 +21,14 @@
 - `model-serving/tests/versioning/test_semantic_version.py` - Unit tests for semantic versioning
 - `model-serving/tests/versioning/test_artifact_manager.py` - Unit tests for artifact management
 - `model-serving/scripts/artifact_manager.py` - CLI tool for artifact management
+- `model-serving/scripts/integrity_reporter.py` - CLI tool for generating detailed artifact integrity reports
+- `model-serving/tests/versioning/test_integrity_reporter.py` - Unit tests for integrity reporting
+- `model-serving/src/versioning/migration_manager.py` - Artifact migration tools for version upgrades
+- `model-serving/scripts/migration_manager.py` - CLI tool for managing artifact migrations
+- `model-serving/tests/versioning/test_migration_manager.py` - Unit tests for migration management
+- `model-serving/src/versioning/content_storage.py` - Content-addressable storage system for artifact integrity
+- `model-serving/scripts/content_storage_manager.py` - CLI tool for managing content-addressable storage
+- `model-serving/tests/versioning/test_content_storage.py` - Unit tests for content-addressable storage
 - `model-serving/src/config/` - Configuration management system
 - `model-serving/src/config/settings.py` - Pydantic configuration models and validation
 - `model-serving/src/config/loader.py` - Hierarchical configuration loading (env > file > defaults)
@@ -77,9 +85,9 @@
   - [x] 2.4 Implement artifact rollback functionality to previous versions
   - [x] 2.5 Create artifact validation CLI tool with comprehensive reporting
   - [x] 2.6 Build multi-version model support with version selection logic
-  - [ ] 2.7 Implement artifact integrity reports with detailed validation results
-  - [ ] 2.8 Create artifact migration tools for version upgrades
-  - [ ] 2.9 Build content-addressable storage system for artifact integrity
+  - [x] 2.7 Implement artifact integrity reports with detailed validation results
+  - [x] 2.8 Create artifact migration tools for version upgrades
+  - [x] 2.9 Build content-addressable storage system for artifact integrity
 
 - [ ] 3.0 Configuration Management System
   - [ ] 3.1 Create Pydantic configuration models with comprehensive validation
