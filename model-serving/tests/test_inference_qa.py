@@ -40,12 +40,12 @@ class TestInferenceEngineQA:
         preprocessor = MinimalPreprocessor()
 
         default_kwargs = {
-            'policy': policy,
-            'device': torch.device('cpu'),
-            'preprocessor': preprocessor,
-            'enable_cache': True,
-            'cache_size': 1000,
-            'max_batch_size': 1000
+            "policy": policy,
+            "device": torch.device("cpu"),
+            "preprocessor": preprocessor,
+            "enable_cache": True,
+            "cache_size": 1000,
+            "max_batch_size": 1000,
         }
         default_kwargs.update(kwargs)
 
@@ -58,7 +58,7 @@ class TestInferenceEngineQA:
             obs = Observation(
                 speed=20.0 + i * 5.0,
                 steering=np.sin(i * 0.1),
-                sensors=[np.random.uniform(0, 1) for _ in range(5)]
+                sensors=[np.random.uniform(0, 1) for _ in range(5)],
             )
             observations.append(obs)
         return observations
@@ -184,8 +184,12 @@ class TestInferenceEngineQA:
 
         # Validate full metrics
         required_fields = [
-            "total_requests", "total_observations", "error_count",
-            "latency_ms", "throughput", "timing_breakdown_ms"
+            "total_requests",
+            "total_observations",
+            "error_count",
+            "latency_ms",
+            "throughput",
+            "timing_breakdown_ms",
         ]
 
         for field in required_fields:
@@ -300,7 +304,9 @@ class TestInferenceEngineQA:
             assert a1.steer == a2.steer
 
         # Second call should be significantly faster (cached)
-        assert second_call_time < first_call_time * 0.8, f"Cache not effective: {second_call_time} vs {first_call_time}"
+        assert (
+            second_call_time < first_call_time * 0.8
+        ), f"Cache not effective: {second_call_time} vs {first_call_time}"
 
         # Validate cache statistics
         memory_stats = engine.get_memory_usage()
@@ -412,7 +418,9 @@ class TestInferenceEngineQA:
 
         # Note: This is a simulated test - real hardware performance will vary
         # Target is 1000+ requests/sec, but we test observations/sec here
-        assert throughput_obs_per_sec > 100, f"Throughput {throughput_obs_per_sec} too low for test environment"
+        assert (
+            throughput_obs_per_sec > 100
+        ), f"Throughput {throughput_obs_per_sec} too low for test environment"
 
         print(" Performance Requirements: High-throughput batch inference validated")
 

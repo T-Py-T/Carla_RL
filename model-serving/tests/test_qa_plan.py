@@ -67,22 +67,14 @@ class TestQAPlan:
         # Setup mock for batch processing
         mock_actions = [
             Action(throttle=0.7, brake=0.0, steer=0.1),
-            Action(throttle=0.5, brake=0.2, steer=-0.1)
+            Action(throttle=0.5, brake=0.2, steer=-0.1),
         ]
         mock_inference_engine.predict.return_value = (mock_actions, 12.5)
 
         request_data = {
             "observations": [
-                {
-                    "speed": 25.5,
-                    "steering": 0.1,
-                    "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]
-                },
-                {
-                    "speed": 30.0,
-                    "steering": -0.05,
-                    "sensors": [0.6, 0.4, 0.7, 0.8, 0.3]
-                }
+                {"speed": 25.5, "steering": 0.1, "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]},
+                {"speed": 30.0, "steering": -0.05, "sensors": [0.6, 0.4, 0.7, 0.8, 0.3]},
             ]
         }
 
@@ -109,12 +101,10 @@ class TestQAPlan:
 
         # Test deterministic=True
         request_data = {
-            "observations": [{
-                "speed": 25.5,
-                "steering": 0.1,
-                "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]
-            }],
-            "deterministic": True
+            "observations": [
+                {"speed": 25.5, "steering": 0.1, "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]}
+            ],
+            "deterministic": True,
         }
 
         response = client.post("/predict", json=request_data)
@@ -123,9 +113,7 @@ class TestQAPlan:
         assert data["deterministic"] is True
 
         # Verify inference engine was called with deterministic flag
-        mock_inference_engine.predict.assert_called_with(
-            request_data["observations"], True
-        )
+        mock_inference_engine.predict.assert_called_with(request_data["observations"], True)
 
         print(" FR-1.4: Deterministic mode validated")
 
@@ -155,11 +143,13 @@ class TestQAPlan:
         """
         # Test invalid speed
         invalid_request = {
-            "observations": [{
-                "speed": -10.0,  # Invalid: negative speed
-                "steering": 0.1,
-                "sensors": [0.8, 0.2, 0.5]
-            }]
+            "observations": [
+                {
+                    "speed": -10.0,  # Invalid: negative speed
+                    "steering": 0.1,
+                    "sensors": [0.8, 0.2, 0.5],
+                }
+            ]
         }
 
         response = client.post("/predict", json=invalid_request)
@@ -185,11 +175,7 @@ class TestQAPlan:
         mock_inference_engine.predict.return_value = ([mock_action], 8.5)
 
         request_data = {
-            "observations": [{
-                "speed": 25.5,
-                "steering": 0.1,
-                "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]
-            }]
+            "observations": [{"speed": 25.5, "steering": 0.1, "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]}]
         }
 
         response = client.post("/predict", json=request_data)
@@ -213,11 +199,7 @@ class TestQAPlan:
         mock_inference_engine.predict.return_value = ([mock_action], 8.5)
 
         request_data = {
-            "observations": [{
-                "speed": 25.5,
-                "steering": 0.1,
-                "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]
-            }]
+            "observations": [{"speed": 25.5, "steering": 0.1, "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]}]
         }
 
         response = client.post("/predict", json=request_data)
@@ -231,8 +213,11 @@ class TestQAPlan:
 
         # Basic semantic version pattern check
         import re
-        semver_pattern = r'^v\d+\.\d+\.\d+$'
-        assert re.match(semver_pattern, version), f"Version {version} doesn't match semantic versioning"
+
+        semver_pattern = r"^v\d+\.\d+\.\d+$"
+        assert re.match(
+            semver_pattern, version
+        ), f"Version {version} doesn't match semantic versioning"
 
         print(" FR-1.10: Semantic versioning validated")
 
@@ -268,11 +253,7 @@ class TestPerformanceRequirements:
         mock_inference_engine.predict.return_value = ([mock_action], 7.5)  # 7.5ms
 
         request_data = {
-            "observations": [{
-                "speed": 25.5,
-                "steering": 0.1,
-                "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]
-            }]
+            "observations": [{"speed": 25.5, "steering": 0.1, "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]}]
         }
 
         response = client.post("/predict", json=request_data)
@@ -295,11 +276,9 @@ class TestPerformanceRequirements:
         mock_actions = [Action(throttle=0.7, brake=0.0, steer=0.1)] * batch_size
         mock_inference_engine.predict.return_value = (mock_actions, 50.0)  # 50ms for batch
 
-        observations = [{
-            "speed": 25.5,
-            "steering": 0.1,
-            "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]
-        }] * batch_size
+        observations = [
+            {"speed": 25.5, "steering": 0.1, "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]}
+        ] * batch_size
 
         request_data = {"observations": observations}
 
@@ -328,34 +307,24 @@ class TestErrorHandlingRequirements:
         error_scenarios = [
             {
                 "name": "Invalid speed",
-                "data": {
-                    "observations": [{
-                        "speed": -1.0,
-                        "steering": 0.0,
-                        "sensors": [0.5]
-                    }]
-                }
+                "data": {"observations": [{"speed": -1.0, "steering": 0.0, "sensors": [0.5]}]},
             },
             {
                 "name": "Invalid steering",
                 "data": {
-                    "observations": [{
-                        "speed": 25.0,
-                        "steering": 2.0,  # > 1.0
-                        "sensors": [0.5]
-                    }]
-                }
+                    "observations": [
+                        {
+                            "speed": 25.0,
+                            "steering": 2.0,  # > 1.0
+                            "sensors": [0.5],
+                        }
+                    ]
+                },
             },
             {
                 "name": "Empty sensors",
-                "data": {
-                    "observations": [{
-                        "speed": 25.0,
-                        "steering": 0.0,
-                        "sensors": []
-                    }]
-                }
-            }
+                "data": {"observations": [{"speed": 25.0, "steering": 0.0, "sensors": []}]},
+            },
         ]
 
         for scenario in error_scenarios:

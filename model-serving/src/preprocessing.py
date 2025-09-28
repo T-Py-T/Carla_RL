@@ -28,7 +28,7 @@ class FeaturePreprocessor:
         self.input_shape = None
         self.output_shape = None
 
-    def fit(self, observations: list[Observation]) -> 'FeaturePreprocessor':
+    def fit(self, observations: list[Observation]) -> "FeaturePreprocessor":
         """
         Fit preprocessor to training data.
 
@@ -72,15 +72,13 @@ class FeaturePreprocessor:
             path: Path to save preprocessor
         """
         try:
-            with open(path, 'wb') as f:
+            with open(path, "wb") as f:
                 pickle.dump(self, f)
         except Exception as e:
-            raise PreprocessingError(
-                f"Failed to save preprocessor to {path}: {str(e)}"
-            )
+            raise PreprocessingError(f"Failed to save preprocessor to {path}: {str(e)}")
 
     @classmethod
-    def load(cls, path: str | Path) -> 'FeaturePreprocessor':
+    def load(cls, path: str | Path) -> "FeaturePreprocessor":
         """
         Load preprocessor from file.
 
@@ -91,7 +89,7 @@ class FeaturePreprocessor:
             Loaded preprocessor instance
         """
         try:
-            with open(path, 'rb') as f:
+            with open(path, "rb") as f:
                 preprocessor = pickle.load(f)
 
             if not isinstance(preprocessor, FeaturePreprocessor):
@@ -102,9 +100,7 @@ class FeaturePreprocessor:
             return preprocessor
 
         except Exception as e:
-            raise PreprocessingError(
-                f"Failed to load preprocessor from {path}: {str(e)}"
-            )
+            raise PreprocessingError(f"Failed to load preprocessor from {path}: {str(e)}")
 
 
 class StandardFeaturePreprocessor(FeaturePreprocessor):
@@ -119,7 +115,7 @@ class StandardFeaturePreprocessor(FeaturePreprocessor):
         normalize_speed: bool = True,
         normalize_steering: bool = True,
         normalize_sensors: bool = True,
-        sensor_clip_range: tuple[float, float] | None = None
+        sensor_clip_range: tuple[float, float] | None = None,
     ):
         super().__init__()
         self.normalize_speed = normalize_speed
@@ -158,19 +154,15 @@ class StandardFeaturePreprocessor(FeaturePreprocessor):
                 sensors[i, :sensor_len] = obs.sensors[:max_sensor_len]
                 # Pad with zeros if needed (already initialized to zeros)
 
-            return {
-                "speed": speeds,
-                "steering": steerings,
-                "sensors": sensors
-            }
+            return {"speed": speeds, "steering": steerings, "sensors": sensors}
 
         except Exception as e:
             raise PreprocessingError(
                 f"Failed to extract features: {str(e)}",
-                details={"num_observations": len(observations)}
+                details={"num_observations": len(observations)},
             )
 
-    def fit(self, observations: list[Observation]) -> 'StandardFeaturePreprocessor':
+    def fit(self, observations: list[Observation]) -> "StandardFeaturePreprocessor":
         """
         Fit preprocessor statistics to observations.
 
@@ -198,9 +190,7 @@ class StandardFeaturePreprocessor(FeaturePreprocessor):
             if self.normalize_sensors:
                 # Clip sensors before computing stats
                 clipped_sensors = np.clip(
-                    features["sensors"],
-                    self.sensor_clip_range[0],
-                    self.sensor_clip_range[1]
+                    features["sensors"], self.sensor_clip_range[0], self.sensor_clip_range[1]
                 )
                 self.sensor_stats["mean"] = float(np.mean(clipped_sensors))
                 self.sensor_stats["std"] = float(np.std(clipped_sensors) + 1e-8)
@@ -216,7 +206,7 @@ class StandardFeaturePreprocessor(FeaturePreprocessor):
         except Exception as e:
             raise PreprocessingError(
                 f"Failed to fit preprocessor: {str(e)}",
-                details={"num_observations": len(observations)}
+                details={"num_observations": len(observations)},
             )
 
     def transform(self, observations: list[Observation]) -> np.ndarray:
@@ -252,21 +242,16 @@ class StandardFeaturePreprocessor(FeaturePreprocessor):
                 sensors = (sensors - self.sensor_stats["mean"]) / self.sensor_stats["std"]
 
             # Concatenate all features
-            feature_matrix = np.column_stack([
-                speed.reshape(-1, 1),
-                steering.reshape(-1, 1),
-                sensors
-            ])
+            feature_matrix = np.column_stack(
+                [speed.reshape(-1, 1), steering.reshape(-1, 1), sensors]
+            )
 
             return feature_matrix.astype(np.float32)
 
         except Exception as e:
             raise PreprocessingError(
                 f"Failed to transform observations: {str(e)}",
-                details={
-                    "num_observations": len(observations),
-                    "is_fitted": self.is_fitted
-                }
+                details={"num_observations": len(observations), "is_fitted": self.is_fitted},
             )
 
     def get_feature_info(self) -> dict[str, Any]:
@@ -288,7 +273,7 @@ class StandardFeaturePreprocessor(FeaturePreprocessor):
             "sensor_stats": self.sensor_stats,
             "input_shape": self.input_shape,
             "output_shape": self.output_shape,
-            "feature_names": self.feature_names
+            "feature_names": self.feature_names,
         }
 
 
@@ -303,7 +288,7 @@ class MinimalPreprocessor(FeaturePreprocessor):
         super().__init__()
         self.feature_names = ["speed", "steering", "sensors"]
 
-    def fit(self, observations: list[Observation]) -> 'MinimalPreprocessor':
+    def fit(self, observations: list[Observation]) -> "MinimalPreprocessor":
         """
         Fit preprocessor (no-op for minimal preprocessor).
 
@@ -349,18 +334,16 @@ class MinimalPreprocessor(FeaturePreprocessor):
                 sensors[i, :sensor_len] = obs.sensors[:max_sensor_len]
 
             # Concatenate all features
-            feature_matrix = np.column_stack([
-                speeds.reshape(-1, 1),
-                steerings.reshape(-1, 1),
-                sensors
-            ])
+            feature_matrix = np.column_stack(
+                [speeds.reshape(-1, 1), steerings.reshape(-1, 1), sensors]
+            )
 
             return feature_matrix.astype(np.float32)
 
         except Exception as e:
             raise PreprocessingError(
                 f"Failed to transform observations: {str(e)}",
-                details={"num_observations": len(observations)}
+                details={"num_observations": len(observations)},
             )
 
 
@@ -384,14 +367,14 @@ def create_preprocessor(config: dict[str, Any]) -> FeaturePreprocessor:
             normalize_speed=config.get("normalize_speed", True),
             normalize_steering=config.get("normalize_steering", True),
             normalize_sensors=config.get("normalize_sensors", True),
-            sensor_clip_range=config.get("sensor_clip_range", (-10.0, 10.0))
+            sensor_clip_range=config.get("sensor_clip_range", (-10.0, 10.0)),
         )
     elif preprocessor_type == "minimal":
         return MinimalPreprocessor()
     else:
         raise PreprocessingError(
             f"Unknown preprocessor type: {preprocessor_type}",
-            details={"available_types": ["standard", "minimal"]}
+            details={"available_types": ["standard", "minimal"]},
         )
 
 
@@ -415,7 +398,7 @@ def validate_preprocessing_parity(
     train_preprocessor: FeaturePreprocessor,
     serve_preprocessor: FeaturePreprocessor,
     test_observations: list[Observation],
-    tolerance: float = 1e-6
+    tolerance: float = 1e-6,
 ) -> bool:
     """
     Validate that training and serving preprocessors produce identical results.
@@ -439,10 +422,7 @@ def validate_preprocessing_parity(
         if train_features.shape != serve_features.shape:
             raise PreprocessingError(
                 "Shape mismatch between train and serve features",
-                details={
-                    "train_shape": train_features.shape,
-                    "serve_shape": serve_features.shape
-                }
+                details={"train_shape": train_features.shape, "serve_shape": serve_features.shape},
             )
 
         max_diff = np.max(np.abs(train_features - serve_features))
@@ -453,8 +433,8 @@ def validate_preprocessing_parity(
                 details={
                     "max_difference": float(max_diff),
                     "tolerance": tolerance,
-                    "mean_difference": float(np.mean(np.abs(train_features - serve_features)))
-                }
+                    "mean_difference": float(np.mean(np.abs(train_features - serve_features))),
+                },
             )
 
         return True
@@ -465,5 +445,5 @@ def validate_preprocessing_parity(
         else:
             raise PreprocessingError(
                 f"Parity validation failed: {str(e)}",
-                details={"num_test_observations": len(test_observations)}
+                details={"num_test_observations": len(test_observations)},
             )
