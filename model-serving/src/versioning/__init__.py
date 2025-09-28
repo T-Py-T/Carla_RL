@@ -22,6 +22,21 @@ from .version_selector import (
     VersionSelectionResult,
     ModelVersionInfo,
 )
+from .migration_manager import (
+    MigrationManager,
+    MigrationStep,
+    MigrationPlan,
+    MigrationResult,
+    MigrationError,
+    create_builtin_migration_steps,
+)
+from .content_storage import (
+    ContentAddressableStorage,
+    ContentReference,
+    StorageStats,
+    ContentStorageError,
+    ContentAddressableArtifactManager,
+)
 
 __all__ = [
     "SemanticVersion",
@@ -45,4 +60,15 @@ __all__ = [
     "VersionSelectionError",
     "VersionSelectionResult",
     "ModelVersionInfo",
+    "MigrationManager",
+    "MigrationStep",
+    "MigrationPlan",
+    "MigrationResult",
+    "MigrationError",
+    "create_builtin_migration_steps",
+    "ContentAddressableStorage",
+    "ContentReference",
+    "StorageStats",
+    "ContentStorageError",
+    "ContentAddressableArtifactManager",
 ]
