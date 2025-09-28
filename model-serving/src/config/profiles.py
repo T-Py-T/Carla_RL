@@ -5,12 +5,10 @@ Provides configuration profiles for different environments with
 template-based configuration generation.
 """
 
-import os
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, Type
+from typing import Any, Dict, List, Optional, Union
 from dataclasses import dataclass, field
-from pydantic import BaseModel
 
 from .settings import AppConfig, Environment
 

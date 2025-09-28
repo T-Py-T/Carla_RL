@@ -12,13 +12,13 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, Optional, Any
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from src.versioning.artifact_manager import ArtifactManager
-from src.versioning.semantic_version import SemanticVersion, parse_version
+from src.versioning.semantic_version import parse_version
 
 
 # Configure logging

@@ -1,44 +1,37 @@
 """
-Hierarchical configuration loading (env > file > defaults).
+Hierarchical configuration loading system.
 
-Provides flexible configuration loading with support for multiple sources
-and formats, with environment variables taking precedence.
+Provides configuration loading from multiple sources with proper precedence:
+environment variables > configuration files > default values.
 """
 
 import json
 import os
 import yaml
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, Type, TypeVar
-from pydantic import BaseModel, ValidationError
+from typing import Any, Dict, List, Optional, Type, TypeVar, Union
 
-from .settings import AppConfig, BaseConfig
+from .settings import BaseConfig, AppConfig
 
-T = TypeVar("T", bound=BaseModel)
+T = TypeVar('T', bound=BaseConfig)
 
 
 class ConfigLoader:
-    """Configuration loader with hierarchical loading support."""
+    """Configuration loader with hierarchical source management."""
     
     def __init__(self, config_dir: Optional[Path] = None):
         """
         Initialize configuration loader.
         
         Args:
-            config_dir: Configuration directory path
+            config_dir: Base directory for configuration files
         """
         self.config_dir = config_dir or Path("config")
-        self.config_dir.mkdir(exist_ok=True)
-        
-        # Supported file formats
-        self.supported_formats = {".json", ".yaml", ".yml", ".toml", ".env"}
-        
-        # Configuration sources (in order of precedence)
-        self.sources = []
+        self.sources: List[tuple] = []
     
     def add_file_source(self, file_path: Union[str, Path], required: bool = False) -> "ConfigLoader":
         """
-        Add file-based configuration source.
+        Add configuration file source.
         
         Args:
             file_path: Path to configuration file
@@ -48,7 +41,6 @@ class ConfigLoader:
             Self for method chaining
         """
         file_path = Path(file_path)
-        
         if not file_path.is_absolute():
             file_path = self.config_dir / file_path
         
@@ -60,24 +52,47 @@ class ConfigLoader:
         
         return self
     
-    def add_env_source(self, prefix: str = "", env_file: Optional[Union[str, Path]] = None) -> "ConfigLoader":
+    def add_env_file_source(self, env_file: Union[str, Path]) -> "ConfigLoader":
         """
-        Add environment variable source.
+        Add environment file source.
         
         Args:
-            prefix: Environment variable prefix
-            env_file: Path to .env file
+            env_file: Path to environment file
             
         Returns:
             Self for method chaining
         """
-        if env_file:
-            env_file = Path(env_file)
-            if not env_file.is_absolute():
-                env_file = self.config_dir / env_file
+        env_file = Path(env_file)
+        if not env_file.is_absolute():
+            env_file = self.config_dir / env_file
+        
+        if env_file.exists():
+            self.sources.append(("env_file", str(env_file)))
+        
+        return self
+    
+    def add_env_source(self, prefix: str = "") -> "ConfigLoader":
+        """
+        Add environment variable source.
+        
+        Args:
+            prefix: Environment variable prefix (e.g., "APP_")
             
-            if env_file.exists():
-                self.sources.append(("env_file", str(env_file)))
+        Returns:
+            Self for method chaining
+        """
+        if prefix:
+            # Load .env files if they exist
+            env_files = [
+                self.config_dir / ".env",
+                self.config_dir / f".env.{os.getenv('ENVIRONMENT', 'development')}",
+                Path.cwd() / ".env",
+                Path.cwd() / f".env.{os.getenv('ENVIRONMENT', 'development')}"
+            ]
+            
+            for env_file in env_files:
+                if env_file.exists():
+                    self.sources.append(("env_file", str(env_file)))
         
         self.sources.append(("env", prefix))
         return self
@@ -125,7 +140,7 @@ class ConfigLoader:
                 config_data = self._merge_configs(config_data, file_data)
                 
             elif source_type == "env_file":
-                # Load from .env file
+                # Load from environment file
                 env_data = self._load_env_file(source_value)
                 config_data = self._merge_configs(config_data, env_data)
                 
@@ -134,10 +149,10 @@ class ConfigLoader:
                 env_data = self._load_env_vars(source_value)
                 config_data = self._merge_configs(config_data, env_data)
         
-        # Create configuration object
+        # Validate and create configuration object
         try:
-            return config_class(**config_data)
-        except ValidationError as e:
+            return config_class.model_validate(config_data)
+        except Exception as e:
             raise ValueError(f"Configuration validation failed: {e}")
     
     def _load_file(self, file_path: str) -> Dict[str, Any]:
@@ -145,38 +160,29 @@ class ConfigLoader:
         file_path = Path(file_path)
         suffix = file_path.suffix.lower()
         
-        if suffix not in self.supported_formats:
-            raise ValueError(f"Unsupported file format: {suffix}")
-        
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                if suffix == ".json":
-                    return json.load(f)
-                elif suffix in [".yaml", ".yml"]:
-                    return yaml.safe_load(f) or {}
-                elif suffix == ".toml":
-                    import toml
-                    return toml.load(f)
-                elif suffix == ".env":
-                    return self._load_env_file(file_path)
-        except Exception as e:
-            raise ValueError(f"Failed to load configuration file {file_path}: {e}")
+        with open(file_path, 'r', encoding='utf-8') as f:
+            if suffix == '.json':
+                return json.load(f)
+            elif suffix in ['.yaml', '.yml']:
+                return yaml.safe_load(f)
+            elif suffix == '.toml':
+                import toml
+                return toml.load(f)
+            else:
+                raise ValueError(f"Unsupported file format: {suffix}")
     
-    def _load_env_file(self, file_path: Union[str, Path]) -> Dict[str, Any]:
-        """Load configuration from .env file."""
+    def _load_env_file(self, file_path: str) -> Dict[str, Any]:
+        """Load configuration from environment file."""
         env_data = {}
         
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith("#") and "=" in line:
-                        key, value = line.split("=", 1)
-                        # Remove quotes if present
-                        value = value.strip('"').strip("'")
-                        env_data[key.strip()] = value
-        except Exception as e:
-            raise ValueError(f"Failed to load .env file {file_path}: {e}")
+        with open(file_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    key = key.strip()
+                    value = value.strip().strip('"\'')
+                    env_data[key] = value
         
         return env_data
     
@@ -277,67 +283,43 @@ class ConfigLoader:
 
 def load_config(
     config_file: Optional[Union[str, Path]] = None,
-    env_prefix: str = "",
-    config_class: Type[T] = AppConfig,
-    config_dir: Optional[Path] = None
+    env_prefix: str = "APP_",
+    config_class: Type[T] = AppConfig
 ) -> T:
     """
     Convenience function to load configuration.
     
     Args:
-        config_file: Configuration file path
+        config_file: Optional configuration file path
         env_prefix: Environment variable prefix
         config_class: Configuration class to instantiate
-        config_dir: Configuration directory
         
     Returns:
         Loaded configuration object
     """
-    loader = ConfigLoader(config_dir)
+    loader = ConfigLoader()
     
-    # Add default configuration
+    # Add default source
     loader.add_default_source(config_class())
     
-    # Add file sources
+    # Add file source if provided
     if config_file:
         loader.add_file_source(config_file, required=True)
-    else:
-        # Try common configuration files
-        common_files = ["config.yaml", "config.yml", "config.json", "config.toml"]
-        for file_name in common_files:
-            loader.add_file_source(file_name, required=False)
-    
-    # Add environment sources only if prefix is provided
-    if env_prefix:
-        loader.add_env_source(env_prefix)
-    
-    return loader.load_config(config_class)
-
-
-def create_config_loader(
-    config_dir: Optional[Path] = None,
-    env_prefix: str = "",
-    config_files: Optional[List[Union[str, Path]]] = None
-) -> ConfigLoader:
-    """
-    Create a pre-configured ConfigLoader.
-    
-    Args:
-        config_dir: Configuration directory
-        env_prefix: Environment variable prefix
-        config_files: List of configuration files to load
-        
-    Returns:
-        Configured ConfigLoader instance
-    """
-    loader = ConfigLoader(config_dir)
-    
-    # Add file sources
-    if config_files:
-        for file_path in config_files:
-            loader.add_file_source(file_path)
     
     # Add environment source
     loader.add_env_source(env_prefix)
     
-    return loader
+    return loader.load_config(config_class)
+
+
+def create_config_loader(config_dir: Optional[Path] = None) -> ConfigLoader:
+    """
+    Create a new configuration loader.
+    
+    Args:
+        config_dir: Base directory for configuration files
+        
+    Returns:
+        New configuration loader instance
+    """
+    return ConfigLoader(config_dir)

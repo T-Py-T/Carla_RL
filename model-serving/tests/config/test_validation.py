@@ -4,8 +4,6 @@ Tests for configuration validation and error reporting system.
 
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-import pytest
 
 from src.config.validation import (
     ValidationSeverity, ValidationIssue, ValidationResult, ValidationError,
@@ -14,7 +12,7 @@ from src.config.validation import (
     validate_database_config, validate_cache_config, validate_model_config,
     create_default_validator, validate_config, format_validation_result
 )
-from src.config.settings import AppConfig, ServerConfig, ModelConfig, DatabaseConfig, CacheConfig, SecurityConfig, Environment, DatabaseBackend, CacheBackend
+from src.config.settings import AppConfig, Environment, DatabaseBackend, CacheBackend
 
 
 class TestValidationIssue:
@@ -108,9 +106,15 @@ class TestConfigValidator:
                 return {"server": {"port": -1}}
             def model_validate(self, data):
                 from pydantic import ValidationError
-                raise ValidationError.from_exception_data("ValidationError", [
-                    {"type": "greater_than_equal", "loc": ("server", "port"), "msg": "Input should be greater than or equal to 1", "input": -1}
-                ])
+                from pydantic_core import ErrorDetails
+                error_details = ErrorDetails(
+                    type="greater_than_equal",
+                    loc=("server", "port"),
+                    msg="Input should be greater than or equal to 1",
+                    input=-1,
+                    ctx={"ge": 1}
+                )
+                raise ValidationError.from_exception_data("ValidationError", [error_details])
         
         config = MockConfig()
         result = validator.validate(config)
@@ -348,13 +352,22 @@ class TestEnvironmentValidation:
     
     def test_validate_environment_consistency_development(self):
         """Test development environment validation (should pass)."""
-        config = AppConfig()
-        config.environment = Environment.DEVELOPMENT
-        config.debug = True
-        config.server.reload = True
-        config.security.enabled = False
-        config.server.workers = 1
+        # Create a mock config with development environment
+        class MockConfig:
+            @property
+            def environment(self):
+                return Environment.DEVELOPMENT
+            @property
+            def debug(self):
+                return True
+            @property
+            def server(self):
+                return type('Server', (), {'reload': True, 'workers': 1})()
+            @property
+            def security(self):
+                return type('Security', (), {'enabled': False})()
         
+        config = MockConfig()
         issues = validate_environment_consistency(config)
         assert len(issues) == 0
 
@@ -364,11 +377,18 @@ class TestDatabaseValidation:
     
     def test_validate_database_config_postgresql_missing_host(self):
         """Test PostgreSQL validation with missing host."""
-        config = AppConfig()
-        config.database.backend = DatabaseBackend.POSTGRESQL
-        config.database.host = None
-        config.database.url = None
+        # Create a mock config with PostgreSQL backend but no host
+        class MockConfig:
+            @property
+            def database(self):
+                return type('Database', (), {
+                    'backend': DatabaseBackend.POSTGRESQL,
+                    'host': None,
+                    'url': None,
+                    'username': 'test'
+                })()
         
+        config = MockConfig()
         issues = validate_database_config(config)
         assert len(issues) > 0
         assert any(issue.field == "database.host" for issue in issues)
@@ -376,11 +396,18 @@ class TestDatabaseValidation:
     
     def test_validate_database_config_postgresql_missing_username(self):
         """Test PostgreSQL validation with missing username."""
-        config = AppConfig()
-        config.database.backend = DatabaseBackend.POSTGRESQL
-        config.database.host = "localhost"
-        config.database.username = None
+        # Create a mock config with PostgreSQL backend but no username
+        class MockConfig:
+            @property
+            def database(self):
+                return type('Database', (), {
+                    'backend': DatabaseBackend.POSTGRESQL,
+                    'host': 'localhost',
+                    'url': None,
+                    'username': None
+                })()
         
+        config = MockConfig()
         issues = validate_database_config(config)
         assert len(issues) > 0
         assert any(issue.field == "database.username" for issue in issues)
@@ -388,9 +415,18 @@ class TestDatabaseValidation:
     
     def test_validate_database_config_sqlite(self):
         """Test SQLite validation (should pass)."""
-        config = AppConfig()
-        config.database.backend = DatabaseBackend.SQLITE
+        # Create a mock config with SQLite backend
+        class MockConfig:
+            @property
+            def database(self):
+                return type('Database', (), {
+                    'backend': DatabaseBackend.SQLITE,
+                    'host': None,
+                    'url': None,
+                    'username': None
+                })()
         
+        config = MockConfig()
         issues = validate_database_config(config)
         assert len(issues) == 0
 
@@ -400,10 +436,16 @@ class TestCacheValidation:
     
     def test_validate_cache_config_redis_missing_host(self):
         """Test Redis validation with missing host."""
-        config = AppConfig()
-        config.cache.backend = CacheBackend.REDIS
-        config.cache.host = None
+        # Create a mock config with Redis backend but no host
+        class MockConfig:
+            @property
+            def cache(self):
+                return type('Cache', (), {
+                    'backend': CacheBackend.REDIS,
+                    'host': None
+                })()
         
+        config = MockConfig()
         issues = validate_cache_config(config)
         assert len(issues) > 0
         assert any(issue.field == "cache.host" for issue in issues)
@@ -411,9 +453,16 @@ class TestCacheValidation:
     
     def test_validate_cache_config_memory(self):
         """Test memory cache validation (should pass)."""
-        config = AppConfig()
-        config.cache.backend = CacheBackend.MEMORY
+        # Create a mock config with memory cache backend
+        class MockConfig:
+            @property
+            def cache(self):
+                return type('Cache', (), {
+                    'backend': CacheBackend.MEMORY,
+                    'host': None
+                })()
         
+        config = MockConfig()
         issues = validate_cache_config(config)
         assert len(issues) == 0
 
@@ -423,9 +472,18 @@ class TestModelValidation:
     
     def test_validate_model_config_invalid_path(self):
         """Test model validation with invalid path."""
-        config = AppConfig()
-        config.model.model_path = Path("/nonexistent/model/path")
+        # Create a mock config with invalid model path
+        class MockConfig:
+            @property
+            def model(self):
+                return type('Model', (), {
+                    'model_path': Path("/nonexistent/model/path"),
+                    'model_file': None,
+                    'batch_size': 1,
+                    'max_batch_size': 32
+                })()
         
+        config = MockConfig()
         issues = validate_model_config(config)
         assert len(issues) > 0
         assert any(issue.field == "model.model_path" for issue in issues)
@@ -433,9 +491,18 @@ class TestModelValidation:
     
     def test_validate_model_config_invalid_file(self):
         """Test model validation with invalid file."""
-        config = AppConfig()
-        config.model.model_file = Path("/nonexistent/model.pkl")
+        # Create a mock config with invalid model file
+        class MockConfig:
+            @property
+            def model(self):
+                return type('Model', (), {
+                    'model_path': Path("/tmp"),  # Valid path
+                    'model_file': Path("/nonexistent/model.pkl"),
+                    'batch_size': 1,
+                    'max_batch_size': 32
+                })()
         
+        config = MockConfig()
         issues = validate_model_config(config)
         assert len(issues) > 0
         assert any(issue.field == "model.model_file" for issue in issues)
@@ -443,10 +510,18 @@ class TestModelValidation:
     
     def test_validate_model_config_invalid_batch_size(self):
         """Test model validation with invalid batch size."""
-        config = AppConfig()
-        config.model.batch_size = 10
-        config.model.max_batch_size = 5  # Invalid: max < batch
+        # Create a mock config with invalid batch size configuration
+        class MockConfig:
+            @property
+            def model(self):
+                return type('Model', (), {
+                    'model_path': Path("/tmp"),  # Valid path
+                    'model_file': None,
+                    'batch_size': 10,
+                    'max_batch_size': 5  # Invalid: max < batch
+                })()
         
+        config = MockConfig()
         issues = validate_model_config(config)
         assert len(issues) > 0
         assert any(issue.field == "model.max_batch_size" for issue in issues)

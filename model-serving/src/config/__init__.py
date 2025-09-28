@@ -1,83 +1,37 @@
 """
-Configuration management system for model serving.
+Configuration management module.
 
-Provides comprehensive configuration management with Pydantic models,
-hierarchical loading, validation, and hot-reloading capabilities.
+Provides comprehensive configuration management including:
+- Pydantic-based configuration models
+- Hierarchical configuration loading
+- Hot-reloading capabilities
+- Validation and error reporting
+- Environment-specific profiles
+- Configuration templates
+- Schema documentation
 """
 
 from .settings import (
-    BaseConfig,
-    ServerConfig,
-    ModelConfig,
-    LoggingConfig,
-    MonitoringConfig,
-    DatabaseConfig,
-    CacheConfig,
-    SecurityConfig,
-    AppConfig,
-    Environment,
-    LogLevel,
-    ModelBackend,
-    CacheBackend,
-    DatabaseBackend,
+    BaseConfig, AppConfig, ServerConfig, ModelConfig, LoggingConfig,
+    MonitoringConfig, DatabaseConfig, CacheConfig, SecurityConfig,
+    Environment, LogLevel, ModelBackend, DatabaseBackend, CacheBackend
 )
 from .loader import ConfigLoader, load_config
-from .hot_reload import ConfigHotReloader, HotReloadCallback
-from .validation import ConfigValidator, ValidationError, ValidationResult
-from .profiles import ConfigProfile, EnvironmentProfile, create_profile
-from .templates import ConfigTemplate, TemplateEngine, create_template
-from .diff import ConfigDiff, DiffResult, compare_configs
-from .schema import generate_schema_docs, export_schema_json, export_schema_yaml
+from .validation import (
+    ValidationSeverity, ValidationIssue, ValidationResult, ValidationError,
+    ConfigValidator, validate_config, format_validation_result
+)
 
 __all__ = [
-    # Core configuration classes
-    "BaseConfig",
-    "ServerConfig", 
-    "ModelConfig",
-    "LoggingConfig",
-    "MonitoringConfig",
-    "DatabaseConfig",
-    "CacheConfig",
-    "SecurityConfig",
-    "AppConfig",
+    # Settings
+    "BaseConfig", "AppConfig", "ServerConfig", "ModelConfig", "LoggingConfig",
+    "MonitoringConfig", "DatabaseConfig", "CacheConfig", "SecurityConfig",
+    "Environment", "LogLevel", "ModelBackend", "DatabaseBackend", "CacheBackend",
     
-    # Enums
-    "Environment",
-    "LogLevel",
-    "ModelBackend",
-    "CacheBackend", 
-    "DatabaseBackend",
-    
-    # Configuration loading
-    "ConfigLoader",
-    "load_config",
-    
-    # Hot reloading
-    "ConfigHotReloader",
-    "HotReloadCallback",
+    # Loader
+    "ConfigLoader", "load_config",
     
     # Validation
-    "ConfigValidator",
-    "ValidationError",
-    "ValidationResult",
-    
-    # Profiles
-    "ConfigProfile",
-    "EnvironmentProfile", 
-    "create_profile",
-    
-    # Templates
-    "ConfigTemplate",
-    "TemplateEngine",
-    "create_template",
-    
-    # Diff tools
-    "ConfigDiff",
-    "DiffResult",
-    "compare_configs",
-    
-    # Schema generation
-    "generate_schema_docs",
-    "export_schema_json",
-    "export_schema_yaml",
+    "ValidationSeverity", "ValidationIssue", "ValidationResult", "ValidationError",
+    "ConfigValidator", "validate_config", "format_validation_result",
 ]
