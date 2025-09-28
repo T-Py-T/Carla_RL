@@ -11,13 +11,12 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from versioning.content_storage import ContentAddressableStorage, ContentStorageError
-from versioning.artifact_manager import ArtifactManager
 from versioning import ContentAddressableArtifactManager
 
 
@@ -405,13 +404,13 @@ Examples:
     )
     
     # Stats command
-    stats_parser = subparsers.add_parser("stats", help="Show storage statistics")
+    subparsers.add_parser("stats", help="Show storage statistics")
     
     # Cleanup command
-    cleanup_parser = subparsers.add_parser("cleanup", help="Clean up orphaned content")
+    subparsers.add_parser("cleanup", help="Clean up orphaned content")
     
     # Verify command
-    verify_parser = subparsers.add_parser("verify", help="Verify content integrity")
+    subparsers.add_parser("verify", help="Verify content integrity")
     
     args = parser.parse_args()
     

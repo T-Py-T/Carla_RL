@@ -10,7 +10,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -18,7 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from versioning.artifact_manager import ArtifactManager
 from versioning.integrity_validator import IntegrityValidator
 from versioning.rollback_manager import RollbackManager, RollbackError
-from versioning.semantic_version import parse_version, VersionError
+from versioning.semantic_version import VersionError
 
 
 def rollback_to_version(
@@ -39,7 +39,7 @@ def rollback_to_version(
             validate_target=args.validate
         )
         
-        print(f"Rollback completed successfully!")
+        print("Rollback completed successfully!")
         print(f"Operation ID: {operation.operation_id}")
         print(f"From version: {operation.from_version}")
         print(f"To version: {operation.to_version}")
@@ -79,7 +79,7 @@ def rollback_operation(manager: RollbackManager, operation_id: str, args) -> Non
             reason=args.reason
         )
         
-        print(f"Rollback reversal completed successfully!")
+        print("Rollback reversal completed successfully!")
         print(f"Operation ID: {operation.operation_id}")
         print(f"From version: {operation.from_version}")
         print(f"To version: {operation.to_version}")
@@ -122,7 +122,7 @@ def show_operation(manager: RollbackManager, operation_id: str) -> None:
         print(f"Rollback operation {operation_id} not found", file=sys.stderr)
         sys.exit(1)
     
-    print(f"Rollback Operation Details:")
+    print("Rollback Operation Details:")
     print(f"  Operation ID: {operation.operation_id}")
     print(f"  From version: {operation.from_version}")
     print(f"  To version: {operation.to_version}")
@@ -165,7 +165,7 @@ def show_version_info(manager: RollbackManager, version: str) -> None:
         print(f"  Version directory: {info['version_dir']}")
         
         if info['integrity_results']:
-            print(f"  Integrity details:")
+            print("  Integrity details:")
             for artifact, is_valid in info['integrity_results'].items():
                 status = "✓" if is_valid else "✗"
                 print(f"    {status} {artifact}")

@@ -1,0 +1,56 @@
+# Performance thresholds configuration
+# These thresholds are adjusted for realistic testing environments
+
+# CI/CD Environment Thresholds (GitHub Actions)
+ci_thresholds:
+  p50_latency_ms: 10.0
+  p95_latency_ms: 20.0
+  p99_latency_ms: 50.0
+  throughput_rps: 200.0  # Realistic for mock function
+  memory_usage_mb: 1024.0
+  error_rate_percent: 1.0
+
+# Production Environment Thresholds
+production_thresholds:
+  p50_latency_ms: 5.0
+  p95_latency_ms: 15.0
+  p99_latency_ms: 30.0
+  throughput_rps: 1000.0  # Realistic for optimized production
+  memory_usage_mb: 512.0
+  error_rate_percent: 0.1
+
+# Development Environment Thresholds
+development_thresholds:
+  p50_latency_ms: 50.0
+  p95_latency_ms: 100.0
+  p99_latency_ms: 200.0
+  throughput_rps: 50.0  # Lower for development
+  memory_usage_mb: 2048.0
+  error_rate_percent: 5.0
+
+# Hardware-specific baselines
+hardware_baselines:
+  github_actions:
+    cpu_cores: 2
+    memory_gb: 7
+    expected_throughput_rps: 200.0
+    expected_p50_latency_ms: 8.0
+  
+  local_development:
+    cpu_cores: 8
+    memory_gb: 16
+    expected_throughput_rps: 500.0
+    expected_p50_latency_ms: 5.0
+  
+  production_server:
+    cpu_cores: 16
+    memory_gb: 64
+    expected_throughput_rps: 1000.0
+    expected_p50_latency_ms: 3.0
+
+# Regression detection thresholds
+regression_thresholds:
+  latency_increase_percent: 15.0
+  throughput_decrease_percent: 10.0
+  memory_increase_percent: 20.0
+  error_rate_increase_percent: 5.0

@@ -28,6 +28,7 @@ jobs:
       uses: astral-sh/setup-uv@v4
       with:
         version: "latest"
+        github-token: ${{ github.token }}
         
     - name: Install dependencies
       run: |
@@ -36,25 +37,90 @@ jobs:
     - name: Run security scan
       run: |
         echo "Running security scan..."
-        # Check for known vulnerabilities in dependencies
-        uv run pip-audit --desc --format=json --output=security-report.json || true
+        # Install pip-audit if not available
+        uv add pip-audit || echo "pip-audit already installed"
         
-        # Basic secret scanning (excluding false positives)
-        if grep -r -i "password\|secret\|key\|token" . \
+        # Check for known vulnerabilities in dependencies
+        uv run pip-audit --desc --format=json --output=security-report.json || echo "pip-audit completed with warnings"
+        
+        # Intelligent secret scanning - look for actual secrets, not common programming terms
+        echo "Scanning for potential secrets..."
+        
+        # Check for hardcoded API keys, tokens, passwords with specific patterns
+        SECRETS_FOUND=0
+        
+        # Look for actual API keys (32+ character alphanumeric strings)
+        if grep -r -E "['\"][a-zA-Z0-9]{32,}['\"]" . \
           --exclude-dir=.git \
           --exclude-dir=.venv \
           --exclude-dir=__pycache__ \
           --exclude="*.md" \
           --exclude="*.pyc" \
-          --exclude="*.mdc" \
           --exclude="*.yml" \
           --exclude="*.yaml" \
           --exclude="*.json" \
-          | grep -v -i "example\|test\|dummy\|placeholder\|baseline\|admin\|redis\|dictionary\|lambda\|except\|KeyboardInterrupt\|filtered_models\|agent_metrics\|model_metrics\|tb_logger\|action_space\|cache\|preallocated\|detect-secrets\|GITHUB_TOKEN\|Key Changes\|log_data\|keywords\|details\|expected_files\|available_keys\|_make_key\|sensor.*key\|access_order\|oldest_key\|batch_size.*key\|Log key metrics\|print.*key.*value\|key.*=.*batch_size"; then
-          echo "Potential secrets found in code"
-          exit 1
+          --exclude=".secrets" \
+          --exclude="security-report.json" \
+          | grep -v -E "(test|example|dummy|placeholder|sha256|md5|uuid|hash|checksum)"; then
+          echo "⚠️  Potential hardcoded API keys found"
+          SECRETS_FOUND=1
         fi
-        echo "No obvious secrets found"
+        
+        # Look for actual passwords in connection strings or assignments
+        if grep -r -E "(password|passwd|pwd)\s*[=:]\s*['\"][^'\"]{8,}['\"]" . \
+          --exclude-dir=.git \
+          --exclude-dir=.venv \
+          --exclude-dir=__pycache__ \
+          --exclude="*.md" \
+          --exclude="*.pyc" \
+          --exclude="*.yml" \
+          --exclude="*.yaml" \
+          --exclude="*.json" \
+          --exclude=".secrets" \
+          --exclude="security-report.json" \
+          | grep -v -E "(test|example|dummy|placeholder|admin|redis|mysql|postgres)"; then
+          echo "⚠️  Potential hardcoded passwords found"
+          SECRETS_FOUND=1
+        fi
+        
+        # Look for actual tokens (ghp_, ghs_, gho_ prefixes)
+        if grep -r -E "(ghp_|ghs_|gho_)[a-zA-Z0-9]{36}" . \
+          --exclude-dir=.git \
+          --exclude-dir=.venv \
+          --exclude-dir=__pycache__ \
+          --exclude="*.md" \
+          --exclude="*.pyc" \
+          --exclude="*.yml" \
+          --exclude="*.yaml" \
+          --exclude="*.json" \
+          --exclude=".secrets" \
+          --exclude="security-report.json"; then
+          echo "⚠️  Potential GitHub tokens found"
+          SECRETS_FOUND=1
+        fi
+        
+        # Look for AWS keys (AKIA prefix)
+        if grep -r -E "AKIA[0-9A-Z]{16}" . \
+          --exclude-dir=.git \
+          --exclude-dir=.venv \
+          --exclude-dir=__pycache__ \
+          --exclude="*.md" \
+          --exclude="*.pyc" \
+          --exclude="*.yml" \
+          --exclude="*.yaml" \
+          --exclude="*.json" \
+          --exclude=".secrets" \
+          --exclude="security-report.json"; then
+          echo "⚠️  Potential AWS access keys found"
+          SECRETS_FOUND=1
+        fi
+        
+        if [ $SECRETS_FOUND -eq 1 ]; then
+          echo "❌ Security scan failed - potential secrets detected"
+          exit 1
+        else
+          echo "✅ No obvious secrets found"
+        fi
         
     - name: Upload security report
       uses: actions/upload-artifact@v4

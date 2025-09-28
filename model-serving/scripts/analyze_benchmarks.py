@@ -9,9 +9,7 @@ performance reports with recommendations.
 import argparse
 import json
 import sys
-from pathlib import Path
-from typing import Dict, List, Any, Optional
-import statistics
+from typing import Dict, Any
 
 def load_benchmark_results(file_path: str) -> Dict[str, Any]:
     """Load benchmark results from JSON file."""
@@ -36,7 +34,7 @@ def analyze_system_info(system_info: Dict[str, Any]) -> Dict[str, Any]:
     # Analyze CPU
     cpu = system_info.get("cpu", {})
     physical_cores = cpu.get("physical_cores", 0)
-    logical_cores = cpu.get("logical_cores", 0)
+    cpu.get("logical_cores", 0)
     max_freq = cpu.get("max_frequency", 0)
     
     if physical_cores >= 16:

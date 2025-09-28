@@ -5,10 +5,9 @@ Defines all configuration models for the model serving application
 with proper validation, type hints, and documentation.
 """
 
-import os
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Dict, List, Optional
 from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 from pydantic import HttpUrl, IPvAnyAddress, DirectoryPath, FilePath, SecretStr
 

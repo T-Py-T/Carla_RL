@@ -11,8 +11,7 @@ import sys
 import time
 import json
 import argparse
-from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 import requests
 import logging
 
@@ -188,6 +187,126 @@ class DockerComposeTester:
                 "error": str(e)
             }
     
+    def run_integration_tests(self) -> Dict[str, Any]:
+        """Run integration tests."""
+        logger.info("Running integration tests...")
+        
+        try:
+            # Run the test runner container
+            result = self.run_command([
+                "docker-compose", "-f", self.compose_file, 
+                "run", "--rm", "test-runner"
+            ])
+            
+            # Check if tests passed
+            success = result.returncode == 0
+            
+            return {
+                "success": success,
+                "return_code": result.returncode,
+                "stdout": result.stdout,
+                "stderr": result.stderr
+            }
+        except subprocess.CalledProcessError as e:
+            return {
+                "success": False,
+                "return_code": e.returncode,
+                "stdout": e.stdout,
+                "stderr": e.stderr
+            }
+    
+    def run_load_tests(self) -> Dict[str, Any]:
+        """Run load tests."""
+        logger.info("Running load tests...")
+        
+        try:
+            # Run the load tester container
+            result = self.run_command([
+                "docker-compose", "-f", self.compose_file, 
+                "run", "--rm", "load-tester"
+            ])
+            
+            success = result.returncode == 0
+            
+            return {
+                "success": success,
+                "return_code": result.returncode,
+                "stdout": result.stdout,
+                "stderr": result.stderr
+            }
+        except subprocess.CalledProcessError as e:
+            return {
+                "success": False,
+                "return_code": e.returncode,
+                "stdout": e.stdout,
+                "stderr": e.stderr
+            }
+    
+    def run_monitoring_tests(self) -> Dict[str, Any]:
+        """Run monitoring tests."""
+        logger.info("Running monitoring tests...")
+        
+        try:
+            # Run the monitoring validator container
+            result = self.run_command([
+                "docker-compose", "-f", self.compose_file, 
+                "run", "--rm", "monitoring-validator"
+            ])
+            
+            success = result.returncode == 0
+            
+            return {
+                "success": success,
+                "return_code": result.returncode,
+                "stdout": result.stdout,
+                "stderr": result.stderr
+            }
+        except subprocess.CalledProcessError as e:
+            return {
+                "success": False,
+                "return_code": e.returncode,
+                "stdout": e.stdout,
+                "stderr": e.stderr
+            }
+    
+    def run_performance_tests(self) -> Dict[str, Any]:
+        """Run performance tests."""
+        logger.info("Running performance tests...")
+        
+        try:
+            # Run the performance benchmark container
+            result = self.run_command([
+                "docker-compose", "-f", self.compose_file, 
+                "run", "--rm", "performance-benchmark"
+            ])
+            
+            success = result.returncode == 0
+            
+            return {
+                "success": success,
+                "return_code": result.returncode,
+                "stdout": result.stdout,
+                "stderr": result.stderr
+            }
+        except subprocess.CalledProcessError as e:
+            return {
+                "success": False,
+                "return_code": e.returncode,
+                "stdout": e.stdout,
+                "stderr": e.stderr
+            }
+    
+    def get_logs(self, service: str) -> str:
+        """Get logs from a service."""
+        try:
+            result = self.run_command([
+                "docker-compose", "-f", self.compose_file, 
+                "logs", service
+            ])
+            return result.stdout
+        except subprocess.CalledProcessError as e:
+            return f"Failed to get logs: {e.stderr}"
+    
     def run_comprehensive_test(self, profiles: List[str] = None) -> Dict[str, Any]:
         """Run comprehensive test suite."""
         logger.info("Starting comprehensive Docker Compose test...")
@@ -196,6 +315,11 @@ class DockerComposeTester:
             "start_time": time.time(),
             "services_started": False,
             "health_checks": {},
+            "integration_tests": {},
+            "load_tests": {},
+            "monitoring_tests": {},
+            "performance_tests": {},
+            "logs": {},
             "success": False
         }
         
@@ -215,9 +339,31 @@ class DockerComposeTester:
             # Run health checks
             test_results["health_checks"] = self.check_service_health()
             
+            # Run integration tests
+            test_results["integration_tests"] = self.run_integration_tests()
+            
+            # Run load tests if requested
+            if profiles and "load-testing" in profiles:
+                test_results["load_tests"] = self.run_load_tests()
+            
+            # Run monitoring tests if requested
+            if profiles and "monitoring" in profiles:
+                test_results["monitoring_tests"] = self.run_monitoring_tests()
+            
+            # Run performance tests if requested
+            if profiles and "performance" in profiles:
+                test_results["performance_tests"] = self.run_performance_tests()
+            
+            # Collect logs
+            test_results["logs"] = {
+                "carla_rl_serving": self.get_logs("carla-rl-serving"),
+                "test_runner": self.get_logs("test-runner") if "testing" in (profiles or []) else "Not run"
+            }
+            
             # Determine overall success
             test_results["success"] = (
-                test_results["health_checks"].get("carla_rl_service", {}).get("status") == "healthy"
+                test_results["health_checks"].get("carla_rl_service", {}).get("status") == "healthy" and
+                test_results["integration_tests"].get("success", False)
             )
             
         except Exception as e:
@@ -275,7 +421,7 @@ def main():
         logger.info(f"Test results saved to {args.output}")
     
     # Print summary
-    print(f"\n=== Docker Compose Test Results ===")
+    print("\n=== Docker Compose Test Results ===")
     print(f"Services Started: {results['services_started']}")
     print(f"Overall Success: {results['success']}")
     print(f"Duration: {results.get('duration', 0):.2f} seconds")
@@ -287,6 +433,11 @@ def main():
     health_checks = results.get('health_checks', {})
     for service, health in health_checks.items():
         print(f"{service}: {health.get('status', 'unknown')}")
+    
+    # Print test results
+    for test_type, test_result in results.items():
+        if isinstance(test_result, dict) and 'success' in test_result:
+            print(f"{test_type}: {'PASSED' if test_result['success'] else 'FAILED'}")
     
     sys.exit(0 if results['success'] else 1)
 

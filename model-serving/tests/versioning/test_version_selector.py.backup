@@ -1,0 +1,1019 @@
+"""
+Unit tests for version selector and multi-version model support.
+<<<<<<< HEAD
+
+Tests comprehensive version selection logic, fallback strategies,
+and multi-version model management capabilities.
+"""
+
+import pytest
+from unittest.mock import Mock
+
+from src.versioning.version_selector import (
+    VersionSelector,
+    VersionManager,
+    VersionSelectionStrategy,
+    VersionSelectionError,
+    VersionSelectionResult,
+    ModelVersionInfo,
+)
+from src.versioning.semantic_version import SemanticVersion, parse_version
+from src.versioning.artifact_manager import ArtifactManager, ArtifactManifest
+
+
+class TestVersionSelectionStrategy:
+    """Test version selection strategy enum."""
+
+    def test_strategy_values(self):
+        """Test strategy enum values."""
+        assert VersionSelectionStrategy.LATEST.value == "latest"
+        assert VersionSelectionStrategy.STABLE.value == "stable"
+        assert VersionSelectionStrategy.SPECIFIC.value == "specific"
+        assert VersionSelectionStrategy.COMPATIBLE.value == "compatible"
+        assert VersionSelectionStrategy.FALLBACK.value == "fallback"
+
+
+class TestVersionSelectionResult:
+    """Test version selection result dataclass."""
+
+    def test_result_creation(self):
+        """Test creating version selection result."""
+        version = parse_version("v1.2.3")
+        result = VersionSelectionResult(
+            selected_version=version, strategy_used=VersionSelectionStrategy.LATEST
+        )
+
+        assert result.selected_version == version
+        assert result.strategy_used == VersionSelectionStrategy.LATEST
+        assert result.fallback_used is False
+        assert result.fallback_reason is None
+        assert result.available_versions is None
+        assert result.selection_metadata == {}
+
+    def test_result_with_fallback(self):
+        """Test result with fallback information."""
+        version = parse_version("v1.2.3")
+        result = VersionSelectionResult(
+            selected_version=version,
+            strategy_used=VersionSelectionStrategy.STABLE,
+            fallback_used=True,
+            fallback_reason="Primary strategy failed",
+        )
+
+        assert result.fallback_used is True
+        assert result.fallback_reason == "Primary strategy failed"
+
+
+class TestModelVersionInfo:
+    """Test model version info dataclass."""
+
+    def test_version_info_creation(self):
+        """Test creating model version info."""
+        version = parse_version("v1.2.3")
+        manifest = ArtifactManifest(version="v1.2.3")
+
+        info = ModelVersionInfo(
+            version=version,
+            manifest=manifest,
+            is_available=True,
+            integrity_status={"model.pt": True},
+        )
+
+        assert info.version == version
+        assert info.manifest == manifest
+        assert info.is_available is True
+        assert info.integrity_status == {"model.pt": True}
+        assert info.last_accessed is None
+        assert info.usage_count == 0
+        assert info.performance_metrics == {}
+
+
+class TestVersionSelector:
+    """Test version selector functionality."""
+
+    @pytest.fixture
+    def mock_artifact_manager(self):
+        """Create mock artifact manager."""
+        manager = Mock(spec=ArtifactManager)
+        manager.list_versions.return_value = [
+            parse_version("v1.0.0"),
+            parse_version("v1.1.0"),
+            parse_version("v1.2.0"),
+            parse_version("v2.0.0-alpha.1"),
+            parse_version("v2.0.0"),
+        ]
+
+        # Mock manifests
+        def mock_get_manifest(version):
+            return ArtifactManifest(
+                version=str(version),
+                artifacts={"model.pt": "hash123"},
+                created_at="2024-01-01T00:00:00Z",
+            )
+
+        manager.get_manifest.side_effect = mock_get_manifest
+        manager.verify_integrity.return_value = {"model.pt": True}
+
+        return manager
+
+    @pytest.fixture
+    def version_selector(self, mock_artifact_manager):
+        """Create version selector with mock artifact manager."""
+        return VersionSelector(mock_artifact_manager)
+
+    def test_initialization(self, mock_artifact_manager):
+        """Test version selector initialization."""
+        selector = VersionSelector(mock_artifact_manager)
+
+        assert selector.artifact_manager == mock_artifact_manager
+        assert selector.default_strategy == VersionSelectionStrategy.STABLE
+        assert len(selector.version_cache) > 0
+        assert len(selector.selection_history) == 0
+
+    def test_select_latest_version(self, version_selector):
+        """Test selecting latest version."""
+        result = version_selector.select_version(strategy=VersionSelectionStrategy.LATEST)
+
+        assert result.selected_version == parse_version("v2.0.0")
+        assert result.strategy_used == VersionSelectionStrategy.LATEST
+        assert not result.fallback_used
+
+    def test_select_stable_version(self, version_selector):
+        """Test selecting latest stable version."""
+        result = version_selector.select_version(strategy=VersionSelectionStrategy.STABLE)
+
+        assert result.selected_version == parse_version("v2.0.0")
+        assert result.strategy_used == VersionSelectionStrategy.STABLE
+        assert not result.fallback_used
+
+    def test_select_specific_version(self, version_selector):
+        """Test selecting specific version."""
+        result = version_selector.select_version(
+            version_spec="v1.1.0", strategy=VersionSelectionStrategy.SPECIFIC
+        )
+
+        assert result.selected_version == parse_version("v1.1.0")
+        assert result.strategy_used == VersionSelectionStrategy.SPECIFIC
+
+    def test_select_specific_version_not_available(self, version_selector):
+        """Test selecting specific version that's not available."""
+        # Mock to make specific version unavailable
+        version_selector.version_cache = {
+            parse_version("v1.0.0"): Mock(),
+            parse_version("v1.1.0"): Mock(),
+        }
+
+        with pytest.raises(VersionSelectionError) as exc_info:
+            version_selector.select_version(
+                version_spec="v3.0.0",
+                strategy=VersionSelectionStrategy.SPECIFIC,
+                fallback_strategies=[],  # Disable fallback
+            )
+
+        assert "not available" in str(exc_info.value) or "No suitable version found" in str(
+            exc_info.value
+        )
+
+    def test_select_compatible_version(self, version_selector):
+        """Test selecting compatible version."""
+        result = version_selector.select_version(
+            version_spec="v1.0.0", strategy=VersionSelectionStrategy.COMPATIBLE
+        )
+
+        # Should select latest compatible version (v1.2.0)
+        assert result.selected_version == parse_version("v1.2.0")
+        assert result.strategy_used == VersionSelectionStrategy.COMPATIBLE
+
+    def test_select_with_constraints(self, version_selector):
+        """Test selecting version with constraints."""
+        result = version_selector.select_version(
+            constraints=[">=1.1.0", "<2.0.0"], strategy=VersionSelectionStrategy.LATEST
+        )
+
+        # Should select v1.2.0 (latest in range, excluding prerelease)
+        assert result.selected_version == parse_version("v1.2.0")
+
+    def test_fallback_strategy(self, version_selector):
+        """Test fallback strategy when primary fails."""
+        # Mock to make specific version unavailable
+        version_selector.version_cache = {
+            parse_version("v1.0.0"): Mock(),
+            parse_version("v1.1.0"): Mock(),
+        }
+
+        # Mock the artifact manager to return only the cached versions
+        version_selector.artifact_manager.list_versions.return_value = [
+            parse_version("v1.0.0"),
+            parse_version("v1.1.0"),
+        ]
+
+        result = version_selector.select_version(
+            version_spec="v3.0.0",
+            strategy=VersionSelectionStrategy.SPECIFIC,
+            fallback_strategies=[VersionSelectionStrategy.LATEST],
+        )
+
+        assert result.fallback_used is True
+        assert "Primary strategy" in result.fallback_reason
+        # Should select the latest available version (v1.1.0)
+        assert result.selected_version == parse_version("v1.1.0")
+
+    def test_no_versions_available(self, mock_artifact_manager):
+        """Test behavior when no versions are available."""
+        mock_artifact_manager.list_versions.return_value = []
+        selector = VersionSelector(mock_artifact_manager)
+
+        with pytest.raises(VersionSelectionError) as exc_info:
+            selector.select_version()
+
+        assert "No model versions available" in str(exc_info.value)
+
+    def test_get_version_info(self, version_selector):
+        """Test getting version information."""
+        info = version_selector.get_version_info("v1.0.0")
+
+        assert info is not None
+        assert info.version == parse_version("v1.0.0")
+        assert info.is_available is True
+
+    def test_get_version_info_not_found(self, version_selector):
+        """Test getting version information for non-existent version."""
+        info = version_selector.get_version_info("v3.0.0")
+        assert info is None
+
+    def test_list_available_versions(self, version_selector):
+        """Test listing available versions."""
+        versions = version_selector.list_available_versions()
+
+        assert len(versions) > 0
+        assert all(isinstance(v, SemanticVersion) for v in versions)
+        assert versions == sorted(versions)
+
+    def test_list_stable_versions_only(self, version_selector):
+        """Test listing only stable versions."""
+        stable_versions = version_selector.list_available_versions(stable_only=True)
+
+        assert all(v.is_stable() for v in stable_versions)
+        assert parse_version("v2.0.0-alpha.1") not in stable_versions
+
+    def test_get_latest_version(self, version_selector):
+        """Test getting latest version."""
+        latest = version_selector.get_latest_version()
+        assert latest == parse_version("v2.0.0")
+
+    def test_get_latest_stable_version(self, version_selector):
+        """Test getting latest stable version."""
+        latest_stable = version_selector.get_latest_version(stable_only=True)
+        assert latest_stable == parse_version("v2.0.0")
+
+    def test_check_version_compatibility(self, version_selector):
+        """Test version compatibility checking."""
+        version = parse_version("v1.2.0")
+
+        # Test compatible constraints
+        assert version_selector.check_version_compatibility(version, [">=1.0.0", "<2.0.0"])
+        assert version_selector.check_version_compatibility(version, ["~1.2.0"])
+
+        # Test incompatible constraints
+        assert not version_selector.check_version_compatibility(version, [">=2.0.0"])
+        assert not version_selector.check_version_compatibility(version, ["<1.0.0"])
+
+    def test_register_custom_selector(self, version_selector):
+        """Test registering custom selector."""
+
+        def custom_selector(versions, criteria):
+            return max(versions)
+
+        version_selector.register_custom_selector("custom", custom_selector)
+        assert "custom" in version_selector.custom_selectors
+
+    def test_get_selection_history(self, version_selector):
+        """Test getting selection history."""
+        # Make some selections
+        version_selector.select_version(strategy=VersionSelectionStrategy.LATEST)
+        version_selector.select_version(strategy=VersionSelectionStrategy.STABLE)
+
+        history = version_selector.get_selection_history()
+        assert len(history) == 2
+
+        # Test with limit
+        limited_history = version_selector.get_selection_history(limit=1)
+        assert len(limited_history) == 1
+
+    def test_performance_weighting(self, version_selector):
+        """Test performance-based version selection."""
+        # Mock to limit available versions to only those with performance metrics
+        version_selector.version_cache = {
+            parse_version("v1.0.0"): Mock(),
+            parse_version("v1.1.0"): Mock(),
+        }
+        version_selector.artifact_manager.list_versions.return_value = [
+            parse_version("v1.0.0"),
+            parse_version("v1.1.0"),
+        ]
+
+        # Add performance metrics
+        version_selector.update_performance_metrics(
+            "v1.0.0", {"avg_latency_ms": 50.0, "throughput_rps": 1000.0}
+        )
+        version_selector.update_performance_metrics(
+            "v1.1.0", {"avg_latency_ms": 30.0, "throughput_rps": 1200.0}
+        )
+
+        result = version_selector.select_version(
+            strategy=VersionSelectionStrategy.LATEST, performance_weight=0.5
+        )
+
+        # Should select version with better performance
+        assert result.selected_version in [parse_version("v1.0.0"), parse_version("v1.1.0")]
+
+    def test_get_recommended_version(self, version_selector):
+        """Test getting recommended version for different use cases."""
+        # Production should return latest stable
+        prod_version = version_selector.get_recommended_version("production")
+        assert prod_version == parse_version("v2.0.0")
+
+        # Development should return latest (including prerelease)
+        dev_version = version_selector.get_recommended_version("development")
+        assert dev_version == parse_version("v2.0.0")
+
+        # Testing should return latest stable
+        test_version = version_selector.get_recommended_version("testing")
+        assert test_version == parse_version("v2.0.0")
+
+    def test_refresh_version_cache(self, version_selector):
+        """Test refreshing version cache."""
+        initial_count = len(version_selector.version_cache)
+
+        # Mock new version
+        version_selector.artifact_manager.list_versions.return_value.append(parse_version("v3.0.0"))
+
+        version_selector._refresh_version_cache()
+
+        # Cache should be updated
+        assert len(version_selector.version_cache) > initial_count
+
+
+class TestVersionManager:
+    """Test version manager functionality."""
+
+    @pytest.fixture
+    def mock_artifact_manager(self):
+        """Create mock artifact manager."""
+        manager = Mock(spec=ArtifactManager)
+        manager.list_versions.return_value = [
+            parse_version("v1.0.0"),
+            parse_version("v1.1.0"),
+            parse_version("v2.0.0"),
+        ]
+
+        def mock_get_manifest(version):
+            return ArtifactManifest(version=str(version))
+
+        manager.get_manifest.side_effect = mock_get_manifest
+        manager.verify_integrity.return_value = {"model.pt": True}
+
+        return manager
+
+    @pytest.fixture
+    def version_manager(self, mock_artifact_manager):
+        """Create version manager with mock artifact manager."""
+        return VersionManager(mock_artifact_manager)
+
+    def test_initialization(self, mock_artifact_manager):
+        """Test version manager initialization."""
+        manager = VersionManager(mock_artifact_manager)
+
+        assert manager.artifact_manager == mock_artifact_manager
+        assert isinstance(manager.selector, VersionSelector)
+        assert manager.current_version is None
+        assert len(manager.version_callbacks) == 0
+
+    def test_get_model_version_with_spec(self, version_manager):
+        """Test getting model version with specification."""
+        # Mock the selector to return specific version
+        mock_result = VersionSelectionResult(
+            selected_version=parse_version("v1.1.0"),
+            strategy_used=VersionSelectionStrategy.SPECIFIC,
+        )
+        version_manager.selector.select_version = Mock(return_value=mock_result)
+
+        version = version_manager.get_model_version("v1.1.0")
+
+        assert version == parse_version("v1.1.0")
+        assert version_manager.current_version == parse_version("v1.1.0")
+
+    def test_get_model_version_without_spec(self, version_manager):
+        """Test getting model version without specification."""
+        version = version_manager.get_model_version()
+
+        assert version is not None
+        assert version_manager.current_version == version
+
+    def test_get_model_version_with_auto_fallback(self, version_manager):
+        """Test getting model version with auto fallback."""
+        # Mock selector to raise error on first call, succeed on second
+        mock_selector = Mock()
+        mock_selector.select_version.side_effect = [
+            VersionSelectionError("Test error"),
+            VersionSelectionResult(
+                selected_version=parse_version("v1.0.0"),
+                strategy_used=VersionSelectionStrategy.STABLE,
+            ),
+        ]
+        version_manager.selector = mock_selector
+
+        version = version_manager.get_model_version("v3.0.0", auto_fallback=True)
+
+        assert version == parse_version("v1.0.0")
+        assert version_manager.current_version == parse_version("v1.0.0")
+
+    def test_get_model_version_without_auto_fallback(self, version_manager):
+        """Test getting model version without auto fallback."""
+        mock_selector = Mock()
+        mock_selector.select_version.side_effect = VersionSelectionError("Test error")
+        version_manager.selector = mock_selector
+
+        with pytest.raises(VersionSelectionError):
+            version_manager.get_model_version("v3.0.0", auto_fallback=False)
+
+    def test_register_version_change_callback(self, version_manager):
+        """Test registering version change callback."""
+        callback = Mock()
+        version_manager.register_version_change_callback(callback)
+
+        assert callback in version_manager.version_callbacks
+
+    def test_version_change_callback_execution(self, version_manager):
+        """Test version change callback execution."""
+        callback = Mock()
+        version_manager.register_version_change_callback(callback)
+
+        # Trigger version change
+        version_manager._notify_version_change(parse_version("v1.0.0"))
+
+        callback.assert_called_once_with(parse_version("v1.0.0"))
+
+    def test_version_change_callback_error_handling(self, version_manager, caplog):
+        """Test error handling in version change callbacks."""
+
+        def failing_callback(version):
+            raise Exception("Callback error")
+
+        version_manager.register_version_change_callback(failing_callback)
+
+        # Should not raise exception
+        version_manager._notify_version_change(parse_version("v1.0.0"))
+
+        # Should log error
+        assert "Error in version change callback" in caplog.text
+
+    def test_get_version_status(self, version_manager):
+        """Test getting version status."""
+        # Set current version
+        version_manager.current_version = parse_version("v1.0.0")
+
+        status = version_manager.get_version_status()
+
+        assert status["current_version"] == "v1.0.0"
+        assert "available_versions" in status
+        assert "stable_versions" in status
+        assert "latest_version" in status
+        assert "selection_history_count" in status
+
+
+class TestIntegration:
+    """Integration tests for version selector system."""
+
+    def test_end_to_end_version_selection(self):
+        """Test end-to-end version selection workflow."""
+        # Create real artifact manager with temporary directory
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifact_manager = ArtifactManager(temp_dir)
+
+            # Create some test manifests
+            for version in ["v1.0.0", "v1.1.0", "v2.0.0"]:
+                manifest = ArtifactManifest(version=version)
+                artifact_manager._save_manifest(manifest)
+
+            # Create version selector
+            selector = VersionSelector(artifact_manager)
+
+            # Test various selection strategies
+            latest_result = selector.select_version(strategy=VersionSelectionStrategy.LATEST)
+            assert latest_result.selected_version == parse_version("v2.0.0")
+
+            stable_result = selector.select_version(strategy=VersionSelectionStrategy.STABLE)
+            assert stable_result.selected_version == parse_version("v2.0.0")
+
+            specific_result = selector.select_version(
+                version_spec="v1.1.0", strategy=VersionSelectionStrategy.SPECIFIC
+            )
+            assert specific_result.selected_version == parse_version("v1.1.0")
+
+    def test_version_manager_integration(self):
+        """Test version manager integration."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            artifact_manager = ArtifactManager(temp_dir)
+
+            # Create test manifest
+            manifest = ArtifactManifest(version="v1.0.0")
+            artifact_manager._save_manifest(manifest)
+
+            # Create version manager
+            manager = VersionManager(artifact_manager)
+
+            # Test getting model version
+            version = manager.get_model_version("v1.0.0")
+            assert version == parse_version("v1.0.0")
+
+            # Test status
+            status = manager.get_version_status()
+            assert status["current_version"] == "v1.0.0"
+=======
+"""
+
+import os
+import tempfile
+import yaml
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+from model_serving.src.versioning.semantic_version import SemanticVersion
+from model_serving.src.versioning.version_selector import (
+    VersionSelector,
+    VersionSelectionStrategy,
+    get_version_from_environment,
+    select_best_version,
+)
+from model_serving.src.exceptions import ModelLoadingError
+
+
+class TestVersionSelector:
+    """Test cases for VersionSelector class."""
+
+    def setup_method(self):
+        """Set up test environment with temporary artifacts directory."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.artifacts_root = Path(self.temp_dir) / "artifacts"
+        self.artifacts_root.mkdir(exist_ok=True)
+        
+        # Create test version directories and model cards
+        self.test_versions = {
+            "v1.0.0": {
+                "model_name": "test-model",
+                "version": "v1.0.0",
+                "model_type": "pytorch",
+                "performance_metrics": {
+                    "latency_p50_ms": 8.5,
+                    "throughput_rps": 120,
+                    "memory_usage_mb": 256
+                }
+            },
+            "v1.1.0": {
+                "model_name": "test-model",
+                "version": "v1.1.0",
+                "model_type": "pytorch",
+                "performance_metrics": {
+                    "latency_p50_ms": 7.2,
+                    "throughput_rps": 150,
+                    "memory_usage_mb": 280
+                }
+            },
+            "v1.2.0-beta": {
+                "model_name": "test-model",
+                "version": "v1.2.0-beta",
+                "model_type": "pytorch",
+                "performance_metrics": {
+                    "latency_p50_ms": 6.8,
+                    "throughput_rps": 180,
+                    "memory_usage_mb": 290
+                }
+            },
+            "v2.0.0": {
+                "model_name": "test-model",
+                "version": "v2.0.0",
+                "model_type": "pytorch",
+                "performance_metrics": {
+                    "latency_p50_ms": 9.1,
+                    "throughput_rps": 110,
+                    "memory_usage_mb": 320
+                }
+            }
+        }
+        
+        # Create version directories and model cards
+        for version_str, model_card in self.test_versions.items():
+            version_dir = self.artifacts_root / version_str
+            version_dir.mkdir()
+            
+            # Write model card
+            model_card_path = version_dir / "model_card.yaml"
+            with open(model_card_path, 'w') as f:
+                yaml.dump(model_card, f)
+            
+            # Create dummy model file
+            model_path = version_dir / "model.pt"
+            model_path.touch()
+    
+    def teardown_method(self):
+        """Clean up test environment."""
+        import shutil
+        shutil.rmtree(self.temp_dir)
+
+    def test_discover_versions(self):
+        """Test version discovery functionality."""
+        selector = VersionSelector(self.artifacts_root)
+        versions = selector.discover_versions()
+        
+        # Should return all versions sorted in descending order
+        expected_versions = [
+            SemanticVersion.parse("v2.0.0"),
+            SemanticVersion.parse("v1.2.0-beta"),
+            SemanticVersion.parse("v1.1.0"),
+            SemanticVersion.parse("v1.0.0"),
+        ]
+        
+        assert versions == expected_versions
+
+    def test_discover_versions_with_cache(self):
+        """Test that version discovery uses caching."""
+        selector = VersionSelector(self.artifacts_root)
+        
+        # First call should scan filesystem
+        versions1 = selector.discover_versions()
+        
+        # Second call should use cache
+        versions2 = selector.discover_versions()
+        
+        assert versions1 == versions2
+        assert selector._version_cache is not None
+
+    def test_discover_versions_force_rescan(self):
+        """Test forced rescanning of versions."""
+        selector = VersionSelector(self.artifacts_root)
+        
+        # Initial scan
+        versions1 = selector.discover_versions()
+        
+        # Add new version
+        new_version_dir = self.artifacts_root / "v1.3.0"
+        new_version_dir.mkdir()
+        model_card = {
+            "model_name": "test-model",
+            "version": "v1.3.0",
+            "model_type": "pytorch"
+        }
+        with open(new_version_dir / "model_card.yaml", 'w') as f:
+            yaml.dump(model_card, f)
+        
+        # Scan without force should return cached results
+        versions2 = selector.discover_versions(force_rescan=False)
+        assert len(versions2) == len(versions1)
+        
+        # Scan with force should find new version
+        versions3 = selector.discover_versions(force_rescan=True)
+        assert len(versions3) == len(versions1) + 1
+
+    def test_select_latest_stable_version(self):
+        """Test selection of latest stable version."""
+        selector = VersionSelector(self.artifacts_root)
+        version = selector.select_version(VersionSelectionStrategy.LATEST_STABLE)
+        
+        # Should select v2.0.0 (latest stable, excluding beta)
+        assert str(version) == "v2.0.0"
+
+    def test_select_latest_version(self):
+        """Test selection of latest version including prereleases."""
+        selector = VersionSelector(self.artifacts_root)
+        version = selector.select_version(
+            VersionSelectionStrategy.LATEST,
+            exclude_prereleases=False
+        )
+        
+        # Should select v2.0.0 (latest overall)
+        assert str(version) == "v2.0.0"
+
+    def test_select_exact_version(self):
+        """Test selection of exact version."""
+        selector = VersionSelector(self.artifacts_root)
+        version = selector.select_version(
+            VersionSelectionStrategy.EXACT,
+            exact_version="v1.1.0"
+        )
+        
+        assert str(version) == "v1.1.0"
+
+    def test_select_exact_version_not_found(self):
+        """Test exact version selection when version doesn't exist."""
+        selector = VersionSelector(self.artifacts_root)
+        
+        with pytest.raises(ModelLoadingError, match="Exact version v3.0.0 not found"):
+            selector.select_version(
+                VersionSelectionStrategy.EXACT,
+                exact_version="v3.0.0"
+            )
+            )
+
+    def test_select_exact_version_missing_parameter(self):
+        """Test exact version selection without specifying version."""
+        selector = VersionSelector(self.artifacts_root)
+        
+        with pytest.raises(ModelLoadingError, match="Exact version must be specified"):
+            selector.select_version(VersionSelectionStrategy.EXACT)
+
+    def test_select_compatible_version(self):
+        """Test selection of compatible version."""
+        selector = VersionSelector(self.artifacts_root)
+        version = selector.select_version(
+            VersionSelectionStrategy.COMPATIBLE,
+            minimum_version="v1.0.0"
+        )
+        
+        # Should select v1.1.0 (latest compatible with v1.0.0)
+        assert str(version) == "v1.1.0"
+
+    def test_select_performance_optimized_version(self):
+        """Test selection of performance-optimized version."""
+        selector = VersionSelector(self.artifacts_root)
+        version = selector.select_version(
+            VersionSelectionStrategy.PERFORMANCE_OPTIMIZED,
+            exclude_prereleases=False
+        )
+        
+        # Should select version with best performance score
+        # v1.2.0-beta has best latency and throughput
+        assert str(version) == "v1.2.0-beta"
+
+    def test_select_performance_optimized_with_threshold(self):
+        """Test performance optimization with threshold requirements."""
+        selector = VersionSelector(self.artifacts_root)
+        version = selector.select_version(
+            VersionSelectionStrategy.PERFORMANCE_OPTIMIZED,
+            performance_threshold={"latency_p50_ms": 8.0},
+            exclude_prereleases=False
+        )
+        
+        # Should select v1.2.0-beta (latency 6.8ms < 8.0ms threshold)
+        assert str(version) == "v1.2.0-beta"
+
+    def test_select_performance_optimized_no_versions_meet_threshold(self):
+        """Test performance optimization when no versions meet threshold."""
+        selector = VersionSelector(self.artifacts_root)
+        version = selector.select_version(
+            VersionSelectionStrategy.PERFORMANCE_OPTIMIZED,
+            performance_threshold={"latency_p50_ms": 5.0},  # Too strict
+            exclude_prereleases=False
+        )
+        
+        # Should return None when no versions meet threshold
+        assert version is None
+
+    def test_select_version_with_minimum_version_filter(self):
+        """Test version selection with minimum version filtering."""
+        selector = VersionSelector(self.artifacts_root)
+        version = selector.select_version(
+            VersionSelectionStrategy.LATEST_STABLE,
+            minimum_version="v1.1.0"
+        )
+        
+        # Should select v2.0.0 (latest stable above v1.1.0)
+        assert str(version) == "v2.0.0"
+
+    def test_select_version_exclude_prereleases(self):
+        """Test version selection excluding prereleases."""
+        selector = VersionSelector(self.artifacts_root)
+        version = selector.select_version(
+            VersionSelectionStrategy.LATEST,
+            exclude_prereleases=True
+        )
+        
+        # Should select v2.0.0 (latest excluding beta)
+        assert str(version) == "v2.0.0"
+
+    def test_select_version_no_suitable_versions(self):
+        """Test version selection when no versions meet criteria."""
+        selector = VersionSelector(self.artifacts_root)
+        
+        with pytest.raises(ModelLoadingError, match="No versions match the specified criteria"):
+            selector.select_version(
+                VersionSelectionStrategy.LATEST_STABLE,
+                minimum_version="v3.0.0"  # Higher than any available version
+            )
+
+    def test_get_version_info(self):
+        """Test getting detailed version information."""
+        selector = VersionSelector(self.artifacts_root)
+        version = SemanticVersion.parse("v1.1.0")
+        info = selector.get_version_info(version)
+        
+        assert info['version'] == "v1.1.0"
+        assert info['is_stable'] is True
+        assert info['is_prerelease'] is False
+        assert 'model_card' in info
+        assert 'performance_metrics' in info
+        assert info['performance_metrics']['latency_p50_ms'] == 7.2
+
+    def test_get_version_info_nonexistent_version(self):
+        """Test getting version info for nonexistent version."""
+        selector = VersionSelector(self.artifacts_root)
+        version = SemanticVersion.parse("v3.0.0")
+        
+        with pytest.raises(ModelLoadingError, match="Version directory not found"):
+            selector.get_version_info(version)
+
+    def test_validate_version_availability_valid(self):
+        """Test validation of available version."""
+        selector = VersionSelector(self.artifacts_root)
+        is_available, error_msg = selector.validate_version_availability("v1.0.0")
+        
+        assert is_available is True
+        assert error_msg is None
+
+    def test_validate_version_availability_invalid_format(self):
+        """Test validation of invalid version format."""
+        selector = VersionSelector(self.artifacts_root)
+        is_available, error_msg = selector.validate_version_availability("invalid")
+        
+        assert is_available is False
+        assert "Invalid version format" in error_msg
+
+    def test_validate_version_availability_not_found(self):
+        """Test validation of nonexistent version."""
+        selector = VersionSelector(self.artifacts_root)
+        is_available, error_msg = selector.validate_version_availability("v3.0.0")
+        
+        assert is_available is False
+        assert "Version directory not found" in error_msg
+
+    def test_nonexistent_artifacts_directory(self):
+        """Test behavior with nonexistent artifacts directory."""
+        nonexistent_path = Path("/nonexistent/path")
+        selector = VersionSelector(nonexistent_path)
+        
+        with pytest.raises(ModelLoadingError, match="Artifacts directory not found"):
+            selector.discover_versions()
+
+
+class TestVersionSelectorUtilities:
+    """Test utility functions for version selection."""
+
+    def setup_method(self):
+        """Set up test environment."""
+        self.temp_dir = tempfile.mkdtemp()
+        self.artifacts_root = Path(self.temp_dir) / "artifacts"
+        self.artifacts_root.mkdir(exist_ok=True)
+        
+        # Create a simple test version
+        version_dir = self.artifacts_root / "v1.0.0"
+        version_dir.mkdir()
+        
+        model_card = {
+            "model_name": "test-model",
+            "version": "v1.0.0",
+            "model_type": "pytorch"
+        }
+        
+        with open(version_dir / "model_card.yaml", 'w') as f:
+            yaml.dump(model_card, f)
+
+    def teardown_method(self):
+        """Clean up test environment."""
+        import shutil
+        shutil.rmtree(self.temp_dir)
+
+    def test_select_best_version_convenience_function(self):
+        """Test select_best_version convenience function."""
+        version = select_best_version(
+            self.artifacts_root,
+            VersionSelectionStrategy.LATEST_STABLE
+        )
+        
+        assert str(version) == "v1.0.0"
+
+    @patch.dict(os.environ, {"MODEL_VERSION": "v1.0.0"})
+    def test_get_version_from_environment_valid(self):
+        """Test getting version from environment variable."""
+        version = get_version_from_environment(
+            self.artifacts_root,
+            env_var="MODEL_VERSION"
+        )
+        
+        assert str(version) == "v1.0.0"
+
+    @patch.dict(os.environ, {"MODEL_VERSION": "v2.0.0"})
+    def test_get_version_from_environment_invalid(self):
+        """Test fallback when environment version is invalid."""
+        with patch('builtins.print') as mock_print:
+            version = get_version_from_environment(
+                self.artifacts_root,
+                env_var="MODEL_VERSION",
+                fallback_strategy=VersionSelectionStrategy.LATEST_STABLE
+            )
+            
+            # Should fall back to available version
+            assert str(version) == "v1.0.0"
+            
+            # Should print warning
+            mock_print.assert_called_once()
+            assert "Warning: Environment version v2.0.0 not available" in str(mock_print.call_args)
+
+    def test_get_version_from_environment_no_env_var(self):
+        """Test fallback when environment variable is not set."""
+        version = get_version_from_environment(
+            self.artifacts_root,
+            env_var="NONEXISTENT_VAR",
+            fallback_strategy=VersionSelectionStrategy.LATEST_STABLE
+        )
+        
+        assert str(version) == "v1.0.0"
+
+
+class TestVersionSelectorEdgeCases:
+    """Test edge cases and error conditions."""
+
+    def test_empty_artifacts_directory(self):
+        """Test behavior with empty artifacts directory."""
+        temp_dir = tempfile.mkdtemp()
+        artifacts_root = Path(temp_dir) / "artifacts"
+        artifacts_root.mkdir()
+        
+        try:
+            selector = VersionSelector(artifacts_root)
+            versions = selector.discover_versions()
+            assert versions == []
+            
+            version = selector.select_version(VersionSelectionStrategy.LATEST_STABLE)
+            assert version is None
+            
+        finally:
+            import shutil
+            shutil.rmtree(temp_dir)
+
+    def test_invalid_model_card_files(self):
+        """Test handling of invalid model card files."""
+        temp_dir = tempfile.mkdtemp()
+        artifacts_root = Path(temp_dir) / "artifacts"
+        artifacts_root.mkdir()
+        
+        try:
+            # Create version directory with invalid model card
+            version_dir = artifacts_root / "v1.0.0"
+            version_dir.mkdir()
+            
+            # Write invalid YAML
+            model_card_path = version_dir / "model_card.yaml"
+            with open(model_card_path, 'w') as f:
+                f.write("invalid: yaml: content: [")
+            
+            selector = VersionSelector(artifacts_root)
+            versions = selector.discover_versions()
+            
+            # Should still discover the version
+            assert len(versions) == 1
+            assert str(versions[0]) == "v1.0.0"
+            
+        finally:
+            import shutil
+            shutil.rmtree(temp_dir)
+
+    def test_directories_without_valid_version_names(self):
+        """Test ignoring directories that don't follow semantic versioning."""
+        temp_dir = tempfile.mkdtemp()
+        artifacts_root = Path(temp_dir) / "artifacts"
+        artifacts_root.mkdir()
+        
+        try:
+            # Create directories with invalid version names
+            (artifacts_root / "not-a-version").mkdir()
+            (artifacts_root / "v1").mkdir()  # Incomplete version
+            (artifacts_root / "random-directory").mkdir()
+            
+            # Create valid version directory
+            version_dir = artifacts_root / "v1.0.0"
+            version_dir.mkdir()
+            model_card = {
+                "model_name": "test-model",
+                "version": "v1.0.0",
+                "model_type": "pytorch"
+            }
+            with open(version_dir / "model_card.yaml", 'w') as f:
+                yaml.dump(model_card, f)
+            
+            selector = VersionSelector(artifacts_root)
+            versions = selector.discover_versions()
+            
+            # Should only discover the valid version
+            assert len(versions) == 1
+            assert str(versions[0]) == "v1.0.0"
+            
+        finally:
+            import shutil
+            shutil.rmtree(temp_dir)
+>>>>>>> origin/dev

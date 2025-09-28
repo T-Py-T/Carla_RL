@@ -10,12 +10,12 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from src.versioning.artifact_manager import ArtifactManager, ArtifactIntegrityError
+from src.versioning.artifact_manager import ArtifactManager
 from src.versioning.integrity_validator import IntegrityValidator, IntegrityValidationError
 from src.versioning.semantic_version import parse_version, VersionError
 
@@ -53,18 +53,18 @@ def validate_version_artifacts(
         print(f"  Errors: {len(report['errors'])}")
         
         if report['errors']:
-            print(f"\nErrors:")
+            print("\nErrors:")
             for error in report['errors']:
                 print(f"  - {error}")
         
         if report['warnings']:
-            print(f"\nWarnings:")
+            print("\nWarnings:")
             for warning in report['warnings']:
                 print(f"  - {warning}")
         
         # Show artifact details
         if args.verbose:
-            print(f"\nArtifact Details:")
+            print("\nArtifact Details:")
             for artifact_path, details in report['artifacts'].items():
                 status = details['status']
                 status_icon = "✓" if status == "valid" else "✗"
@@ -249,7 +249,7 @@ def generate_integrity_report(
         print(f"  Invalid artifacts: {report['artifacts_summary']['invalid_artifacts']}")
         
         if args.verbose:
-            print(f"\nArtifact Details:")
+            print("\nArtifact Details:")
             for artifact_path, info in report["artifacts"].items():
                 status_icon = "✓" if info["valid"] else "✗"
                 print(f"  {status_icon} {artifact_path}")
@@ -312,7 +312,7 @@ def compare_versions(
                 changed_artifacts.append(artifact)
         
         # Display comparison
-        print(f"\nVersion Comparison:")
+        print("\nVersion Comparison:")
         print(f"  {version1}: {len(artifacts1)} artifacts")
         print(f"  {version2}: {len(artifacts2)} artifacts")
         print(f"  Common: {len(common_artifacts)} artifacts")
@@ -322,7 +322,7 @@ def compare_versions(
         
         if args.verbose:
             if changed_artifacts:
-                print(f"\nChanged Artifacts:")
+                print("\nChanged Artifacts:")
                 for artifact in changed_artifacts:
                     print(f"  {artifact}")
                     print(f"    {version1}: {manifest1.artifacts[artifact]}")

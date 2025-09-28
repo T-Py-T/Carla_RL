@@ -11,14 +11,13 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from versioning import ArtifactManager, MigrationManager, MigrationError
 from versioning.migration_manager import create_builtin_migration_steps
-from semantic_version import parse_version
 
 
 # Configure logging
@@ -294,7 +293,7 @@ Examples:
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
     # List plans command
-    list_plans_parser = subparsers.add_parser("list-plans", help="List migration plans")
+    subparsers.add_parser("list-plans", help="List migration plans")
     
     # List results command
     list_results_parser = subparsers.add_parser("list-results", help="List migration results")

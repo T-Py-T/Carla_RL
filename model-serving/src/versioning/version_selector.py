@@ -1,5 +1,4 @@
 """
-<<<<<<< HEAD
 Multi-version model support with intelligent version selection logic.
 
 This module provides comprehensive version selection capabilities for managing
@@ -10,6 +9,7 @@ strategies, and version constraint handling.
 import logging
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from typing import Dict, List, Optional, Union, Callable, Any
 
 from .semantic_version import SemanticVersion, parse_version
@@ -74,13 +74,11 @@ class ModelVersionInfo:
     def __post_init__(self):
         if self.performance_metrics is None:
             self.performance_metrics = {}
-=======
-Version selection logic for multi-version model support.
 
-This module provides intelligent version selection based on criteria like
-compatibility, stability, performance requirements, and deployment preferences.
-"""
-
+    def __init__(self, artifacts_root: Path):
+        """Initialize version selector with artifacts root directory."""
+        self.artifacts_root = Path(artifacts_root)
+        self.performance_metrics = {}
 import os
 from enum import Enum
 from pathlib import Path
@@ -89,24 +87,11 @@ from typing import Any, Dict, List, Optional, Tuple
 import yaml
 
 from .semantic_version import SemanticVersion
-from ..exceptions import ArtifactValidationError, ModelLoadingError
-
-
-class VersionSelectionStrategy(Enum):
-    """
-    Strategies for selecting model versions.
-    """
-    LATEST_STABLE = "latest_stable"       # Latest stable (non-prerelease) version
-    LATEST = "latest"                     # Latest version including prereleases
-    EXACT = "exact"                       # Exact version match
-    COMPATIBLE = "compatible"             # Latest compatible version
-    PERFORMANCE_OPTIMIZED = "performance" # Version with best performance metrics
->>>>>>> origin/dev
+from ..exceptions import ModelLoadingError
 
 
 class VersionSelector:
     """
-<<<<<<< HEAD
     Multi-version model selector with intelligent version resolution.
 
     Provides comprehensive version selection capabilities including:
@@ -564,24 +549,7 @@ class VersionManager:
             else None,
             "selection_history_count": len(self.selector.get_selection_history()),
         }
-=======
-    Intelligent version selector for multi-version model support.
-    
-    Provides version selection logic based on various strategies and criteria
-    including compatibility, stability, performance metrics, and deployment preferences.
-    """
-    
-    def __init__(self, artifacts_root: Path):
-        """
-        Initialize version selector.
-        
-        Args:
-            artifacts_root: Root directory containing versioned model artifacts
-        """
-        self.artifacts_root = Path(artifacts_root)
-        self._version_cache: Optional[Dict[str, Any]] = None
-        self._last_scan_time: Optional[float] = None
-        
+
     def discover_versions(self, force_rescan: bool = False) -> List[SemanticVersion]:
         """
         Discover all available model versions in the artifacts directory.
@@ -968,4 +936,3 @@ def get_version_from_environment(
     
     # Fall back to strategy-based selection
     return selector.select_version(strategy=fallback_strategy)
->>>>>>> origin/dev

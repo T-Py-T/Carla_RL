@@ -8,9 +8,9 @@ detailed error reporting and validation results.
 import re
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Union, Callable, Tuple
+from typing import Any, Dict, List, Optional, Callable
 from dataclasses import dataclass
-from pydantic import BaseModel, ValidationError, Field, validator
+from pydantic import ValidationError
 
 from .settings import BaseConfig, AppConfig
 
@@ -57,12 +57,6 @@ class ValidationResult:
         }
 
 
-class ValidationError(Exception):
-    """Custom validation error with detailed information."""
-    
-    def __init__(self, message: str, validation_result: Optional[ValidationResult] = None):
-        super().__init__(message)
-        self.validation_result = validation_result
 
 
 class ConfigValidator:

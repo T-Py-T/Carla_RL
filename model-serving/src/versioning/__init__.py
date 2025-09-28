@@ -1,79 +1,4 @@
 """
-<<<<<<< HEAD
-Semantic versioning and artifact management utilities.
-
-This module provides comprehensive version management, artifact integrity
-validation, and multi-version model support for the Policy-as-a-Service system.
-"""
-
-from .semantic_version import SemanticVersion, VersionError, parse_version, validate_version
-from .artifact_manager import ArtifactManager, ArtifactIntegrityError, ArtifactManifest
-from .integrity_validator import (
-    IntegrityValidator,
-    IntegrityValidationError,
-    ModelLoaderIntegrityMixin,
-)
-from .model_loader_integration import ModelLoaderWithIntegrity, IntegrityValidationMiddleware
-from .rollback_manager import RollbackManager, RollbackError, RollbackOperation
-from .version_selector import (
-    VersionSelector,
-    VersionManager,
-    VersionSelectionStrategy,
-    VersionSelectionError,
-    VersionSelectionResult,
-    ModelVersionInfo,
-)
-from .migration_manager import (
-    MigrationManager,
-    MigrationStep,
-    MigrationPlan,
-    MigrationResult,
-    MigrationError,
-    create_builtin_migration_steps,
-)
-from .content_storage import (
-    ContentAddressableStorage,
-    ContentReference,
-    StorageStats,
-    ContentStorageError,
-    ContentAddressableArtifactManager,
-)
-
-__all__ = [
-    "SemanticVersion",
-    "VersionError",
-    "parse_version",
-    "validate_version",
-    "ArtifactManager",
-    "ArtifactIntegrityError",
-    "ArtifactManifest",
-    "IntegrityValidator",
-    "IntegrityValidationError",
-    "ModelLoaderIntegrityMixin",
-    "ModelLoaderWithIntegrity",
-    "IntegrityValidationMiddleware",
-    "RollbackManager",
-    "RollbackError",
-    "RollbackOperation",
-    "VersionSelector",
-    "VersionManager",
-    "VersionSelectionStrategy",
-    "VersionSelectionError",
-    "VersionSelectionResult",
-    "ModelVersionInfo",
-    "MigrationManager",
-    "MigrationStep",
-    "MigrationPlan",
-    "MigrationResult",
-    "MigrationError",
-    "create_builtin_migration_steps",
-    "ContentAddressableStorage",
-    "ContentReference",
-    "StorageStats",
-    "ContentStorageError",
-    "ContentAddressableArtifactManager",
-]
-=======
 Versioning and artifact management for CarlaRL Policy-as-a-Service.
 
 This module provides semantic versioning, version selection logic,
@@ -84,4 +9,3 @@ from .semantic_version import SemanticVersion
 from .version_selector import VersionSelector
 
 __all__ = ["SemanticVersion", "VersionSelector"]
->>>>>>> origin/dev

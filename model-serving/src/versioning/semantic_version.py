@@ -1,20 +1,16 @@
 """
-<<<<<<< HEAD
 Semantic versioning parser and validation utilities.
 
 This module provides comprehensive semantic version parsing, validation,
 and comparison functionality following the vMAJOR.MINOR.PATCH format.
-=======
 Semantic versioning parser and validation for model artifacts.
 
 This module implements semantic versioning (SemVer) parsing with validation
 for model version management and comparison.
->>>>>>> origin/dev
 """
 
 import re
 from dataclasses import dataclass
-<<<<<<< HEAD
 from typing import Optional, Union, List, Tuple
 
 
@@ -26,18 +22,6 @@ class VersionError(Exception):
         self.version_string = version_string
 
 
-@dataclass(frozen=True)
-class SemanticVersion:
-    """
-    Immutable semantic version representation.
-
-    Follows the vMAJOR.MINOR.PATCH format where:
-    - MAJOR: Breaking changes
-    - MINOR: New features (backward compatible)
-    - PATCH: Bug fixes (backward compatible)
-    """
-
-=======
 from typing import Optional
 
 
@@ -52,12 +36,10 @@ class SemanticVersion:
     - Immutable dataclass for safe use in collections
     """
     
->>>>>>> origin/dev
     major: int
     minor: int
     patch: int
     prerelease: Optional[str] = None
-<<<<<<< HEAD
     build_metadata: Optional[str] = None
 
     def __post_init__(self):
@@ -383,8 +365,6 @@ def get_stable_versions(versions: List[Union[str, SemanticVersion]]) -> List[Sem
             continue  # Skip invalid versions
 
     return sorted(parsed_versions)
-=======
-    build: Optional[str] = None
     
     # Regex pattern for semantic version parsing
     _SEMVER_PATTERN = re.compile(
@@ -524,54 +504,3 @@ def get_stable_versions(versions: List[Union[str, SemanticVersion]]) -> List[Sem
         return self.major == other.major and self >= other
 
 
-def parse_version(version_str: str) -> SemanticVersion:
-    """
-    Convenience function to parse a version string.
-    
-    Args:
-        version_str: Version string to parse
-        
-    Returns:
-        SemanticVersion object
-        
-    Raises:
-        ValueError: If version string is invalid
-    """
-    return SemanticVersion.parse(version_str)
-
-
-def validate_version_format(version_str: str) -> bool:
-    """
-    Validate if a string follows semantic versioning format.
-    
-    Args:
-        version_str: Version string to validate
-        
-    Returns:
-        True if format is valid, False otherwise
-    """
-    try:
-        SemanticVersion.parse(version_str)
-        return True
-    except ValueError:
-        return False
-
-
-def sort_versions(versions: list[str], descending: bool = True) -> list[str]:
-    """
-    Sort version strings according to semantic versioning rules.
-    
-    Args:
-        versions: List of version strings to sort
-        descending: If True, sort in descending order (newest first)
-        
-    Returns:
-        Sorted list of version strings
-        
-    Raises:
-        ValueError: If any version string is invalid
-    """
-    parsed_versions = [(SemanticVersion.parse(v), v) for v in versions]
-    parsed_versions.sort(key=lambda x: x[0], reverse=descending)
-    return [v[1] for v in parsed_versions]
->>>>>>> origin/dev
