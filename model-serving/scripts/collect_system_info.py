@@ -37,13 +37,13 @@ def check_dependencies():
         pass
     
     try:
-        import psutil
+        import psutil  # noqa: F401
         dependencies["psutil"] = True
     except ImportError:
         pass
     
     try:
-        import tensorrt
+        import tensorrt  # noqa: F401
         dependencies["tensorrt"] = True
     except ImportError:
         pass
@@ -137,7 +137,7 @@ def analyze_system_capabilities(system_info):
     cpu = system_info.get("cpu", {})
     if "error" not in cpu:
         physical_cores = cpu.get("physical_cores", 0)
-        logical_cores = cpu.get("logical_cores", 0)
+        cpu.get("logical_cores", 0)
         max_freq = cpu.get("max_frequency", 0)
         
         if physical_cores >= 16:

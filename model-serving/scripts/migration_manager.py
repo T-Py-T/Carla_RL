@@ -293,7 +293,7 @@ Examples:
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
     # List plans command
-    list_plans_parser = subparsers.add_parser("list-plans", help="List migration plans")
+    subparsers.add_parser("list-plans", help="List migration plans")
     
     # List results command
     list_results_parser = subparsers.add_parser("list-results", help="List migration results")

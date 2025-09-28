@@ -149,7 +149,7 @@ def handle_generate_command(args) -> int:
     
     # Generate configuration
     engine = TemplateEngine()
-    content = engine.generate_config(
+    engine.generate_config(
         template_name=args.template,
         environment=environment,
         context=variables,

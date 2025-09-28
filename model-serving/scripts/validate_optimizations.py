@@ -18,16 +18,16 @@ def validate_imports():
     
     try:
         # Test basic imports
-        from optimization.cpu_optimizer import CPUOptimizer, CPUOptimizationConfig
+        from optimization.cpu_optimizer import CPUOptimizer, CPUOptimizationConfig  # noqa: F401
         print("✓ CPU optimizer imports successful")
         
-        from optimization.gpu_optimizer import GPUOptimizer, GPUOptimizationConfig
+        from optimization.gpu_optimizer import GPUOptimizer, GPUOptimizationConfig  # noqa: F401
         print("✓ GPU optimizer imports successful")
         
-        from optimization.memory_optimizer import MemoryOptimizer, MemoryOptimizationConfig
+        from optimization.memory_optimizer import MemoryOptimizer, MemoryOptimizationConfig  # noqa: F401
         print("✓ Memory optimizer imports successful")
         
-        from optimization.optimization_manager import OptimizationManager, OptimizationProfile
+        from optimization.optimization_manager import OptimizationManager, OptimizationProfile  # noqa: F401
         print("✓ Optimization manager imports successful")
         
         from optimization import __all__ as optimization_exports

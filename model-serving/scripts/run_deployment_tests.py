@@ -205,7 +205,7 @@ def main():
             runner.run_all_tests(args.docker_profiles, args.k8s_namespace)
         
         # Generate report
-        report = runner.generate_report(args.output)
+        runner.generate_report(args.output)
         
         # Print summary
         runner.print_summary()

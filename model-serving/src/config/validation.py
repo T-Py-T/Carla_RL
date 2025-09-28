@@ -57,12 +57,6 @@ class ValidationResult:
         }
 
 
-class ValidationError(Exception):
-    """Custom validation error with detailed information."""
-    
-    def __init__(self, message: str, validation_result: Optional[ValidationResult] = None):
-        super().__init__(message)
-        self.validation_result = validation_result
 
 
 class ConfigValidator:

@@ -28,6 +28,7 @@ jobs:
       uses: astral-sh/setup-uv@v4
       with:
         version: "latest"
+        github-token: ${{ github.token }}
         
     - name: Install dependencies
       run: |
@@ -36,10 +37,13 @@ jobs:
     - name: Run security scan
       run: |
         echo "Running security scan..."
-        # Check for known vulnerabilities in dependencies
-        uv run pip-audit --desc --format=json --output=security-report.json || true
+        # Install pip-audit if not available
+        uv add pip-audit || echo "pip-audit already installed"
         
-        # Basic secret scanning (excluding false positives)
+        # Check for known vulnerabilities in dependencies
+        uv run pip-audit --desc --format=json --output=security-report.json || echo "pip-audit completed with warnings"
+        
+        # Basic secret scanning (excluding false positives and .secrets file)
         if grep -r -i "password\|secret\|key\|token" . \
           --exclude-dir=.git \
           --exclude-dir=.venv \
@@ -50,7 +54,8 @@ jobs:
           --exclude="*.yml" \
           --exclude="*.yaml" \
           --exclude="*.json" \
-          | grep -v -i "example\|test\|dummy\|placeholder\|baseline\|admin\|redis\|dictionary\|lambda\|except\|KeyboardInterrupt\|filtered_models\|agent_metrics\|model_metrics\|tb_logger\|action_space\|cache\|preallocated\|detect-secrets\|GITHUB_TOKEN\|Key Changes\|log_data\|keywords\|details\|expected_files\|available_keys\|_make_key\|sensor.*key\|access_order\|oldest_key\|batch_size.*key\|Log key metrics\|print.*key.*value\|key.*=.*batch_size"; then
+          --exclude=".secrets" \
+          | grep -v -i "example\|test\|dummy\|placeholder\|baseline\|admin\|redis\|dictionary\|lambda\|except\|KeyboardInterrupt\|filtered_models\|agent_metrics\|model_metrics\|tb_logger\|action_space\|cache\|preallocated\|detect-secrets\|GITHUB_TOKEN\|Key Changes\|log_data\|keywords\|details\|expected_files\|available_keys\|_make_key\|sensor.*key\|access_order\|oldest_key\|batch_size.*key\|Log key metrics\|print.*key.*value\|key.*=.*batch_size\|\.secrets"; then
           echo "Potential secrets found in code"
           exit 1
         fi

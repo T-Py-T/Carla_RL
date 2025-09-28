@@ -269,7 +269,7 @@ class MetricsCollector:
                 for i in range(torch.cuda.device_count()):
                     device_id = str(i)
                     memory_allocated = torch.cuda.memory_allocated(i)
-                    memory_reserved = torch.cuda.memory_reserved(i)
+                    torch.cuda.memory_reserved(i)
                     utilization = torch.cuda.utilization(i) if hasattr(torch.cuda, 'utilization') else 0
                     
                     with self._lock:

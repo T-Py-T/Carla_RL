@@ -404,13 +404,13 @@ Examples:
     )
     
     # Stats command
-    stats_parser = subparsers.add_parser("stats", help="Show storage statistics")
+    subparsers.add_parser("stats", help="Show storage statistics")
     
     # Cleanup command
-    cleanup_parser = subparsers.add_parser("cleanup", help="Clean up orphaned content")
+    subparsers.add_parser("cleanup", help="Clean up orphaned content")
     
     # Verify command
-    verify_parser = subparsers.add_parser("verify", help="Verify content integrity")
+    subparsers.add_parser("verify", help="Verify content integrity")
     
     args = parser.parse_args()
     
