@@ -9,9 +9,7 @@ without requiring PyTorch or other heavy dependencies.
 import argparse
 import json
 import platform
-import sys
 import time
-from pathlib import Path
 
 def check_dependencies():
     """Check which dependencies are available."""
@@ -39,13 +37,13 @@ def check_dependencies():
         pass
     
     try:
-        import psutil
+        import psutil  # noqa: F401
         dependencies["psutil"] = True
     except ImportError:
         pass
     
     try:
-        import tensorrt
+        import tensorrt  # noqa: F401
         dependencies["tensorrt"] = True
     except ImportError:
         pass
@@ -139,7 +137,7 @@ def analyze_system_capabilities(system_info):
     cpu = system_info.get("cpu", {})
     if "error" not in cpu:
         physical_cores = cpu.get("physical_cores", 0)
-        logical_cores = cpu.get("logical_cores", 0)
+        cpu.get("logical_cores", 0)
         max_freq = cpu.get("max_frequency", 0)
         
         if physical_cores >= 16:
@@ -253,7 +251,7 @@ def main():
     
     # Dependencies
     deps = system_info["dependencies"]
-    print(f"\nDependencies:")
+    print("\nDependencies:")
     print(f"  PyTorch: {'✓' if deps['torch'] else '✗'}")
     print(f"  NumPy: {'✓' if deps['numpy'] else '✗'}")
     print(f"  psutil: {'✓' if deps['psutil'] else '✗'}")
@@ -269,7 +267,7 @@ def main():
         print(f"GPU Performance: {analysis['capabilities'].get('gpu_performance', 'Unknown')}")
         
         if analysis["recommendations"]:
-            print(f"\nRecommendations:")
+            print("\nRecommendations:")
             for rec in analysis["recommendations"]:
                 print(f"  • {rec}")
     

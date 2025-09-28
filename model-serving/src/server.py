@@ -64,7 +64,7 @@ async def lifespan(app: FastAPI):
 
         from .inference import InferenceEngine
         from .model_loader import load_artifacts
-        from .versioning import VersionSelector, VersionSelectionStrategy
+        from .versioning import VersionSelectionStrategy
         from .versioning.version_selector import get_version_from_environment
 
         # Configuration from environment
@@ -355,7 +355,7 @@ async def get_versions() -> VersionsResponse:
             artifacts_root=str(artifacts_root)
         )
     
-    except Exception as e:
+    except Exception:
         # Return minimal response if version discovery fails
         return VersionsResponse(
             current_version=current_version,

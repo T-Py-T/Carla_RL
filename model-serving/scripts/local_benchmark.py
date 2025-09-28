@@ -8,12 +8,10 @@ hardware optimizations and measure empirical performance data.
 
 import argparse
 import json
-import os
 import sys
 import time
-import subprocess
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any
 import platform
 import psutil
 
@@ -46,13 +44,13 @@ def check_dependencies() -> Dict[str, bool]:
         pass
     
     try:
-        import psutil
+        import psutil  # noqa: F401
         dependencies["psutil"] = True
     except ImportError:
         pass
     
     try:
-        import tensorrt
+        import tensorrt  # noqa: F401
         dependencies["tensorrt"] = True
     except ImportError:
         pass
@@ -124,7 +122,7 @@ def get_system_info() -> Dict[str, Any]:
 def create_test_model(input_size: int = 10, hidden_size: int = 50, output_size: int = 1) -> Any:
     """Create a test model for benchmarking."""
     try:
-        import torch
+        import torch  # noqa: F401
         import torch.nn as nn
         
         class TestModel(nn.Module):
@@ -392,7 +390,7 @@ def run_hardware_specific_benchmarks() -> Dict[str, Any]:
                 memory_type="DDR4"
             )
             
-            hardware_info = HardwareInfo(
+            HardwareInfo(
                 cpu=cpu_info,
                 gpu=gpu_info,
                 memory=memory_info,

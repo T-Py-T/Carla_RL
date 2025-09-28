@@ -10,13 +10,13 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from versioning.artifact_manager import ArtifactManager, ArtifactIntegrityError
-from versioning.semantic_version import parse_version, VersionError
+from versioning.semantic_version import VersionError
 
 
 def pin_artifacts(manager: ArtifactManager, version: str, artifacts_dir: Path, args) -> None:

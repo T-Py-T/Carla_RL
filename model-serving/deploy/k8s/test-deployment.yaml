@@ -1,0 +1,228 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-serving-test
+  labels:
+    app: model-serving-test
+    version: v0.1.0
+    test: "true"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: model-serving-test
+  template:
+    metadata:
+      labels:
+        app: model-serving-test
+        version: v0.1.0
+        test: "true"
+    spec:
+      containers:
+      - name: model-serving
+        image: model-serving:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: ARTIFACT_DIR
+          value: "/app/artifacts"
+        - name: MODEL_VERSION
+          value: "v0.1.0"
+        - name: USE_GPU
+          value: "0"
+        - name: LOG_LEVEL
+          value: "info"
+        - name: WORKERS
+          value: "1"
+        - name: ENABLE_METRICS
+          value: "true"
+        - name: ENABLE_TRACING
+          value: "true"
+        - name: ENABLE_HEALTH_CHECKS
+          value: "true"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+        volumeMounts:
+        - name: artifacts
+          mountPath: /app/artifacts
+          readOnly: true
+      volumes:
+      - name: artifacts
+        configMap:
+          name: model-serving-artifacts
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: model-serving-test-service
+  labels:
+    app: model-serving-test
+spec:
+  selector:
+    app: model-serving-test
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: model-serving-artifacts
+data:
+  model_card.yaml: |
+    model_name: "highway-ppo"
+    version: "v0.1.0"
+    model_type: "pytorch"
+    description: "Highway RL PPO policy for autonomous driving"
+    input_shape: [5]
+    output_shape: [3]
+    framework_version: "2.1.0"
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: model-serving-test-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+  - host: model-serving-test.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: model-serving-test-service
+            port:
+              number: 80
+---
+# Test Job for running integration tests
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: model-serving-test-job
+  labels:
+    app: model-serving-test
+    test: "integration"
+spec:
+  template:
+    spec:
+      containers:
+      - name: test-runner
+        image: model-serving:latest
+        command: ["python", "-m", "pytest", "tests/integration/test_deployment.py", "-v", "--json-report", "--json-report-file=/tmp/test_results.json"]
+        env:
+        - name: SERVICE_URL
+          value: "http://model-serving-test-service:80"
+        volumeMounts:
+        - name: test-results
+          mountPath: /tmp
+      volumes:
+      - name: test-results
+        emptyDir: {}
+      restartPolicy: Never
+  backoffLimit: 3
+---
+# Load Test Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: model-serving-load-test-job
+  labels:
+    app: model-serving-test
+    test: "load"
+spec:
+  template:
+    spec:
+      containers:
+      - name: load-tester
+        image: model-serving:latest
+        command: ["python", "scripts/load_test.py", "--url", "http://model-serving-test-service:80", "--duration", "300", "--output", "/tmp/load_test_results.json"]
+        volumeMounts:
+        - name: test-results
+          mountPath: /tmp
+      volumes:
+      - name: test-results
+        emptyDir: {}
+      restartPolicy: Never
+  backoffLimit: 1
+---
+# Monitoring Test Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: model-serving-monitoring-test-job
+  labels:
+    app: model-serving-test
+    test: "monitoring"
+spec:
+  template:
+    spec:
+      containers:
+      - name: monitoring-tester
+        image: model-serving:latest
+        command: ["python", "scripts/monitoring_test.py", "--service-url", "http://model-serving-test-service:80", "--output", "/tmp/monitoring_test_results.json"]
+        volumeMounts:
+        - name: test-results
+          mountPath: /tmp
+      volumes:
+      - name: test-results
+        emptyDir: {}
+      restartPolicy: Never
+  backoffLimit: 1
+---
+# Performance Benchmark Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: model-serving-performance-job
+  labels:
+    app: model-serving-test
+    test: "performance"
+spec:
+  template:
+    spec:
+      containers:
+      - name: performance-benchmark
+        image: model-serving:latest
+        command: ["python", "scripts/performance_benchmark.py", "--url", "http://model-serving-test-service:80", "--output", "/tmp/performance_benchmark.json"]
+        volumeMounts:
+        - name: test-results
+          mountPath: /tmp
+      volumes:
+      - name: test-results
+        emptyDir: {}
+      restartPolicy: Never
+  backoffLimit: 1
