@@ -369,7 +369,7 @@ async def warmup_model(inference_engine=Depends(get_inference_engine)) -> Warmup
             # Create dummy observation for warmup
             from .io_schemas import Observation
 
-            dummy_obs = Observation(speed=25.0, steering=0.0, sensors=[0.5] * 5)
+            dummy_obs = Observation(speed=25.0, steering=0.0, sensors=[0.5, 0.5, 0.5])
 
             # Perform dummy inference
             _, _ = inference_engine.predict([dummy_obs], deterministic=True)

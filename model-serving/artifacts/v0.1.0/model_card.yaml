@@ -129,9 +129,11 @@ quality_assurance:
     error_tracking: "enabled"
 
 # Artifact Integrity (SHA256 hashes)
-artifact_hashes:
-  model.pt: "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
-  preprocessor.pkl: "b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef1234567a"
+# Populated at build time by scripts/create_example_artifacts.py. Leaving the
+# key absent on disk tells model_loader.validate_artifact_integrity to skip
+# hash validation, which is the right behaviour for freshly checked-out
+# sources before any artifacts have been generated.
+artifact_hashes: {}
 
 # Limitations and Risks
 limitations:

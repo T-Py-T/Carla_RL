@@ -364,8 +364,10 @@ class TestUtilityFunctions:
 
         assert isinstance(features, np.ndarray)
         assert features.shape == (2, 4)  # 2 observations, 4 features
-        assert features[0, 0] == 20.0  # First speed
-        assert features[1, 1] == 0.1  # Second steering
+        # MinimalPreprocessor uses float32, so 0.1 is not exactly representable;
+        # use pytest.approx with a float32-sized tolerance instead of ==.
+        assert features[0, 0] == pytest.approx(20.0)
+        assert features[1, 1] == pytest.approx(0.1, rel=1e-6)
 
     def test_validate_preprocessing_parity_success(self):
         """Test successful preprocessing parity validation."""

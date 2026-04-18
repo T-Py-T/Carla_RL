@@ -422,7 +422,11 @@ class InferenceEngine:
 
         try:
             # Create dummy observations
-            dummy_obs = Observation(speed=25.0, steering=0.0, sensors=[0.5] * 5)
+            # The example preprocessor is fit for 3-sensor inputs (total 5
+            # features = speed + steering + 3 sensors). Warmup was previously
+            # building 5-sensor obs, which caused the warmup matmul to fail
+            # with "mat1 and mat2 shapes cannot be multiplied".
+            dummy_obs = Observation(speed=25.0, steering=0.0, sensors=[0.5, 0.5, 0.5])
 
             for _ in range(warmup_batches):
                 dummy_batch = [dummy_obs] * warmup_batch_size

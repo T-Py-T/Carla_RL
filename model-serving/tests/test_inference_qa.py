@@ -58,7 +58,7 @@ class TestInferenceEngineQA:
             obs = Observation(
                 speed=20.0 + i * 5.0,
                 steering=np.sin(i * 0.1),
-                sensors=[np.random.uniform(0, 1) for _ in range(5)],
+                sensors=[np.random.uniform(0, 1) for _ in range(3)],
             )
             observations.append(obs)
         return observations

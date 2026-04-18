@@ -50,7 +50,19 @@ class Span:
         if error:
             self.error = error
             self.add_log("error", {"error": str(error), "error_type": type(error).__name__})
-    
+
+    def __enter__(self) -> "Span":
+        """Enter the span as a context manager. Returns self so callers can
+        attach tags inside a `with tracer.trace_...() as span:` block."""
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        """Finish the span, recording exception state if one propagated."""
+        if exc_value is not None:
+            self.finish(SpanStatus.ERROR, exc_value)
+        elif self.end_time is None:
+            self.finish(SpanStatus.SUCCESS)
+
     def add_tag(self, key: str, value: Any):
         """Add a tag to the span."""
         self.tags[key] = value

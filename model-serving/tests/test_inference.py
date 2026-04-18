@@ -264,7 +264,7 @@ class TestInferenceEngine:
         """Create test observations."""
         observations = []
         for i in range(n):
-            obs = Observation(speed=20.0 + i, steering=i * 0.1, sensors=[0.1, 0.2, 0.3, 0.4, 0.5])
+            obs = Observation(speed=20.0 + i, steering=i * 0.1, sensors=[0.1, 0.2, 0.3])
             observations.append(obs)
         return observations
 

@@ -147,7 +147,7 @@ load-test: ## Run load testing
 
 # Artifact management
 create-artifacts: ## Create example model artifacts
-	python scripts/create_example_artifacts.py --output artifacts/v0.1.0
+	python -m scripts.create_example_artifacts --output artifacts --version v0.1.0
 
 validate-artifacts: ## Validate model artifacts
 	python scripts/validate_artifacts.py --artifact-dir artifacts/v0.1.0

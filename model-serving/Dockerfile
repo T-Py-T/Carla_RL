@@ -32,7 +32,18 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Stage 3: Production image
+# Stage 3: Build example artifacts inside the image so freshly-cloned checkouts
+# work without developers having to pre-generate `model.pt` / `preprocessor.pkl`.
+FROM dependencies AS artifact-builder
+WORKDIR /build
+COPY src/ ./src/
+COPY scripts/ ./scripts/
+COPY artifacts/ ./artifacts/
+RUN python -m scripts.create_example_artifacts \
+        --output artifacts \
+        --version v0.1.0
+
+# Stage 4: Production image
 FROM python:3.11-slim AS production
 
 # Set environment variables
@@ -65,33 +76,12 @@ WORKDIR /app
 RUN mkdir -p /app/artifacts /app/logs \
     && chown -R modelserving:modelserving /app
 
-# Copy application code
+# Copy application code, the freshly-generated artifact set, and the
+# entrypoint script. The entrypoint normalizes LOG_LEVEL to lowercase so
+# uvicorn accepts either INFO/info.
 COPY --chown=modelserving:modelserving src/ ./src/
-COPY --chown=modelserving:modelserving artifacts/ ./artifacts/
-
-# Create startup script
-COPY --chown=modelserving:modelserving <<EOF /app/entrypoint.sh
-#!/bin/bash
-set -e
-
-# Health check function
-health_check() {
-    curl -f http://localhost:\${PORT}/healthz || exit 1
-}
-
-# Export health check function
-export -f health_check
-
-# Start the application
-exec uvicorn src.server:app \\
-    --host 0.0.0.0 \\
-    --port \${PORT} \\
-    --workers \${WORKERS} \\
-    --log-level \${LOG_LEVEL} \\
-    --access-log \\
-    --no-use-colors
-EOF
-
+COPY --chown=modelserving:modelserving --from=artifact-builder /build/artifacts/ ./artifacts/
+COPY --chown=modelserving:modelserving entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 # Switch to non-root user

@@ -31,13 +31,18 @@ class StructuredLogger:
     def __init__(
         self,
         name: str,
-        level: int = logging.INFO,
+        level: Union[str, int] = logging.INFO,
         include_correlation_id: bool = True,
         include_timestamp: bool = True,
         include_level: bool = True,
         include_logger_name: bool = True
     ):
         """Initialize structured logger."""
+        # Python's stdlib logging accepts both "INFO" and logging.INFO, but it
+        # rejects the lowercase "info" that uvicorn/docker-compose frequently
+        # hand us. Normalize strings here so any casing works.
+        if isinstance(level, str):
+            level = getattr(logging, level.upper(), logging.INFO)
         self.logger = logging.getLogger(name)
         self.logger.setLevel(level)
         
@@ -394,14 +399,17 @@ def configure_logging(
     include_correlation_id: bool = True
 ) -> None:
     """Configure logging for the application."""
+    # Normalize string log levels so lowercase values from env vars (uvicorn
+    # prefers lowercase) still work when they reach Python's stdlib logging.
+    if isinstance(level, str):
+        level = getattr(logging, level.upper(), logging.INFO)
+
     if format_type == "json":
-        # Use structured JSON logging
         get_logger(
             level=level,
             include_correlation_id=include_correlation_id
         )
     else:
-        # Use standard Python logging
         logging.basicConfig(
             level=level,
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
