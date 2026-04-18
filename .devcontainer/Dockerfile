@@ -31,9 +31,8 @@ RUN pip install --no-cache-dir \
         "gymnasium>=1.1.1" \
         "opencv-python-headless>=4.5.0" \
         "colorama>=0.4.4" \
-        "tensorboard-plugin-wit>=1.8.1" \
         "wandb>=0.22.0" \
-        "tensorflow>=2.14.0,<2.16.0" \
+        "tensorflow>=2.21.0,<2.22" \
         "pytest-timeout>=2.2.0" \
         "ruff>=0.1.8" \
         "mypy>=1.0.0" \

@@ -24,8 +24,13 @@ try:
             print("Run 'make train-highway' first to train a model")
             return
         
-        # Find model files
-        model_files = list(models_dir.glob("*_weights.h5"))
+        # Find model files. Keras 3 requires weights files to end with the
+        # double-dotted ``.weights.h5`` suffix; older checkpoints produced by
+        # Keras 2 used plain ``_weights.h5``. Match both so freshly-trained
+        # and legacy checkpoints are discovered by ``make evaluate``.
+        model_files = list(models_dir.glob("*.weights.h5")) + list(
+            models_dir.glob("*_weights.h5")
+        )
         
         if not model_files:
             print("ERROR: No trained models found")
@@ -34,7 +39,7 @@ try:
         
         # Get latest model
         latest_model = max(model_files, key=os.path.getctime)
-        model_name = str(latest_model).replace('_weights.h5', '')
+        model_name = str(latest_model).replace('.weights.h5', '').replace('_weights.h5', '')
         
         print(f"Evaluating model: {latest_model.name}")
         
