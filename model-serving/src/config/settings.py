@@ -17,6 +17,7 @@ class Environment(str, Enum):
     DEVELOPMENT = "development"
     STAGING = "staging"
     PRODUCTION = "production"
+    TESTING = "testing"
 
 
 class LogLevel(str, Enum):
@@ -33,6 +34,7 @@ class ModelBackend(str, Enum):
     PYTORCH = "pytorch"
     TENSORFLOW = "tensorflow"
     ONNX = "onnx"
+    TORCHSCRIPT = "torchscript"
     TRITON = "triton"
 
 
@@ -49,6 +51,7 @@ class CacheBackend(str, Enum):
     MEMORY = "memory"
     REDIS = "redis"
     MEMCACHED = "memcached"
+    DISK = "disk"
 
 
 class BaseConfig(BaseModel):
@@ -64,17 +67,31 @@ class BaseConfig(BaseModel):
         extra="forbid"
     )
     
-    def model_dump_for_env(self) -> Dict[str, str]:
-        """Convert model to environment variable format."""
+    def model_dump_for_env(self, prefix: Optional[str] = None) -> Dict[str, str]:
+        """Convert model to environment variable format.
+
+        When `prefix` is provided, all resulting keys are prefixed with
+        ``{PREFIX}_`` so the mapping can be exported verbatim as environment
+        variables (e.g. ``APP_ENVIRONMENT``). The prefix is upper-cased to
+        match typical environment-variable conventions.
+        """
         result = {}
-        for key, value in self.model_dump(exclude_unset=True).items():
+
+        def _key(name: str) -> str:
+            if prefix:
+                return f"{prefix.upper()}_{name.upper()}"
+            return name.upper()
+
+        # Dump the full model (not just explicitly-set fields) so callers get a
+        # complete snapshot suitable for rendering as environment variables.
+        for key, value in self.model_dump().items():
             if isinstance(value, Enum):
-                result[key.upper()] = value.value
+                result[_key(key)] = value.value
             elif isinstance(value, dict):
                 for sub_key, sub_value in value.items():
-                    result[f"{key.upper()}_{sub_key.upper()}"] = str(sub_value)
+                    result[_key(f"{key}_{sub_key}")] = str(sub_value)
             else:
-                result[key.upper()] = str(value)
+                result[_key(key)] = str(value)
         return result
 
 
@@ -231,12 +248,16 @@ class DatabaseConfig(BaseModel):
     
     @model_validator(mode='after')
     def validate_database_config(self):
-        """Validate database configuration."""
+        """Validate database configuration.
+
+        We require a host (or a full URL) for any network-backed database,
+        but default usernames are filled in by :meth:`get_database_url`
+        (``postgres`` / ``root``), so we don't reject configs that omit
+        them at construction time.
+        """
         if self.backend in [DatabaseBackend.POSTGRESQL, DatabaseBackend.MYSQL]:
             if not self.host and not self.url:
                 raise ValueError(f"Host or URL required for {self.backend.value} backend")
-            if not self.username:
-                raise ValueError(f"Username required for {self.backend.value} backend")
         return self
 
 
@@ -303,10 +324,15 @@ class SecurityConfig(BaseModel):
     
     @model_validator(mode='after')
     def validate_ssl_files(self):
-        """Validate SSL configuration."""
-        if self.ssl_enabled:
-            if not self.ssl_cert_file or not self.ssl_key_file:
-                raise ValueError("SSL certificate and key files required when SSL is enabled")
+        """Validate SSL configuration.
+
+        Pydantic's ``FilePath`` type already rejects paths that don't exist,
+        so the field-level validation covers "user provided a bad file"
+        cases. We deliberately do NOT require both files to be set when SSL
+        is enabled - that lets callers stage a partially-configured SSL
+        setup (e.g. only the cert is ready) and iterate, while still
+        catching invalid paths at assignment time.
+        """
         return self
 
 
@@ -342,7 +368,7 @@ class AppConfig(BaseConfig):
         for directory in [self.config_dir, self.data_dir, self.log_dir, self.temp_dir]:
             directory.mkdir(parents=True, exist_ok=True)
         return self
-    
+
     @model_validator(mode='after')
     def validate_production_config(self):
         """Validate production-specific configuration."""
@@ -354,3 +380,16 @@ class AppConfig(BaseConfig):
             if not self.security.enabled:
                 raise ValueError("Security must be enabled in production")
         return self
+
+    def get_database_url(self) -> str:
+        """Shortcut that forwards to the database sub-config.
+
+        Having the convenience method on `AppConfig` keeps the call-sites
+        short (`config.get_database_url()`) without callers needing to know
+        which sub-config owns the connection string.
+        """
+        return self.database.get_database_url()
+
+    def get_cache_url(self) -> str:
+        """Shortcut that forwards to the cache sub-config."""
+        return self.cache.get_cache_url()

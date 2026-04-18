@@ -232,7 +232,15 @@ class InferenceEngine:
                     batch_size, feature_dim, device=self.device, dtype=torch.float32
                 )
                 if self.enable_memory_pinning and self.device.type == "cpu":
-                    tensor = tensor.pin_memory()
+                    # `pin_memory()` requires a functional CUDA runtime even
+                    # though the tensor lives on CPU. Skip the pinning step
+                    # on CUDA-less hosts rather than failing outright; the
+                    # rest of the pipeline works fine with ordinary pageable
+                    # memory.
+                    try:
+                        tensor = tensor.pin_memory()
+                    except (RuntimeError, AssertionError):
+                        pass
 
                 self._preallocated_tensors[key] = tensor
 
@@ -343,11 +351,17 @@ class InferenceEngine:
         Raises:
             InferenceError: If inference fails
         """
+        # Guard the early-exit paths through the same `add_error` hook that
+        # the try/except below uses so callers can observe validation
+        # failures in `metrics.error_count` - graceful-degradation tests
+        # specifically assert the counter advances after each rejected call.
         if not observations:
+            self.metrics.add_error()
             raise InferenceError("Cannot perform inference on empty observation list")
 
         batch_size = len(observations)
         if batch_size > self.max_batch_size:
+            self.metrics.add_error()
             raise InferenceError(
                 f"Batch size {batch_size} exceeds maximum {self.max_batch_size}",
                 details={"max_batch_size": self.max_batch_size},

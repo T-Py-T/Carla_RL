@@ -330,10 +330,26 @@ class TestEnvironmentValidation:
     
     def test_validate_environment_consistency_production_security_disabled(self):
         """Test production environment validation with security disabled."""
-        config = AppConfig()
-        config.environment = Environment.PRODUCTION
-        config.security.enabled = False
-        
+        # `AppConfig` has a model_validator that hard-blocks PRODUCTION + security
+        # disabled at construction/assignment time. The advisory consistency
+        # checker we're testing here operates one layer higher, so we need a
+        # lightweight stand-in that lets us put the object into the very state
+        # the hard-validator would normally reject.
+        class MockConfig:
+            @property
+            def environment(self):
+                return Environment.PRODUCTION
+            @property
+            def debug(self):
+                return False
+            @property
+            def server(self):
+                return type('Server', (), {'reload': False, 'workers': 4})()
+            @property
+            def security(self):
+                return type('Security', (), {'enabled': False})()
+
+        config = MockConfig()
         issues = validate_environment_consistency(config)
         assert len(issues) > 0
         assert any(issue.field == "security.enabled" for issue in issues)
@@ -341,10 +357,21 @@ class TestEnvironmentValidation:
     
     def test_validate_environment_consistency_production_single_worker(self):
         """Test production environment validation with single worker."""
-        config = AppConfig()
-        config.environment = Environment.PRODUCTION
-        config.server.workers = 1
-        
+        class MockConfig:
+            @property
+            def environment(self):
+                return Environment.PRODUCTION
+            @property
+            def debug(self):
+                return False
+            @property
+            def server(self):
+                return type('Server', (), {'reload': False, 'workers': 1})()
+            @property
+            def security(self):
+                return type('Security', (), {'enabled': True})()
+
+        config = MockConfig()
         issues = validate_environment_consistency(config)
         assert len(issues) > 0
         assert any(issue.field == "server.workers" for issue in issues)

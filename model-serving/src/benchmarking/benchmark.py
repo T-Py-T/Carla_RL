@@ -92,8 +92,12 @@ class MemoryStats:
     memory_growth_mb: float
     memory_efficiency: float  # requests per MB
 
-    # Additional memory metrics
-    baseline_memory_mb: float
+    # Baseline defaults to zero so callers that don't measure a baseline (the
+    # common case in unit tests and ad-hoc profiling) can still construct a
+    # MemoryStats with just the headline numbers. The field must stay
+    # optional; promoting it to required broke every call-site that was
+    # written before it was added.
+    baseline_memory_mb: float = 0.0
     memory_usage_samples: List[float] = field(default_factory=list)
     memory_leak_detected: bool = False
     memory_fragmentation: float = 0.0
@@ -572,7 +576,14 @@ class BenchmarkEngine:
         return recommendations
 
     def get_hardware_info(self) -> Dict[str, Any]:
-        """Get current hardware information for baseline comparison."""
+        """Get current hardware information for baseline comparison.
+
+        Returns a dict that surfaces both the rich, nested breakdown (under
+        ``cpu``/``gpu``/``memory``) and a flattened set of top-level keys
+        (``cpu_count``, ``memory_total_gb``, ``torch_cuda_available``) that
+        smoke-tests and dashboards rely on. Keeping both shapes means we can
+        extend the nested structure without breaking those callers.
+        """
         from .hardware_detector import HardwareDetector
 
         detector = HardwareDetector()
@@ -609,6 +620,13 @@ class BenchmarkEngine:
             "python_version": hardware_info.python_version,
             "torch_version": hardware_info.torch_version,
             "optimization_recommendations": hardware_info.optimization_recommendations,
+            # Flat aliases for simpler consumers (tests, lightweight dashboards)
+            # that don't want to walk the nested structure.
+            "cpu_count": hardware_info.cpu.cores,
+            "memory_total_gb": hardware_info.memory.total_gb,
+            "torch_cuda_available": bool(
+                hardware_info.gpu and hardware_info.gpu.cuda_available
+            ),
         }
 
     async def run_benchmark(self, inference_func: Callable, batch_size: int = 1) -> BenchmarkResult:

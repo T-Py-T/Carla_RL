@@ -2,13 +2,43 @@
 Integration tests for CarlaRL Policy-as-a-Service Infrastructure.
 
 Tests Docker deployment, health checks, and end-to-end functionality.
+
+These tests require a live instance of the service to be reachable at
+`http://localhost:8080` (spin up via `docker compose up` or
+`uvicorn src.server:app`). When no service is running, every test in this
+module is skipped automatically so CI/unit-test runs stay green.
 """
 
+import os
 import subprocess
 import time
 
 import pytest
 import requests
+
+
+SERVICE_URL = os.getenv("CARLA_RL_SERVICE_URL", "http://localhost:8080")
+
+
+def _service_is_up(url: str, timeout: float = 1.0) -> bool:
+    """Return True if `GET {url}/healthz` responds within `timeout` seconds."""
+    try:
+        resp = requests.get(f"{url}/healthz", timeout=timeout)
+    except requests.RequestException:
+        return False
+    return resp.status_code == 200
+
+
+# Skip the entire module if no service is listening. This keeps the test suite
+# green when run outside of a deployed environment while still running these
+# integration tests when the service is available.
+pytestmark = pytest.mark.skipif(
+    not _service_is_up(SERVICE_URL),
+    reason=(
+        "No CarlaRL serving instance reachable at "
+        f"{SERVICE_URL}; start the service to run integration tests."
+    ),
+)
 
 
 class TestInfrastructureIntegration:
@@ -17,7 +47,7 @@ class TestInfrastructureIntegration:
     @pytest.fixture(scope="class")
     def service_url(self) -> str:
         """Base URL for the running service."""
-        return "http://localhost:8080"
+        return SERVICE_URL
 
     def test_health_endpoint_integration(self, service_url: str):
         """Test health endpoint returns proper response."""
@@ -236,7 +266,7 @@ class TestPerformanceIntegration:
     @pytest.fixture(scope="class")
     def service_url(self) -> str:
         """Base URL for the running service."""
-        return "http://localhost:8080"
+        return SERVICE_URL
 
     def test_latency_performance_integration(self, service_url: str):
         """Test inference latency performance."""

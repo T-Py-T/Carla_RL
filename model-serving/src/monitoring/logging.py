@@ -327,50 +327,50 @@ class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as JSON."""
         try:
-            # Parse existing JSON if it's already structured
-            if hasattr(record, 'msg') and isinstance(record.msg, str):
-                try:
-                    return record.msg  # Already JSON formatted
-                except (json.JSONDecodeError, TypeError):
-                    pass
-            
-            # Create structured log entry
-            log_entry = {
-                "message": record.getMessage(),
-                "level": record.levelname,
-            }
-            
-            if self.include_timestamp:
-                log_entry["timestamp"] = datetime.fromtimestamp(
-                    record.created, tz=timezone.utc
-                ).isoformat()
-            
-            if self.include_logger_name:
-                log_entry["logger"] = record.name
-            
-            if self.include_correlation_id and hasattr(record, 'correlation_id'):
-                log_entry["correlation_id"] = record.correlation_id
-            
-            # Add exception info if present
-            if record.exc_info:
-                log_entry["exception"] = self.formatException(record.exc_info)
-            
-            # Add any additional attributes
-            for key, value in record.__dict__.items():
-                if key not in {
-                    'name', 'msg', 'args', 'levelname', 'levelno', 'pathname',
-                    'filename', 'module', 'lineno', 'funcName', 'created',
-                    'msecs', 'relativeCreated', 'thread', 'threadName',
-                    'processName', 'process', 'getMessage', 'exc_info',
-                    'exc_text', 'stack_info'
-                }:
-                    log_entry[key] = value
-            
+            # `_create_log_entry` owns the structured dict construction so
+            # tests (and future formatter subclasses) have a single hook to
+            # patch or override instead of reimplementing `format` wholesale.
+            log_entry = self._create_log_entry(record)
             return json.dumps(log_entry, default=str)
-        
+
         except Exception:
-            # Fallback to simple format if JSON formatting fails
+            # Fallback to a simple `LEVEL: message` string if JSON formatting
+            # fails; this ensures log records are never dropped silently even
+            # when the structured serializer hits an edge case.
             return f"{record.levelname}: {record.getMessage()}"
+
+    def _create_log_entry(self, record: logging.LogRecord) -> Dict[str, Any]:
+        """Build the structured dict that ``format`` will serialize as JSON."""
+        log_entry: Dict[str, Any] = {
+            "message": record.getMessage(),
+            "level": record.levelname,
+        }
+
+        if self.include_timestamp:
+            log_entry["timestamp"] = datetime.fromtimestamp(
+                record.created, tz=timezone.utc
+            ).isoformat()
+
+        if self.include_logger_name:
+            log_entry["logger"] = record.name
+
+        if self.include_correlation_id and hasattr(record, 'correlation_id'):
+            log_entry["correlation_id"] = record.correlation_id
+
+        if record.exc_info:
+            log_entry["exception"] = self.formatException(record.exc_info)
+
+        for key, value in record.__dict__.items():
+            if key not in {
+                'name', 'msg', 'args', 'levelname', 'levelno', 'pathname',
+                'filename', 'module', 'lineno', 'funcName', 'created',
+                'msecs', 'relativeCreated', 'thread', 'threadName',
+                'processName', 'process', 'getMessage', 'exc_info',
+                'exc_text', 'stack_info'
+            }:
+                log_entry[key] = value
+
+        return log_entry
 
 
 # Global logger instances

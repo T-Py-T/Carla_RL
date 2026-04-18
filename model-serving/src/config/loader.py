@@ -19,15 +19,23 @@ T = TypeVar('T', bound=BaseConfig)
 class ConfigLoader:
     """Configuration loader with hierarchical source management."""
     
+    SUPPORTED_FORMATS = (".json", ".yaml", ".yml", ".toml", ".env")
+
     def __init__(self, config_dir: Optional[Path] = None):
         """
         Initialize configuration loader.
-        
+
         Args:
             config_dir: Base directory for configuration files
         """
         self.config_dir = config_dir or Path("config")
+        # Callers (and tests) rely on the config directory existing; create it
+        # lazily here so every loader instance has a stable on-disk root.
+        self.config_dir.mkdir(parents=True, exist_ok=True)
         self.sources: List[tuple] = []
+        # Expose the supported file extensions so callers can inspect which
+        # formats the loader can parse without reaching into the class body.
+        self.supported_formats = set(self.SUPPORTED_FORMATS)
     
     def add_file_source(self, file_path: Union[str, Path], required: bool = False) -> "ConfigLoader":
         """
@@ -71,29 +79,47 @@ class ConfigLoader:
         
         return self
     
-    def add_env_source(self, prefix: str = "") -> "ConfigLoader":
+    def add_env_source(
+        self,
+        prefix: str = "",
+        env_file: Optional[Union[str, Path]] = None,
+    ) -> "ConfigLoader":
         """
         Add environment variable source.
-        
+
         Args:
             prefix: Environment variable prefix (e.g., "APP_")
-            
+            env_file: Optional explicit .env file to load before picking up
+                live environment variables. When supplied, the file is added
+                as an ``env_file`` source *before* the ``env`` entry so that
+                real environment variables retain precedence.
+
         Returns:
             Self for method chaining
         """
-        if prefix:
-            # Load .env files if they exist
+        # Callers that provide an explicit env file want it loaded verbatim -
+        # skip the usual discovery heuristic so the behaviour is predictable
+        # in tests and in deployment scripts.
+        if env_file is not None:
+            env_file = Path(env_file)
+            if not env_file.is_absolute():
+                env_file = self.config_dir / env_file
+            if env_file.exists():
+                self.sources.append(("env_file", str(env_file)))
+        elif prefix:
+            # Auto-discover .env files alongside the configured directory so
+            # that `add_env_source("APP_")` still picks up standard locations.
             env_files = [
                 self.config_dir / ".env",
                 self.config_dir / f".env.{os.getenv('ENVIRONMENT', 'development')}",
                 Path.cwd() / ".env",
                 Path.cwd() / f".env.{os.getenv('ENVIRONMENT', 'development')}"
             ]
-            
-            for env_file in env_files:
-                if env_file.exists():
-                    self.sources.append(("env_file", str(env_file)))
-        
+
+            for candidate in env_files:
+                if candidate.exists():
+                    self.sources.append(("env_file", str(candidate)))
+
         self.sources.append(("env", prefix))
         return self
     
@@ -312,14 +338,32 @@ def load_config(
     return loader.load_config(config_class)
 
 
-def create_config_loader(config_dir: Optional[Path] = None) -> ConfigLoader:
+def create_config_loader(
+    config_dir: Optional[Path] = None,
+    env_prefix: str = "",
+    config_files: Optional[List[Union[str, Path]]] = None,
+) -> ConfigLoader:
     """
     Create a new configuration loader.
-    
+
     Args:
-        config_dir: Base directory for configuration files
-        
+        config_dir: Base directory for configuration files.
+        env_prefix: Environment variable prefix (e.g. ``"APP_"``). When
+            non-empty, an ``env`` source is registered automatically.
+        config_files: Optional list of config files (JSON/YAML/TOML) to
+            register as sources in order.
+
     Returns:
         New configuration loader instance
     """
-    return ConfigLoader(config_dir)
+    loader = ConfigLoader(config_dir)
+
+    # Register provided config files as optional sources so missing files
+    # don't raise - matches the intent of the helper (pre-wire a loader).
+    for config_file in config_files or []:
+        loader.add_file_source(config_file, required=False)
+
+    if env_prefix:
+        loader.add_env_source(env_prefix)
+
+    return loader

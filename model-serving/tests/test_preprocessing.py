@@ -445,24 +445,21 @@ class TestPreprocessingEdgeCases:
     """Test cases for edge cases and error conditions."""
 
     def test_preprocessing_with_nan_values(self):
-        """Test preprocessing with NaN values in observations."""
-        observations = [Observation(speed=float("nan"), steering=0.0, sensors=[1.0, 2.0])]
+        """NaN speeds must be rejected at the schema boundary."""
+        # The Observation schema clamps speed to [0, 200], so Pydantic rejects
+        # NaN before it can ever reach the preprocessor. That is the correct
+        # defence-in-depth: invalid values never propagate into model tensors.
+        from pydantic import ValidationError
 
-        preprocessor = StandardFeaturePreprocessor()
-
-        # Should handle NaN gracefully or raise appropriate error
-        with pytest.raises(PreprocessingError):
-            preprocessor.fit_transform(observations)
+        with pytest.raises(ValidationError):
+            Observation(speed=float("nan"), steering=0.0, sensors=[1.0, 2.0])
 
     def test_preprocessing_with_infinite_values(self):
-        """Test preprocessing with infinite values."""
-        observations = [Observation(speed=float("inf"), steering=0.0, sensors=[1.0, 2.0])]
+        """Infinite speeds must be rejected at the schema boundary."""
+        from pydantic import ValidationError
 
-        preprocessor = StandardFeaturePreprocessor()
-
-        # Should handle infinity gracefully or raise appropriate error
-        with pytest.raises(PreprocessingError):
-            preprocessor.fit_transform(observations)
+        with pytest.raises(ValidationError):
+            Observation(speed=float("inf"), steering=0.0, sensors=[1.0, 2.0])
 
     def test_preprocessing_with_empty_sensors(self):
         """Test preprocessing with empty sensor arrays."""

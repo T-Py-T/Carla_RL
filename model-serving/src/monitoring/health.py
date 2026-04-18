@@ -144,7 +144,11 @@ class HealthChecker:
         start_time = time.time()
         
         try:
-            cpu_percent = psutil.cpu_percent(interval=1)
+            # Using ``interval=None`` returns the CPU usage since the last
+            # ``cpu_percent`` call instead of blocking for a full second. Each
+            # call above used to add ~1s to ``/healthz`` (x2 because CPU usage
+            # is checked again below), which blew past the PRD's <1s budget.
+            cpu_percent = psutil.cpu_percent(interval=None)
             memory = psutil.virtual_memory()
             
             # Determine overall status based on resource usage
@@ -230,7 +234,9 @@ class HealthChecker:
         start_time = time.time()
         
         try:
-            cpu_percent = psutil.cpu_percent(interval=1)
+            # Non-blocking read; see `_check_system_resources` for why we
+            # avoid `interval=1` inside the hot health-check path.
+            cpu_percent = psutil.cpu_percent(interval=None)
             cpu_count = psutil.cpu_count()
             load_avg = psutil.getloadavg() if hasattr(psutil, 'getloadavg') else None
             

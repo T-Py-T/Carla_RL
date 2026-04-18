@@ -189,22 +189,31 @@ class GPUOptimizer:
     def _enable_cuda_optimizations(self, gpu_info: GPUInfo) -> Dict[str, any]:
         """Enable CUDA optimizations for GPU inference."""
         optimizations = {}
-        
-        # Set CUDA device
-        self._device = torch.device("cuda")
+
+        # Only claim a CUDA device if the installed torch build can actually
+        # create one. Falling back to CPU here keeps downstream helpers like
+        # ``_jit_compile_model`` from crashing on CUDA-less hosts while still
+        # letting the rest of the optimizer pipeline run (TF32 flags, JIT
+        # compilation, quantization, ...).
+        self._device = torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu"
+        )
         
         # Enable CUDA optimizations
         torch.backends.cudnn.enabled = True
         torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.deterministic = False
-        
-        # Set memory management
-        torch.cuda.empty_cache()
-        
+
+        # Only touch the live CUDA runtime if the installed torch build
+        # actually ships with it. Hardware-info mocks can't bring CUDA
+        # online on their own, and calling empty_cache() without CUDA raises.
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
         optimizations["device"] = str(self._device)
         optimizations["cudnn_enabled"] = True
         optimizations["cudnn_benchmark"] = True
-        
+
         return optimizations
 
     def _enable_tensorrt_optimizations(self, gpu_info: GPUInfo) -> Dict[str, any]:
@@ -230,38 +239,47 @@ class GPUOptimizer:
     def _enable_mixed_precision(self) -> Dict[str, any]:
         """Enable mixed precision optimizations."""
         optimizations = {}
-        
-        # Initialize scaler for mixed precision
+
+        # `GradScaler` issues a runtime warning and no-ops when CUDA is not
+        # present; instantiate it anyway so the attribute is wired up for
+        # callers that inspect ``self._scaler``, but key the flags we return
+        # off of actual CUDA availability.
         self._scaler = GradScaler()
-        
-        # Enable automatic mixed precision
+
+        # TF32 flags are safe to set on any backend; they're a no-op without
+        # Ampere+ GPUs and don't require CUDA runtime initialisation.
         torch.backends.cudnn.allow_tf32 = True
         torch.backends.cuda.matmul.allow_tf32 = True
-        
-        optimizations["mixed_precision_enabled"] = True
+
+        optimizations["mixed_precision_enabled"] = torch.cuda.is_available()
         optimizations["tf32_enabled"] = True
         optimizations["scaler_initialized"] = True
-        
+
         return optimizations
 
     def _enable_memory_optimizations(self, gpu_info: GPUInfo) -> Dict[str, any]:
         """Enable GPU memory optimizations."""
         optimizations = {}
-        
-        # Set memory fraction
-        if hasattr(torch.cuda, 'set_per_process_memory_fraction'):
+
+        # Guard every cuda-specific call with an is_available() check so the
+        # optimizer works on CUDA-less hosts (CI boxes, laptops, ARM dev
+        # containers). Hardware info may say "GPU present" because it was
+        # mocked; we still need the installed torch build to actually have
+        # CUDA support before we can touch these APIs.
+        cuda_available = torch.cuda.is_available()
+
+        if cuda_available and hasattr(torch.cuda, "set_per_process_memory_fraction"):
             torch.cuda.set_per_process_memory_fraction(self.config.memory_fraction)
-        
-        # Enable memory optimizations
+
         torch.backends.cudnn.benchmark = True
         torch.backends.cudnn.deterministic = False
-        
-        # Clear cache
-        torch.cuda.empty_cache()
-        
+
+        if cuda_available:
+            torch.cuda.empty_cache()
+
         optimizations["memory_fraction"] = self.config.memory_fraction
-        optimizations["memory_cleared"] = True
-        
+        optimizations["memory_cleared"] = cuda_available
+
         return optimizations
 
     def _enable_cudnn_optimizations(self) -> Dict[str, any]:
@@ -401,11 +419,16 @@ class GPUOptimizer:
         if self._scaler:
             del self._scaler
             self._scaler = None
-        
+
         self._jit_compiled_models.clear()
         self._tensorrt_engines.clear()
         self._optimization_applied = False
-        
+        # Clear the cached device reference so callers can re-initialize the
+        # optimizer from scratch. Without this, the stale ``cuda:0`` handle
+        # would survive cleanup and trigger incorrect branch decisions on
+        # next use.
+        self._device = None
+
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
