@@ -25,7 +25,7 @@ PAYLOAD='{
   "observations": [{
     "speed": 25.0,
     "steering": 0.0,
-    "sensors": [0.5, 0.5, 0.5, 0.5, 0.5]
+    "sensors": [0.5, 0.5, 0.5]
   }],
   "deterministic": true
 }'

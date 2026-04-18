@@ -149,6 +149,11 @@ __pycache__/
 *.pkl
 *.onnx
 
+# Model-serving generated artifact trees. The YAML manifests are rewritten by
+# scripts/create_example_artifacts.py on container start / image build, so
+# tracking them produces noisy hash-only diffs.
+model-serving/artifacts/v*/
+
 # Local test/audit scratch (lowercase only, so AUDIT_*.md docs are still tracked)
 **/.audit/
 **/audit_*.log
