@@ -89,7 +89,7 @@ class TestInfrastructureIntegration:
         """Test prediction endpoint with real request."""
         request_data = {
             "observations": [
-                {"speed": 25.5, "steering": 0.1, "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]}
+                {"speed": 25.5, "steering": 0.1, "sensors": [0.8, 0.2, 0.5]}
             ],
             "deterministic": True,
         }
@@ -147,9 +147,9 @@ class TestInfrastructureIntegration:
         """Test batch prediction with multiple observations."""
         request_data = {
             "observations": [
-                {"speed": 20.0, "steering": 0.0, "sensors": [0.1, 0.2, 0.3, 0.4, 0.5]},
-                {"speed": 30.0, "steering": 0.2, "sensors": [0.6, 0.7, 0.8, 0.9, 1.0]},
-                {"speed": 40.0, "steering": -0.1, "sensors": [0.2, 0.4, 0.6, 0.8, 1.0]},
+                {"speed": 20.0, "steering": 0.0, "sensors": [0.1, 0.2, 0.3]},
+                {"speed": 30.0, "steering": 0.2, "sensors": [0.6, 0.7, 0.8]},
+                {"speed": 40.0, "steering": -0.1, "sensors": [0.2, 0.4, 0.6]},
             ],
             "deterministic": False,
         }
@@ -234,7 +234,7 @@ class TestInfrastructureIntegration:
         # Check Prometheus format
         assert "# HELP" in content
         assert "# TYPE" in content
-        assert "carla_rl_uptime_seconds" in content
+        assert "carla_rl_service_uptime_seconds" in content
         assert "carla_rl_model_loaded" in content
 
     def test_openapi_documentation_integration(self, service_url: str):
@@ -275,7 +275,7 @@ class TestPerformanceIntegration:
         assert warmup_response.status_code == 200
 
         request_data = {
-            "observations": [{"speed": 25.0, "steering": 0.0, "sensors": [0.5] * 5}],
+            "observations": [{"speed": 25.0, "steering": 0.0, "sensors": [0.5] * 3}],
             "deterministic": True,
         }
 
@@ -318,7 +318,7 @@ class TestPerformanceIntegration:
         batch_size = 10
         request_data = {
             "observations": [
-                {"speed": 20.0 + i, "steering": i * 0.1, "sensors": [0.1 * j for j in range(5)]}
+                {"speed": 20.0 + i, "steering": i * 0.1, "sensors": [0.1 * j for j in range(3)]}
                 for i in range(batch_size)
             ],
             "deterministic": True,
@@ -357,7 +357,7 @@ class TestPerformanceIntegration:
         warmup_response = requests.post(f"{service_url}/warmup", timeout=30)
         assert warmup_response.status_code == 200
 
-        request_data = {"observations": [{"speed": 25.0, "steering": 0.0, "sensors": [0.5] * 5}]}
+        request_data = {"observations": [{"speed": 25.0, "steering": 0.0, "sensors": [0.5] * 3}]}
 
         results_queue = queue.Queue()
 
