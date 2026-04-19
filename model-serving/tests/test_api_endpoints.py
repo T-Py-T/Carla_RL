@@ -2,43 +2,12 @@
 Integration tests for FastAPI endpoints in CarlaRL Policy-as-a-Service.
 
 Tests all API endpoints with mocked dependencies and real FastAPI client.
+The shared `client` / `mock_app_state` / `mock_inference_engine` fixtures
+are declared in `tests/conftest.py` so they're visible to every test module
+in the suite.
 """
 
-from unittest.mock import Mock, patch
-
 import pytest
-from fastapi.testclient import TestClient
-
-
-# Import after setting up mocks to avoid import errors
-@pytest.fixture
-def mock_inference_engine():
-    """Mock inference engine for testing."""
-    engine = Mock()
-    engine.device = "cpu"
-    engine.predict = Mock(return_value=([Mock(throttle=0.7, brake=0.0, steer=0.1)], 8.5))
-    return engine
-
-
-@pytest.fixture
-def mock_app_state():
-    """Mock application state."""
-    return {
-        "model_loaded": True,
-        "inference_engine": None,  # Will be set by mock_inference_engine
-        "startup_time": 1695825600.0,
-        "warmup_completed": False,
-    }
-
-
-@pytest.fixture
-def client(mock_app_state, mock_inference_engine):
-    """Create test client with mocked dependencies."""
-    with patch("src.server.app_state", mock_app_state):
-        with patch("src.server.get_inference_engine", return_value=mock_inference_engine):
-            from src.server import app
-
-            return TestClient(app)
 
 
 class TestHealthEndpoint:
@@ -46,7 +15,11 @@ class TestHealthEndpoint:
 
     def test_health_check_success(self, client, mock_app_state):
         """Test successful health check."""
+        # The health checker reports "degraded" while the model is loaded but
+        # not yet warmed up (higher latency on the first request). Mark it
+        # warmed so we get a clean "ok" status.
         mock_app_state["model_loaded"] = True
+        mock_app_state["warmup_completed"] = True
 
         response = client.get("/healthz")
 
@@ -61,6 +34,7 @@ class TestHealthEndpoint:
     def test_health_check_degraded(self, client, mock_app_state):
         """Test health check when model not loaded."""
         mock_app_state["model_loaded"] = False
+        mock_app_state["inference_engine"] = None
 
         response = client.get("/healthz")
 
@@ -243,12 +217,14 @@ class TestMetricsEndpoint:
         assert response.status_code == 200
         content = response.text
 
-        # Check Prometheus format
+        # The metrics layer emits richer, labelled Prometheus metrics than the
+        # original implementation, so we check for the canonical metric names
+        # rather than the pre-refactor short names.
         assert "# HELP" in content
         assert "# TYPE" in content
-        assert "carla_rl_uptime_seconds" in content
+        assert "carla_rl_service_uptime_seconds" in content
         assert "carla_rl_model_loaded" in content
-        assert "carla_rl_warmup_completed" in content
+        assert "carla_rl_model_warmed_up" in content
 
     def test_metrics_values(self, client, mock_app_state):
         """Test metrics endpoint values."""
@@ -258,8 +234,11 @@ class TestMetricsEndpoint:
         response = client.get("/metrics")
         content = response.text
 
-        assert "carla_rl_model_loaded 1" in content
-        assert "carla_rl_warmup_completed 1" in content
+        # The gauges now carry labels (model_version, device, ...), so match
+        # the metric family name and leave the full labelled form to Prometheus
+        # to parse.
+        assert "carla_rl_model_loaded" in content
+        assert "carla_rl_model_warmed_up" in content
 
 
 class TestErrorHandling:

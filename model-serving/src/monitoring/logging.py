@@ -31,13 +31,18 @@ class StructuredLogger:
     def __init__(
         self,
         name: str,
-        level: int = logging.INFO,
+        level: Union[str, int] = logging.INFO,
         include_correlation_id: bool = True,
         include_timestamp: bool = True,
         include_level: bool = True,
         include_logger_name: bool = True
     ):
         """Initialize structured logger."""
+        # Python's stdlib logging accepts both "INFO" and logging.INFO, but it
+        # rejects the lowercase "info" that uvicorn/docker-compose frequently
+        # hand us. Normalize strings here so any casing works.
+        if isinstance(level, str):
+            level = getattr(logging, level.upper(), logging.INFO)
         self.logger = logging.getLogger(name)
         self.logger.setLevel(level)
         
@@ -322,50 +327,50 @@ class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as JSON."""
         try:
-            # Parse existing JSON if it's already structured
-            if hasattr(record, 'msg') and isinstance(record.msg, str):
-                try:
-                    return record.msg  # Already JSON formatted
-                except (json.JSONDecodeError, TypeError):
-                    pass
-            
-            # Create structured log entry
-            log_entry = {
-                "message": record.getMessage(),
-                "level": record.levelname,
-            }
-            
-            if self.include_timestamp:
-                log_entry["timestamp"] = datetime.fromtimestamp(
-                    record.created, tz=timezone.utc
-                ).isoformat()
-            
-            if self.include_logger_name:
-                log_entry["logger"] = record.name
-            
-            if self.include_correlation_id and hasattr(record, 'correlation_id'):
-                log_entry["correlation_id"] = record.correlation_id
-            
-            # Add exception info if present
-            if record.exc_info:
-                log_entry["exception"] = self.formatException(record.exc_info)
-            
-            # Add any additional attributes
-            for key, value in record.__dict__.items():
-                if key not in {
-                    'name', 'msg', 'args', 'levelname', 'levelno', 'pathname',
-                    'filename', 'module', 'lineno', 'funcName', 'created',
-                    'msecs', 'relativeCreated', 'thread', 'threadName',
-                    'processName', 'process', 'getMessage', 'exc_info',
-                    'exc_text', 'stack_info'
-                }:
-                    log_entry[key] = value
-            
+            # `_create_log_entry` owns the structured dict construction so
+            # tests (and future formatter subclasses) have a single hook to
+            # patch or override instead of reimplementing `format` wholesale.
+            log_entry = self._create_log_entry(record)
             return json.dumps(log_entry, default=str)
-        
+
         except Exception:
-            # Fallback to simple format if JSON formatting fails
+            # Fallback to a simple `LEVEL: message` string if JSON formatting
+            # fails; this ensures log records are never dropped silently even
+            # when the structured serializer hits an edge case.
             return f"{record.levelname}: {record.getMessage()}"
+
+    def _create_log_entry(self, record: logging.LogRecord) -> Dict[str, Any]:
+        """Build the structured dict that ``format`` will serialize as JSON."""
+        log_entry: Dict[str, Any] = {
+            "message": record.getMessage(),
+            "level": record.levelname,
+        }
+
+        if self.include_timestamp:
+            log_entry["timestamp"] = datetime.fromtimestamp(
+                record.created, tz=timezone.utc
+            ).isoformat()
+
+        if self.include_logger_name:
+            log_entry["logger"] = record.name
+
+        if self.include_correlation_id and hasattr(record, 'correlation_id'):
+            log_entry["correlation_id"] = record.correlation_id
+
+        if record.exc_info:
+            log_entry["exception"] = self.formatException(record.exc_info)
+
+        for key, value in record.__dict__.items():
+            if key not in {
+                'name', 'msg', 'args', 'levelname', 'levelno', 'pathname',
+                'filename', 'module', 'lineno', 'funcName', 'created',
+                'msecs', 'relativeCreated', 'thread', 'threadName',
+                'processName', 'process', 'getMessage', 'exc_info',
+                'exc_text', 'stack_info'
+            }:
+                log_entry[key] = value
+
+        return log_entry
 
 
 # Global logger instances
@@ -394,14 +399,17 @@ def configure_logging(
     include_correlation_id: bool = True
 ) -> None:
     """Configure logging for the application."""
+    # Normalize string log levels so lowercase values from env vars (uvicorn
+    # prefers lowercase) still work when they reach Python's stdlib logging.
+    if isinstance(level, str):
+        level = getattr(logging, level.upper(), logging.INFO)
+
     if format_type == "json":
-        # Use structured JSON logging
         get_logger(
             level=level,
             include_correlation_id=include_correlation_id
         )
     else:
-        # Use standard Python logging
         logging.basicConfig(
             level=level,
             format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'

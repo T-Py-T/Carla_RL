@@ -4,7 +4,7 @@ Unit tests for semantic version parsing and validation.
 
 import pytest
 
-from model_serving.src.versioning.semantic_version import (
+from src.versioning.semantic_version import (
     SemanticVersion,
     parse_version,
     sort_versions,
@@ -189,14 +189,14 @@ class TestVersionUtilities:
     def test_sort_versions(self):
         """Test version sorting functionality."""
         versions = ["v1.0.0", "v2.1.0", "v1.2.3", "v1.0.1", "v2.0.0-alpha"]
-        
-        # Test descending sort (default)
-        sorted_desc = sort_versions(versions)
+
+        # sort_versions returns SemanticVersion instances; compare against
+        # their string form so we keep the test readable.
+        sorted_desc = [str(v) for v in sort_versions(versions)]
         expected_desc = ["v2.1.0", "v2.0.0-alpha", "v1.2.3", "v1.0.1", "v1.0.0"]
         assert sorted_desc == expected_desc
-        
-        # Test ascending sort
-        sorted_asc = sort_versions(versions, descending=False)
+
+        sorted_asc = [str(v) for v in sort_versions(versions, descending=False)]
         expected_asc = ["v1.0.0", "v1.0.1", "v1.2.3", "v2.0.0-alpha", "v2.1.0"]
         assert sorted_asc == expected_asc
 

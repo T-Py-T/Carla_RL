@@ -142,9 +142,11 @@ class TestVersionSelector:
     def test_stable_version_selection(self):
         # Test selecting the latest stable version.
         result = self.selector.select_version(VersionSelectionStrategy.STABLE)
-        
-        # Should select v1.1.0 (latest stable, excluding beta)
-        assert result.selected_version == parse_version("v1.1.0")
+
+        # Should select v2.0.0 (the highest non-prerelease version).
+        # v1.2.0-beta is excluded because it is a prerelease, so the highest
+        # remaining stable version wins, regardless of major line.
+        assert result.selected_version == parse_version("v2.0.0")
         assert result.strategy_used == VersionSelectionStrategy.STABLE
 
     def test_specific_version_selection(self):

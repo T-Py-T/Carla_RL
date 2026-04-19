@@ -364,8 +364,10 @@ class TestUtilityFunctions:
 
         assert isinstance(features, np.ndarray)
         assert features.shape == (2, 4)  # 2 observations, 4 features
-        assert features[0, 0] == 20.0  # First speed
-        assert features[1, 1] == 0.1  # Second steering
+        # MinimalPreprocessor uses float32, so 0.1 is not exactly representable;
+        # use pytest.approx with a float32-sized tolerance instead of ==.
+        assert features[0, 0] == pytest.approx(20.0)
+        assert features[1, 1] == pytest.approx(0.1, rel=1e-6)
 
     def test_validate_preprocessing_parity_success(self):
         """Test successful preprocessing parity validation."""
@@ -443,24 +445,21 @@ class TestPreprocessingEdgeCases:
     """Test cases for edge cases and error conditions."""
 
     def test_preprocessing_with_nan_values(self):
-        """Test preprocessing with NaN values in observations."""
-        observations = [Observation(speed=float("nan"), steering=0.0, sensors=[1.0, 2.0])]
+        """NaN speeds must be rejected at the schema boundary."""
+        # The Observation schema clamps speed to [0, 200], so Pydantic rejects
+        # NaN before it can ever reach the preprocessor. That is the correct
+        # defence-in-depth: invalid values never propagate into model tensors.
+        from pydantic import ValidationError
 
-        preprocessor = StandardFeaturePreprocessor()
-
-        # Should handle NaN gracefully or raise appropriate error
-        with pytest.raises(PreprocessingError):
-            preprocessor.fit_transform(observations)
+        with pytest.raises(ValidationError):
+            Observation(speed=float("nan"), steering=0.0, sensors=[1.0, 2.0])
 
     def test_preprocessing_with_infinite_values(self):
-        """Test preprocessing with infinite values."""
-        observations = [Observation(speed=float("inf"), steering=0.0, sensors=[1.0, 2.0])]
+        """Infinite speeds must be rejected at the schema boundary."""
+        from pydantic import ValidationError
 
-        preprocessor = StandardFeaturePreprocessor()
-
-        # Should handle infinity gracefully or raise appropriate error
-        with pytest.raises(PreprocessingError):
-            preprocessor.fit_transform(observations)
+        with pytest.raises(ValidationError):
+            Observation(speed=float("inf"), steering=0.0, sensors=[1.0, 2.0])
 
     def test_preprocessing_with_empty_sensors(self):
         """Test preprocessing with empty sensor arrays."""

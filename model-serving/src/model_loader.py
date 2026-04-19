@@ -68,21 +68,26 @@ class PolicyWrapper(nn.Module):
             Action tensor (batch_size, action_dim)
         """
         try:
+            # TorchScript modules expose a fixed forward signature captured at
+            # trace/script time. Probing with deterministic=True first and
+            # falling back to a single-argument call keeps us compatible with
+            # both stochastic policies (that accept the flag) and simple
+            # traced modules (that only accept the input tensor).
             if self.model_type == "torchscript":
-                # TorchScript models may have different interfaces
-                if hasattr(self.model, "act"):
-                    return self.model.act(x, deterministic)
-                elif hasattr(self.model, "forward"):
-                    return self.model.forward(x, deterministic)
-                else:
+                act = getattr(self.model, "act", None)
+                if callable(act):
+                    try:
+                        return act(x, deterministic)
+                    except (TypeError, RuntimeError):
+                        return act(x)
+                try:
+                    return self.model(x, deterministic)
+                except (TypeError, RuntimeError):
                     return self.model(x)
-            else:
-                # Standard PyTorch model
-                if hasattr(self.model, "act"):
-                    return self.model.act(x, deterministic)
-                else:
-                    # Assume direct forward pass for simple models
-                    return self.model(x)
+
+            if hasattr(self.model, "act"):
+                return self.model.act(x, deterministic)
+            return self.model(x)
 
         except Exception as e:
             raise ModelLoadingError(
@@ -130,11 +135,12 @@ def validate_artifact_integrity(artifact_dir: Path, model_card: dict[str, Any]) 
     Raises:
         ArtifactValidationError: If validation fails
     """
-    if "artifact_hashes" not in model_card:
-        # No hashes to validate against - skip validation
+    expected_hashes = model_card.get("artifact_hashes") or {}
+    if not expected_hashes:
+        # No hashes recorded in the model card - skip validation. This is the
+        # expected path for freshly generated artifacts before
+        # create_example_artifacts.py has populated the hash map.
         return True
-
-    expected_hashes = model_card["artifact_hashes"]
 
     for filename, expected_hash in expected_hashes.items():
         file_path = artifact_dir / filename
@@ -228,8 +234,13 @@ def load_pytorch_model(model_path: Path, device: torch.device) -> PolicyWrapper:
 
     except Exception as torchscript_error:
         try:
-            # Fallback to regular PyTorch model
-            model = torch.load(str(model_path), map_location=device)
+            # Fallback to a regular torch.save(nn.Module) pickle. PyTorch 2.6
+            # changed the default of `weights_only` to True, which refuses to
+            # unpickle full nn.Module instances; serving needs to keep loading
+            # those, so we restore the pre-2.6 behaviour explicitly.
+            model = torch.load(
+                str(model_path), map_location=device, weights_only=False
+            )
 
             # Handle different save formats
             if isinstance(model, dict):

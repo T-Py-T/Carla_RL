@@ -2,13 +2,43 @@
 Integration tests for CarlaRL Policy-as-a-Service Infrastructure.
 
 Tests Docker deployment, health checks, and end-to-end functionality.
+
+These tests require a live instance of the service to be reachable at
+`http://localhost:8080` (spin up via `docker compose up` or
+`uvicorn src.server:app`). When no service is running, every test in this
+module is skipped automatically so CI/unit-test runs stay green.
 """
 
+import os
 import subprocess
 import time
 
 import pytest
 import requests
+
+
+SERVICE_URL = os.getenv("CARLA_RL_SERVICE_URL", "http://localhost:8080")
+
+
+def _service_is_up(url: str, timeout: float = 1.0) -> bool:
+    """Return True if `GET {url}/healthz` responds within `timeout` seconds."""
+    try:
+        resp = requests.get(f"{url}/healthz", timeout=timeout)
+    except requests.RequestException:
+        return False
+    return resp.status_code == 200
+
+
+# Skip the entire module if no service is listening. This keeps the test suite
+# green when run outside of a deployed environment while still running these
+# integration tests when the service is available.
+pytestmark = pytest.mark.skipif(
+    not _service_is_up(SERVICE_URL),
+    reason=(
+        "No CarlaRL serving instance reachable at "
+        f"{SERVICE_URL}; start the service to run integration tests."
+    ),
+)
 
 
 class TestInfrastructureIntegration:
@@ -17,7 +47,7 @@ class TestInfrastructureIntegration:
     @pytest.fixture(scope="class")
     def service_url(self) -> str:
         """Base URL for the running service."""
-        return "http://localhost:8080"
+        return SERVICE_URL
 
     def test_health_endpoint_integration(self, service_url: str):
         """Test health endpoint returns proper response."""
@@ -59,7 +89,7 @@ class TestInfrastructureIntegration:
         """Test prediction endpoint with real request."""
         request_data = {
             "observations": [
-                {"speed": 25.5, "steering": 0.1, "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]}
+                {"speed": 25.5, "steering": 0.1, "sensors": [0.8, 0.2, 0.5]}
             ],
             "deterministic": True,
         }
@@ -117,9 +147,9 @@ class TestInfrastructureIntegration:
         """Test batch prediction with multiple observations."""
         request_data = {
             "observations": [
-                {"speed": 20.0, "steering": 0.0, "sensors": [0.1, 0.2, 0.3, 0.4, 0.5]},
-                {"speed": 30.0, "steering": 0.2, "sensors": [0.6, 0.7, 0.8, 0.9, 1.0]},
-                {"speed": 40.0, "steering": -0.1, "sensors": [0.2, 0.4, 0.6, 0.8, 1.0]},
+                {"speed": 20.0, "steering": 0.0, "sensors": [0.1, 0.2, 0.3]},
+                {"speed": 30.0, "steering": 0.2, "sensors": [0.6, 0.7, 0.8]},
+                {"speed": 40.0, "steering": -0.1, "sensors": [0.2, 0.4, 0.6]},
             ],
             "deterministic": False,
         }
@@ -204,7 +234,7 @@ class TestInfrastructureIntegration:
         # Check Prometheus format
         assert "# HELP" in content
         assert "# TYPE" in content
-        assert "carla_rl_uptime_seconds" in content
+        assert "carla_rl_service_uptime_seconds" in content
         assert "carla_rl_model_loaded" in content
 
     def test_openapi_documentation_integration(self, service_url: str):
@@ -236,7 +266,7 @@ class TestPerformanceIntegration:
     @pytest.fixture(scope="class")
     def service_url(self) -> str:
         """Base URL for the running service."""
-        return "http://localhost:8080"
+        return SERVICE_URL
 
     def test_latency_performance_integration(self, service_url: str):
         """Test inference latency performance."""
@@ -245,7 +275,7 @@ class TestPerformanceIntegration:
         assert warmup_response.status_code == 200
 
         request_data = {
-            "observations": [{"speed": 25.0, "steering": 0.0, "sensors": [0.5] * 5}],
+            "observations": [{"speed": 25.0, "steering": 0.0, "sensors": [0.5] * 3}],
             "deterministic": True,
         }
 
@@ -288,7 +318,7 @@ class TestPerformanceIntegration:
         batch_size = 10
         request_data = {
             "observations": [
-                {"speed": 20.0 + i, "steering": i * 0.1, "sensors": [0.1 * j for j in range(5)]}
+                {"speed": 20.0 + i, "steering": i * 0.1, "sensors": [0.1 * j for j in range(3)]}
                 for i in range(batch_size)
             ],
             "deterministic": True,
@@ -327,7 +357,7 @@ class TestPerformanceIntegration:
         warmup_response = requests.post(f"{service_url}/warmup", timeout=30)
         assert warmup_response.status_code == 200
 
-        request_data = {"observations": [{"speed": 25.0, "steering": 0.0, "sensors": [0.5] * 5}]}
+        request_data = {"observations": [{"speed": 25.0, "steering": 0.0, "sensors": [0.5] * 3}]}
 
         results_queue = queue.Queue()
 

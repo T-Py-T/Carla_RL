@@ -10,6 +10,7 @@ import time
 from typing import Any
 
 from fastapi import HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
 
@@ -249,6 +250,48 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     return JSONResponse(status_code=exc.status_code, content=error_response)
 
 
+async def request_validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """FastAPI exception handler for request body/query validation errors.
+
+    FastAPI wraps Pydantic errors raised during request parsing in
+    `RequestValidationError`, which is a separate type from
+    `pydantic.ValidationError`. Register a dedicated handler so the standard
+    `{"error": "VALIDATION_ERROR", ...}` envelope is returned instead of the
+    default `{"detail": [...]}` body.
+    """
+    request_id = getattr(request.state, "request_id", None)
+
+    logger.warning(
+        f"Request validation error: {len(exc.errors())} validation failures",
+        extra={
+            "validation_errors": exc.errors(),
+            "request_id": request_id,
+            "path": request.url.path,
+            "method": request.method,
+        },
+    )
+
+    error_response = {
+        "error": "VALIDATION_ERROR",
+        "message": "Input validation failed",
+        "details": {
+            "validation_errors": [
+                {
+                    "field": ".".join(str(loc) for loc in err["loc"]),
+                    "message": err["msg"],
+                    "type": err["type"],
+                }
+                for err in exc.errors()
+            ],
+            **({"request_id": request_id} if request_id else {}),
+        },
+        "timestamp": time.time(),
+    }
+    return JSONResponse(status_code=422, content=error_response)
+
+
 async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """
     FastAPI exception handler for unexpected exceptions.
@@ -278,9 +321,11 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
     return JSONResponse(status_code=500, content=error_response)
 
 
-# Exception handler mapping for FastAPI
+# Exception handler mapping for FastAPI. Order matters: more specific types
+# are listed first so FastAPI picks them before the catch-all `Exception`.
 EXCEPTION_HANDLERS = {
     CarlaRLServingException: carla_rl_exception_handler,
+    RequestValidationError: request_validation_exception_handler,
     PydanticValidationError: validation_exception_handler,
     HTTPException: http_exception_handler,
     Exception: generic_exception_handler,
