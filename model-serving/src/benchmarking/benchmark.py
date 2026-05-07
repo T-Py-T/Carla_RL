@@ -203,7 +203,7 @@ class BenchmarkEngine:
         max_ms = float(np.max(latencies_array))
 
         # Percentile calculations with interpolation
-        percentiles = np.percentile(latencies_array, [50, 90, 95, 99, 99.9], interpolation="linear")
+        percentiles = np.percentile(latencies_array, [50, 90, 95, 99, 99.9], method="linear")
 
         # Calculate additional statistics
         skewness = self._calculate_skewness(latencies_array)

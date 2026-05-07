@@ -39,13 +39,13 @@ jobs:
 
         # Install root dependencies
         uv sync --dev
-        # Install model-serving dependencies
+        # Install model-serving dependencies (optional "dev" extra: pytest, asyncio, etc.)
         if [ -d "model-serving" ]; then
-          cd model-serving && uv sync --dev && cd ..
+          cd model-serving && uv sync --extra dev && cd ..
         fi
-        # Install model-sim dependencies  
+        # Install model-sim dependencies
         if [ -d "model-sim" ]; then
-          cd model-sim && uv sync --dev && cd ..
+          cd model-sim && uv sync --extra dev && cd ..
         fi
 
         

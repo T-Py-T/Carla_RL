@@ -23,7 +23,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.9'
+        python-version: '3.11'
         
     - name: Install uv
       uses: astral-sh/setup-uv@v4
@@ -31,7 +31,7 @@ jobs:
     - name: Install dependencies
       run: |
         cd model-serving
-        uv sync --dev
+        uv sync --extra dev
         
     - name: Run environment-aware performance test
       run: |

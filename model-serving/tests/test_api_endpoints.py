@@ -7,8 +7,6 @@ are declared in `tests/conftest.py` so they're visible to every test module
 in the suite.
 """
 
-import pytest
-
 
 class TestHealthEndpoint:
     """Test cases for /healthz endpoint."""
