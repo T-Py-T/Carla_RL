@@ -27,7 +27,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.13'
+        python-version: '3.14'
         
     - name: Install uv
       uses: astral-sh/setup-uv@v4
@@ -37,15 +37,15 @@ jobs:
     - name: Install dependencies
       run: |
 
-        # Install root dependencies
-        uv sync --dev
-        # Install model-serving dependencies (optional "dev" extra: pytest, asyncio, etc.)
+        # Install root dependencies (3.14)
+        uv sync --dev --python 3.14
+        # model-serving: 3.14 (see .github/UPGRADE_TRACKER.md)
         if [ -d "model-serving" ]; then
-          cd model-serving && uv sync --extra dev && cd ..
+          cd model-serving && uv sync --extra dev --python 3.14 && cd ..
         fi
-        # Install model-sim dependencies
+        # model-sim: stay on 3.13 until TensorFlow ships cp314 wheels (UPGRADE_TRACKER.md)
         if [ -d "model-sim" ]; then
-          cd model-sim && uv sync --extra dev && cd ..
+          cd model-sim && uv sync --extra dev --python 3.13 && cd ..
         fi
 
         

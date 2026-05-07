@@ -2,7 +2,7 @@
 # Optimized for production deployment with security and performance
 
 # Stage 1: Base image with system dependencies
-FROM python:3.13-slim AS base
+FROM python:3.14-slim AS base
 
 # Set environment variables for Python
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -44,7 +44,7 @@ RUN python -m scripts.create_example_artifacts \
         --version v0.1.0
 
 # Stage 4: Production image
-FROM python:3.13-slim AS production
+FROM python:3.14-slim AS production
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
