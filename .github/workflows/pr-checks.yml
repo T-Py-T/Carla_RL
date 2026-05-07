@@ -16,7 +16,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: '3.13'
         
     - name: Install uv
       uses: astral-sh/setup-uv@v4
@@ -33,7 +33,7 @@ jobs:
         echo "Checking Python syntax..."
         # Check only our source Python files (exclude all build/cache directories)
         find . -name "*.py" \
-          -not -path "./.venv/*" \
+          -not -path "*/.venv/*" \
           -not -path "./*/__pycache__/*" \
           -not -path "./*/node_modules/*" \
           -not -path "./.git/*" \

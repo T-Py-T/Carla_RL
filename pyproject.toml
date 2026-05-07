@@ -2,7 +2,7 @@
 name = "highway-rl"
 version = "0.1.0"
 description = "Highway RL - Function-Driven Repository"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 dependencies = [
     "ruff>=0.9.0",
 ]
@@ -44,8 +44,8 @@ exclude = [
 line-length = 88
 indent-width = 4
 
-# Assume Python 3.11+
-target-version = "py311"
+# Assume Python 3.13+
+target-version = "py313"
 
 [tool.ruff.lint]
 # Only enable the most critical rules - everything else is ignored

@@ -3,7 +3,7 @@
 This dev container provides a reproducible development environment for the Carla_RL project using [uv](https://github.com/astral-sh/uv) for fast Python dependency management.
 
 ## Features
-- Python 3.11 (slim image)
+- Python 3.13 (slim image)
 - [uv](https://github.com/astral-sh/uv) for dependency management
 - Dependencies installed from `pyproject.toml` and `uv.lock`
 - VS Code Python and Pylance extensions
