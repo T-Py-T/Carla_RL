@@ -66,7 +66,7 @@ This implementation demonstrates:
 ### Installation & Training
 ```bash
 # Clone and setup
-git clone <repository-url>
+git clone https://github.com/T-Py-T/Carla_RL
 cd Carla_RL
 
 # Install dependencies

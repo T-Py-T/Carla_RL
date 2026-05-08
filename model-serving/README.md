@@ -21,7 +21,7 @@ High-performance serving infrastructure for CarlaRL reinforcement learning polic
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.14+
 - Docker (optional)
 - CUDA-capable GPU (optional, for GPU inference)
 

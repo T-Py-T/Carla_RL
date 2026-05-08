@@ -86,10 +86,15 @@ class TestPolicyWrapper:
 
     def test_policy_wrapper_forward_error(self):
         """Test error handling in forward pass."""
-        # Create a model that will fail
+        # The wrapper prefers `model.act(x, deterministic)` when it's
+        # available, so we need both `act` and the fallback `__call__` to
+        # raise in order to reach the error branch. The previous version of
+        # this test only wired up `side_effect` on the base mock, which meant
+        # the resilient forward path silently succeeded.
         model = Mock()
         model.parameters.return_value = iter([torch.tensor([1.0])])
         model.eval.return_value = model
+        model.act.side_effect = RuntimeError("Model error")
         model.side_effect = RuntimeError("Model error")
 
         wrapper = PolicyWrapper(model)

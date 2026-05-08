@@ -1,3 +1,6 @@
---container-architecture linux/amd64
+# Local GitHub Actions runner mapping (nektos/act).
+# Apple Silicon Mac + OrbStack: linux/arm64 matches the host and avoids QEMU slowdowns.
+# Intel Mac / GitHub ubuntu-latest parity / Linux x86_64 dev machines:
+#   use --container-architecture linux/amd64 instead.
+--container-architecture linux/arm64
 -P ubuntu-latest=catthehacker/ubuntu:act-latest
---verbose

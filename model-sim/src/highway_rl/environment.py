@@ -7,6 +7,12 @@ Provides rich environment feedback and multiple driving scenarios.
 
 import numpy as np
 import gymnasium as gym
+
+# Importing highway_env registers the highway-fast-v0, merge-v0, etc.
+# environment IDs with Gymnasium's registry. Without this side-effect import
+# gym.make(...) below would raise a NameNotFound error.
+import highway_env  # noqa: F401
+
 from typing import Dict, Tuple, Optional, Any, List
 
 

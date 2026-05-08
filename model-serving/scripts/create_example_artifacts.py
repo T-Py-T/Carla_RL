@@ -1,31 +1,53 @@
 #!/usr/bin/env python3
-"""
-Script to create example model artifacts for CarlaRL Policy-as-a-Service.
+"""Create example model artifacts for CarlaRL Policy-as-a-Service.
 
-This script generates a simple example model and preprocessor for testing
-and demonstration purposes.
+Generates a small example policy and preprocessor so the serving stack has a
+working `model.pt` + `preprocessor.pkl` pair to load. Intended for local
+development, CI, and Docker image builds — not for production training.
+
+Usage
+-----
+From the repo root so `src.*` imports resolve:
+
+    python -m scripts.create_example_artifacts \
+        --output model-serving/artifacts --version v0.1.0
 """
+
+from __future__ import annotations
 
 import argparse
 import hashlib
-
-# Add src to path for imports
 import sys
 from pathlib import Path
+from typing import Optional
 
 import torch
 import torch.nn as nn
+import yaml
 
-sys.path.append(str(Path(__file__).parent.parent / "src"))
+# Add the repo root to sys.path so `src.*` resolves when this script is run
+# directly (e.g. `python scripts/create_example_artifacts.py`). When invoked
+# with `-m scripts.create_example_artifacts`, the repo root is already on
+# sys.path and the insert is a harmless no-op.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
-from io_schemas import Observation
-from preprocessing import StandardFeaturePreprocessor
+from src.io_schemas import Observation  # noqa: E402
+from src.preprocessing import StandardFeaturePreprocessor  # noqa: E402
 
 
 class ExampleCarlaModel(nn.Module):
-    """Simple example model for CARLA autonomous driving."""
+    """Simple example model for CARLA autonomous driving.
 
-    def __init__(self, input_dim: int = 5, hidden_dim: int = 64, output_dim: int = 3):
+    Input: 5 features (speed, steering, sensor1, sensor2, sensor3).
+    Output: 3 floats that the serving post-processor clips into the
+    [throttle, brake, steer] action space.
+    """
+
+    def __init__(
+        self, input_dim: int = 5, hidden_dim: int = 64, output_dim: int = 3
+    ):
         super().__init__()
         self.network = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
@@ -33,176 +55,149 @@ class ExampleCarlaModel(nn.Module):
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
             nn.Linear(hidden_dim, output_dim),
-            nn.Tanh()  # Output in [-1, 1] range
+            nn.Tanh(),
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.network(x)
-
-    def act(self, x, deterministic=False):
-        """Policy action method for RL inference."""
-        output = self.forward(x)
-
-        # Convert to action space: [throttle, brake, steer]
-        # Throttle and brake: [0, 1], Steer: [-1, 1]
-        throttle = torch.sigmoid(output[:, 0])  # [0, 1]
-        brake = torch.sigmoid(output[:, 1])     # [0, 1]
-        steer = output[:, 2]                    # [-1, 1] (already from tanh)
-
-        return torch.stack([throttle, brake, steer], dim=1)
 
 
 def create_example_model() -> nn.Module:
-    """Create and initialize example model."""
+    """Create and lightly initialize the example model."""
     model = ExampleCarlaModel()
-
-    # Initialize with reasonable weights for driving
     with torch.no_grad():
-        # Make the model prefer moderate throttle, low brake, and centered steering
-        model.network[4].weight.data *= 0.1  # Reduce output magnitude
-        model.network[4].bias.data = torch.tensor([0.5, -2.0, 0.0])  # Bias towards throttle, away from brake
-
+        # Shrink the last layer so the untrained policy outputs small actions
+        # and bias it towards gentle throttle + centered steering.
+        model.network[4].weight.data *= 0.1
+        model.network[4].bias.data = torch.tensor([0.5, -2.0, 0.0])
     return model
 
 
 def create_example_preprocessor() -> StandardFeaturePreprocessor:
-    """Create and fit example preprocessor."""
-    # Create example training observations
-    example_observations = []
-    for i in range(100):
-        obs = Observation(
-            speed=20.0 + i * 0.5,  # Speeds from 20 to 70 km/h
-            steering=(i - 50) * 0.02,  # Steering from -1.0 to 1.0
+    """Create and fit a StandardFeaturePreprocessor on synthetic observations."""
+    observations = [
+        Observation(
+            speed=20.0 + i * 0.5,
+            steering=(i - 50) * 0.02,
             sensors=[
-                0.5 + 0.01 * i,  # Sensor 1
-                0.3 + 0.02 * i,  # Sensor 2
-                0.7 - 0.01 * i,  # Sensor 3
-            ]
+                0.5 + 0.01 * i,
+                0.3 + 0.02 * i,
+                0.7 - 0.01 * i,
+            ],
         )
-        example_observations.append(obs)
-
-    # Create and fit preprocessor
+        for i in range(100)
+    ]
     preprocessor = StandardFeaturePreprocessor(
         normalize_speed=True,
         normalize_steering=True,
         normalize_sensors=True,
-        sensor_clip_range=(-10.0, 10.0)
+        sensor_clip_range=(-10.0, 10.0),
     )
-
-    preprocessor.fit(example_observations)
+    preprocessor.fit(observations)
     return preprocessor
 
 
 def compute_file_hash(file_path: Path) -> str:
-    """Compute SHA256 hash of a file."""
-    sha256_hash = hashlib.sha256()
-    with open(file_path, "rb") as f:
-        for chunk in iter(lambda: f.read(4096), b""):
-            sha256_hash.update(chunk)
-    return sha256_hash.hexdigest()
+    """Return the SHA-256 hex digest of `file_path`."""
+    sha = hashlib.sha256()
+    with open(file_path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(4096), b""):
+            sha.update(chunk)
+    return sha.hexdigest()
 
 
-def create_artifacts(output_dir: Path, version: str = "v0.1.0"):
-    """Create complete artifact set."""
-    print(f"Creating example artifacts in {output_dir}")
+def _save_model(model: nn.Module, model_path: Path) -> str:
+    """Save `model` to `model_path`, preferring TorchScript.
 
-    # Create output directory
-    artifact_dir = output_dir / version
-    artifact_dir.mkdir(parents=True, exist_ok=True)
-
-    # Create model
-    print("Creating example model...")
-    model = create_example_model()
+    Tracing captures `forward` into a portable TorchScript module so loading
+    does not require the original Python class on the import path. If tracing
+    fails (e.g. on exotic custom ops), fall back to a full `nn.Module` pickle
+    so the artifact still works via the PyTorch load path in model_loader.
+    """
     model.eval()
-
-    # Save as TorchScript for production
     example_input = torch.randn(1, 5)
     try:
-        scripted_model = torch.jit.trace(model, example_input)
-        model_path = artifact_dir / "model.pt"
-        torch.jit.save(scripted_model, model_path)
-        print(f" Saved TorchScript model to {model_path}")
-    except Exception as e:
-        print(f"WARNING  TorchScript failed ({e}), saving regular PyTorch model")
-        model_path = artifact_dir / "model.pt"
-        torch.save(model, model_path)
-        print(f" Saved PyTorch model to {model_path}")
+        scripted = torch.jit.trace(model, example_input)
+        torch.jit.save(scripted, str(model_path))
+        return "torchscript"
+    except Exception as exc:  # noqa: BLE001
+        print(f"WARNING: TorchScript tracing failed ({exc}); saving nn.Module pickle")
+        torch.save(model, str(model_path))
+        return "pytorch"
 
-    # Create preprocessor
-    print("Creating example preprocessor...")
-    preprocessor = create_example_preprocessor()
+
+def create_artifacts(output_dir: Path, version: str = "v0.1.0") -> Path:
+    """Create the complete artifact set under `output_dir/version`."""
+    artifact_dir = output_dir / version
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    print(f"Creating example artifacts in {artifact_dir}")
+
+    model_path = artifact_dir / "model.pt"
+    save_format = _save_model(create_example_model(), model_path)
+    print(f"  saved {save_format} model -> {model_path}")
+
     preprocessor_path = artifact_dir / "preprocessor.pkl"
+    preprocessor = create_example_preprocessor()
     preprocessor.save(preprocessor_path)
-    print(f" Saved preprocessor to {preprocessor_path}")
+    print(f"  saved preprocessor -> {preprocessor_path}")
 
-    # Compute hashes
     model_hash = compute_file_hash(model_path)
     preprocessor_hash = compute_file_hash(preprocessor_path)
 
-    print(f"Model hash: {model_hash}")
-    print(f"Preprocessor hash: {preprocessor_hash}")
-
-    # Update model card with computed hashes
     model_card_path = artifact_dir / "model_card.yaml"
+    model_card = {}
     if model_card_path.exists():
-        import yaml
-        with open(model_card_path) as f:
-            model_card = yaml.safe_load(f)
+        with open(model_card_path) as handle:
+            model_card = yaml.safe_load(handle) or {}
 
-        model_card["artifact_hashes"] = {
-            "model.pt": model_hash,
-            "preprocessor.pkl": preprocessor_hash
-        }
+    model_card.setdefault("model_name", "carla-ppo")
+    model_card.setdefault("version", version)
+    model_card.setdefault("model_type", save_format)
+    model_card["artifact_hashes"] = {
+        "model.pt": model_hash,
+        "preprocessor.pkl": preprocessor_hash,
+    }
 
-        with open(model_card_path, 'w') as f:
-            yaml.dump(model_card, f, default_flow_style=False)
+    with open(model_card_path, "w") as handle:
+        yaml.dump(model_card, handle, default_flow_style=False, sort_keys=False)
+    print(f"  updated model card -> {model_card_path}")
 
-        print(f" Updated model card with hashes at {model_card_path}")
-    else:
-        print("WARNING  Model card not found, hashes not updated")
-
-    print("\n Example artifacts created successfully!")
-    print(f"Artifact directory: {artifact_dir}")
-    print("Files created:")
-    for file_path in artifact_dir.iterdir():
-        if file_path.is_file():
-            size_mb = file_path.stat().st_size / (1024 * 1024)
-            print(f"  - {file_path.name} ({size_mb:.2f} MB)")
+    print("\nArtifacts created successfully. Files:")
+    for entry in sorted(artifact_dir.iterdir()):
+        if entry.is_file():
+            size_mb = entry.stat().st_size / (1024 * 1024)
+            print(f"  - {entry.name} ({size_mb:.2f} MB)")
 
     return artifact_dir
 
 
-def main():
-    """Main entry point."""
-    parser = argparse.ArgumentParser(description="Create example CarlaRL model artifacts")
+def main(argv: Optional[list[str]] = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Create example CarlaRL model artifacts"
+    )
     parser.add_argument(
         "--output",
         type=Path,
         default=Path("artifacts"),
-        help="Output directory for artifacts"
+        help="Output directory for artifacts (relative paths resolved from CWD)",
     )
     parser.add_argument(
         "--version",
         type=str,
         default="v0.1.0",
-        help="Model version"
+        help="Model version tag",
     )
-
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     try:
         artifact_dir = create_artifacts(args.output, args.version)
-        print(f"\n Success! Artifacts ready at: {artifact_dir}")
-        print("\nTo test the artifacts:")
-        print("  make dev")
-        print("  curl http://localhost:8080/healthz")
-
-    except Exception as e:
-        print(f"\n Failed to create artifacts: {e}")
+    except Exception as exc:  # noqa: BLE001
+        print(f"Failed to create artifacts: {exc}")
         return 1
 
+    print(f"\nDone. Artifacts ready at: {artifact_dir}")
     return 0
 
 
 if __name__ == "__main__":
-    exit(main())
+    raise SystemExit(main())

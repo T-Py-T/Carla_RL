@@ -287,30 +287,33 @@ async def health_check() -> HealthResponse:
     Health check endpoint.
 
     Returns service status, version information, and basic diagnostics.
+    The public status contract is `"ok" | "degraded"` so consumers don't have
+    to change when we add richer internal statuses ("unhealthy", "unknown",
+    ...) to the health checker. Those richer statuses are still logged and
+    exposed via /metrics for observability.
     """
     import torch
-    
-    # Get monitoring components
+
     health_checker = get_health_checker(app_state)
     logger = get_logger("carla_rl_server")
-    
-    # Run health checks
+
     start_time = time.time()
     health_summary = health_checker.get_health_summary()
     duration_ms = (time.time() - start_time) * 1000
-    
-    # Log health check
+
     logger.log_health_check(
         status=health_summary["status"],
         checks=health_summary["checks"],
-        duration_ms=duration_ms
+        duration_ms=duration_ms,
     )
-    
+
+    public_status = "ok" if health_summary["status"] == "healthy" else "degraded"
+
     device_str = "cuda" if torch.cuda.is_available() and os.getenv("USE_GPU", "0") == "1" else "cpu"
     current_version = app_state.get("selected_version", MODEL_VERSION)
 
     return HealthResponse(
-        status=health_summary["status"],
+        status=public_status,
         version=current_version,
         git=GIT_SHA,
         device=device_str,
@@ -369,7 +372,7 @@ async def warmup_model(inference_engine=Depends(get_inference_engine)) -> Warmup
             # Create dummy observation for warmup
             from .io_schemas import Observation
 
-            dummy_obs = Observation(speed=25.0, steering=0.0, sensors=[0.5] * 5)
+            dummy_obs = Observation(speed=25.0, steering=0.0, sensors=[0.5, 0.5, 0.5])
 
             # Perform dummy inference
             _, _ = inference_engine.predict([dummy_obs], deterministic=True)
