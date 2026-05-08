@@ -1,0 +1,3 @@
+# Copy to .actrc and tune if needed: cp .actrc.example .actrc
+# Maps workflow ubuntu-latest to an image act can pull (Docker / OrbStack backend).
+-P ubuntu-latest=catthehacker/ubuntu:act-latest

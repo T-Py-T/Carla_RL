@@ -1,0 +1,9 @@
+{
+  "pull_request": {
+    "number": 1,
+    "title": "local act run",
+    "head": { "ref": "local/act" },
+    "base": { "ref": "master" },
+    "user": { "login": "local" }
+  }
+}

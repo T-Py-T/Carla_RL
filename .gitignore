@@ -166,3 +166,6 @@ model-serving/temp/
 model-serving/data/
 model-serving/logs/
 model-serving/venv/
+
+# nektos/act: optional local config (copy from .actrc.example)
+.actrc

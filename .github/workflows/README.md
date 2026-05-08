@@ -96,6 +96,32 @@ This directory contains GitHub Actions workflows for automated CI/CD processes, 
 - Docker build validation
 - Feature artifacts created automatically
 
+## Running workflows locally with `act`
+
+Use [nektos/act](https://github.com/nektos/act) with any **Docker-compatible** runtime (**OrbStack**, Docker Desktop, Colima, etc.). Act runs jobs inside containers and approximates GitHub Actions on your machine.
+
+### Setup
+
+1. Install **act** (e.g. `brew install act`).
+2. Start **OrbStack** (or your engine) so `docker info` works.
+3. From the repo root: **`cp .actrc.example .actrc`** (optional; `make act-*` copies it automatically). Edit `.actrc` if you need a different runner image.
+
+### Commands (Makefile)
+
+| Target | What it runs |
+|--------|----------------|
+| `make act-list` | Lists jobs act can run |
+| `make act-pr` | **pr-checks.yml** — syntax + ruff (fast) |
+| `make act-merge` | **merge-validation.yml** — sync, tests, **Docker build** (`--bind` mounts the host Docker socket) |
+
+Workflows are triggered as **`pull_request`** with a small payload in **`.github/act/event-pull-request.json`** so steps that echo PR metadata get sensible values.
+
+### Notes
+
+- **`make act-merge`** needs **`--bind`** so the job can run `docker build` using **your** OrbStack/Docker daemon.
+- If checkout or tool images fail on **Apple Silicon**, try adding to your act invocation: `--container-architecture linux/amd64` (or set in `.actrc` if supported by your act version).
+- Act is **not** identical to GitHub-hosted runners; treat failures as “fix locally or in CI,” not proof the cloud workflow is wrong.
+
 ### For ML Operations
 - Automatic pipeline detection based on file changes
 - Manual trigger for specific pipeline types
