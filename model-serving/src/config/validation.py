@@ -10,9 +10,25 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Callable
 from dataclasses import dataclass
-from pydantic import ValidationError
+from pydantic import ValidationError as PydanticValidationError
 
 from .settings import BaseConfig, AppConfig
+
+
+class ValidationError(Exception):
+    """Custom configuration-validation error.
+
+    Wraps a :class:`ValidationResult` so that callers can raise a single
+    exception carrying the full diagnostic detail (errors, warnings, infos)
+    surfaced by :func:`validate_config`. This lives alongside Pydantic's
+    own ``ValidationError`` (imported as ``PydanticValidationError``) which
+    is the low-level exception raised by model parsing; the two serve
+    different layers of the configuration stack.
+    """
+
+    def __init__(self, message: str, validation_result: Optional["ValidationResult"] = None):
+        super().__init__(message)
+        self.validation_result = validation_result
 
 
 class ValidationSeverity(str, Enum):
@@ -82,7 +98,7 @@ class ConfigValidator:
         # Pydantic validation
         try:
             config.model_validate(config.model_dump())
-        except ValidationError as e:
+        except PydanticValidationError as e:
             for error in e.errors():
                 field = ".".join(str(x) for x in error["loc"])
                 issues.append(ValidationIssue(

@@ -424,8 +424,15 @@ class MetricsCollector:
             )
     
     def get_metrics(self) -> str:
-        """Get metrics in Prometheus format."""
-        return generate_latest(self.registry)
+        """Get metrics in Prometheus format.
+
+        `prometheus_client.generate_latest` returns raw bytes; we decode to a
+        UTF-8 string so callers can concatenate it with other text, dump it
+        via logging, or hand it to FastAPI's ``PlainTextResponse`` without an
+        extra decode step. The wire format is UTF-8 by spec, so decoding is
+        lossless.
+        """
+        return generate_latest(self.registry).decode("utf-8")
     
     def get_metrics_content_type(self) -> str:
         """Get the content type for metrics response."""

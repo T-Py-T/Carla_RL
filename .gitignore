@@ -142,3 +142,27 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .secrets
+
+# Generated / local model artifacts (binary blobs, not source of truth)
+*.pt
+*.pth
+*.pkl
+*.onnx
+
+# Model-serving generated artifact trees. The YAML manifests are rewritten by
+# scripts/create_example_artifacts.py on container start / image build, so
+# tracking them produces noisy hash-only diffs.
+model-serving/artifacts/v*/
+
+# Local test/audit scratch (lowercase only, so AUDIT_*.md docs are still tracked)
+**/.audit/
+**/audit_*.log
+**/audit_*.json
+**/audit_*.out
+**/logs/*.log
+model-serving/coverage.xml
+model-serving/htmlcov/
+model-serving/temp/
+model-serving/data/
+model-serving/logs/
+model-serving/venv/

@@ -2,7 +2,7 @@
 # Root Makefile for managing different components
 # Usage: make <target>
 
-.PHONY: help setup-sim setup-serving test-sim test-serving clean lint test security docker-check ci-checks
+.PHONY: help setup-sim setup-serving test-sim test-serving clean lint test security docker-check ci-checks act-list act-pr act-merge act-all
 
 # Default target
 help:
@@ -24,6 +24,12 @@ help:
 	@echo "  make fix              - Auto-fix code issues"
 	@echo "  make format           - Auto-format code (same as fix)"
 	@echo "  make diff             - Show what would be fixed"
+	@echo ""
+	@echo "GitHub Actions (local via act + OrbStack/Docker):"
+	@echo "  make act-list         - List runnable workflow jobs"
+	@echo "  make act-pr           - Run pr-checks workflow (fast)"
+	@echo "  make act-merge        - Run merge-validation (tests + docker build; needs --bind)"
+	@echo "  make act-all          - Run all portable workflows via .github/scripts/act-all.sh"
 	@echo ""
 	@echo "Quick Commands:"
 	@echo "  make train-highway    - Train Highway RL model"
@@ -124,3 +130,26 @@ format:
 diff:
 	@echo "Showing what would be fixed..."
 	@uv run ruff check --diff --extend-exclude="pyproject.toml,*.toml,*.yaml,*.yml,*.json,*.md" .
+
+# ---- Local GitHub Actions (https://github.com/nektos/act) ----
+# Requires: act, and a Docker-compatible engine (OrbStack, Docker Desktop, colima, etc.)
+# Runner image + arch: see repo-root .actrc (default linux/arm64 for Apple Silicon).
+
+act-list:
+	act -l
+
+act-pr:
+	act pull_request \
+		-j pr-quality-checks \
+		-W .github/workflows/pr-checks.yml \
+		-e .github/act/event-pull-request.json
+
+act-merge:
+	act pull_request \
+		-j merge-validation \
+		-W .github/workflows/merge-validation.yml \
+		-e .github/act/event-pull-request.json \
+		--bind
+
+act-all:
+	@./.github/scripts/act-all.sh

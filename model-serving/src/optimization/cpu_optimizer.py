@@ -42,8 +42,14 @@ class CPUOptimizer:
 
     def __init__(self, config: CPUOptimizationConfig):
         """Initialize CPU optimizer with configuration."""
+        from concurrent.futures import ThreadPoolExecutor
+
         self.config = config
-        self._thread_pool: Optional[torch.ThreadPool] = None
+        # Was typed as ``torch.ThreadPool`` in the original implementation,
+        # but that attribute no longer exists in PyTorch 2.x. The stdlib
+        # ``ThreadPoolExecutor`` is a drop-in replacement that covers the
+        # `submit`/`shutdown` surface we actually use.
+        self._thread_pool: Optional[ThreadPoolExecutor] = None
         self._jit_compiled_models: Dict[str, ScriptModule] = {}
         self._optimization_applied = False
 
@@ -205,20 +211,26 @@ class CPUOptimizer:
     def _enable_multi_threading(self, thread_count: int) -> Dict[str, any]:
         """Enable multi-threading optimizations."""
         optimizations = {}
-        
+
         # Set PyTorch threading
         torch.set_num_threads(thread_count)
-        
-        # Set OpenMP threading
+
+        # Set OpenMP / MKL thread counts via env vars so downstream native
+        # libraries honour the same limit.
         os.environ["OMP_NUM_THREADS"] = str(thread_count)
         os.environ["MKL_NUM_THREADS"] = str(thread_count)
-        
-        # Create thread pool for parallel operations
-        self._thread_pool = torch.ThreadPool(thread_count)
-        
+
+        # PyTorch 2.x no longer exposes ``torch.ThreadPool``; we fall back to
+        # the stdlib ``ThreadPoolExecutor`` for any parallel fan-out the
+        # optimizer needs while still surfacing the pool to callers via
+        # ``self._thread_pool``.
+        from concurrent.futures import ThreadPoolExecutor
+
+        self._thread_pool = ThreadPoolExecutor(max_workers=thread_count)
+
         optimizations["thread_count"] = thread_count
         optimizations["thread_pool_created"] = True
-        
+
         return optimizations
 
     def _enable_memory_pinning(self) -> Dict[str, any]:
@@ -330,10 +342,12 @@ class CPUOptimizer:
 
     def cleanup(self):
         """Cleanup resources and reset optimizations."""
-        if self._thread_pool:
-            del self._thread_pool
+        if self._thread_pool is not None:
+            # ``ThreadPoolExecutor`` needs an explicit shutdown to release
+            # its worker threads deterministically.
+            self._thread_pool.shutdown(wait=False)
             self._thread_pool = None
-        
+
         self._jit_compiled_models.clear()
         self._optimization_applied = False
 

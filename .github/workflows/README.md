@@ -96,6 +96,37 @@ This directory contains GitHub Actions workflows for automated CI/CD processes, 
 - Docker build validation
 - Feature artifacts created automatically
 
+## Running workflows locally with `act`
+
+Use [nektos/act](https://github.com/nektos/act) with any **Docker-compatible** runtime (**OrbStack**, Docker Desktop, Colima, etc.). Act runs jobs inside containers and approximates GitHub Actions on your machine.
+
+### Setup
+
+1. Install **act** (e.g. `brew install act`).
+2. Start **OrbStack** (or your engine) so `docker info` works.
+3. Repo root **`.actrc`** sets **`--container-architecture linux/arm64`** for **Apple Silicon + OrbStack**. On **Intel Mac**, edit `.actrc` and use **`linux/amd64`** (see comments in **`.actrc.example`**).
+
+### Commands (Makefile)
+
+| Target | What it runs |
+|--------|----------------|
+| `make act-list` | Lists jobs act can run |
+| `make act-pr` | **pr-checks.yml** — syntax + ruff (fast) |
+| `make act-merge` | **merge-validation.yml** — sync, tests, **Docker build** (`--bind` mounts the host Docker socket) |
+| `make act-all` | Runs **`.github/scripts/act-all.sh`** — all portable jobs (see script for list). |
+
+Workflows are triggered as **`pull_request`** with a small payload in **`.github/act/event-pull-request.json`** so steps that echo PR metadata get sensible values.
+
+**`feature-release-artifact.yml`** is intentionally **not** included in `act-all` (release branch, GitHub API, `git push`). Run it manually with a crafted event if you need to test it.
+
+Under **act**, **`actions/upload-artifact`** and PR **`github-script`** steps are skipped when **`env.ACT == 'true'`** (artifact upload needs `ACTIONS_RUNTIME_TOKEN`; commenting needs a real token).
+
+### Notes
+
+- **`make act-merge`** needs **`--bind`** so the job can run `docker build` using **your** OrbStack/Docker daemon.
+- **Architecture:** `.actrc` defaults to **`linux/arm64`** (Apple Silicon). For **Intel Mac** or strict parity with **GitHub `ubuntu-latest` amd64**, switch to **`linux/amd64`** in `.actrc`.
+- Act is **not** identical to GitHub-hosted runners; treat failures as “fix locally or in CI,” not proof the cloud workflow is wrong.
+
 ### For ML Operations
 - Automatic pipeline detection based on file changes
 - Manual trigger for specific pipeline types

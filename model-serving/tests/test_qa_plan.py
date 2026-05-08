@@ -7,7 +7,7 @@ for ensuring the API layer meets all PRD requirements.
 
 import time
 
-from src.io_schemas import Action
+from src.io_schemas import Action, Observation
 
 
 class TestQAPlan:
@@ -112,8 +112,11 @@ class TestQAPlan:
         data = response.json()
         assert data["deterministic"] is True
 
-        # Verify inference engine was called with deterministic flag
-        mock_inference_engine.predict.assert_called_with(request_data["observations"], True)
+        # FastAPI converts the JSON body into ``Observation`` instances before
+        # forwarding them to the engine, so we compare against the parsed
+        # model (not the raw dict we sent over the wire).
+        expected_observations = [Observation(**obs) for obs in request_data["observations"]]
+        mock_inference_engine.predict.assert_called_with(expected_observations, True)
 
         print(" FR-1.4: Deterministic mode validated")
 

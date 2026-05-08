@@ -1,0 +1,8 @@
+# Same defaults as ./.actrc — copy here only if you maintain a personal .actrc override.
+# Apple Silicon + OrbStack (default):
+--container-architecture linux/arm64
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+
+# Intel Mac or strict amd64 parity with GitHub-hosted runners:
+# --container-architecture linux/amd64
+# -P ubuntu-latest=catthehacker/ubuntu:act-latest

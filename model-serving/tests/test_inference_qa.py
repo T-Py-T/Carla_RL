@@ -52,13 +52,18 @@ class TestInferenceEngineQA:
         return InferenceEngine(**default_kwargs)
 
     def create_test_observations(self, n: int) -> list[Observation]:
-        """Create test observations for QA validation."""
+        """Create test observations for QA validation.
+
+        The observation schema caps ``speed`` at 200 km/h; we stride through
+        the batch modulo that limit so large QA batches stay within the
+        validated envelope instead of tripping Pydantic on observation 37.
+        """
         observations = []
         for i in range(n):
             obs = Observation(
-                speed=20.0 + i * 5.0,
-                steering=np.sin(i * 0.1),
-                sensors=[np.random.uniform(0, 1) for _ in range(5)],
+                speed=20.0 + (i * 5.0) % 150.0,
+                steering=float(np.clip(np.sin(i * 0.1), -1.0, 1.0)),
+                sensors=[float(np.random.uniform(0, 1)) for _ in range(3)],
             )
             observations.append(obs)
         return observations

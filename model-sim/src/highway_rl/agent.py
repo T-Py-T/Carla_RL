@@ -49,8 +49,13 @@ class HighwayDQNAgent:
             dueling_dqn: Whether to use Dueling DQN architecture
             use_mixed_precision: Whether to use mixed precision training
         """
-        self.state_size = state_size
-        self.action_size = action_size
+        # Keras 3 ( bundled with TF >= 2.16 ) strictly type-checks integer
+        # arguments passed to ``layers.Input(shape=...)`` and
+        # ``layers.Dense(units=...)`` and rejects numpy integer scalars like
+        # ``np.int64``. ``env.action_space.n`` from gymnasium is exactly that,
+        # so cast to plain Python ``int`` up front.
+        self.state_size = tuple(int(dim) for dim in state_size)
+        self.action_size = int(action_size)
         self.learning_rate = learning_rate
         self.epsilon = epsilon
         self.epsilon_min = epsilon_min
@@ -119,9 +124,13 @@ class HighwayDQNAgent:
             advantage_stream = keras.layers.Dense(64, activation='relu')(x)
             advantage = keras.layers.Dense(self.action_size, name='advantage')(advantage_stream)
             
-            # Combine value and advantage
+            # Combine value and advantage. Keras 3's ``Lambda`` requires an
+            # explicit ``output_shape`` when the wrapped function is not a
+            # trivial passthrough - auto-inference via symbolic tracing was
+            # removed in the Keras 3 rewrite.
             mean_advantage = keras.layers.Lambda(
-                lambda x: tf.reduce_mean(x, axis=1, keepdims=True)
+                lambda x: tf.reduce_mean(x, axis=1, keepdims=True),
+                output_shape=(1,),
             )(advantage)
             
             q_values = keras.layers.Add()([
@@ -169,7 +178,8 @@ class HighwayDQNAgent:
             advantage = keras.layers.Dense(self.action_size, name='advantage')(advantage_stream)
             
             mean_advantage = keras.layers.Lambda(
-                lambda x: tf.reduce_mean(x, axis=1, keepdims=True)
+                lambda x: tf.reduce_mean(x, axis=1, keepdims=True),
+                output_shape=(1,),
             )(advantage)
             
             q_values = keras.layers.Add()([
@@ -273,8 +283,10 @@ class HighwayDQNAgent:
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
         
-        # Save model
-        self.q_network.save_weights(f"{filepath}_weights.h5")
+        # Keras 3 only accepts weight paths ending in ``.weights.h5`` (or
+        # ``.keras``); the legacy Keras 2 format just saw this as a normal
+        # filename suffix, so we can use it on both major versions.
+        self.q_network.save_weights(f"{filepath}.weights.h5")
         
         # Save configuration
         config = {
@@ -308,8 +320,7 @@ class HighwayDQNAgent:
         self.epsilon = config.get('epsilon', self.epsilon)
         self.training_step = config.get('training_step', 0)
         
-        # Load weights
-        self.q_network.load_weights(f"{filepath}_weights.h5")
+        self.q_network.load_weights(f"{filepath}.weights.h5")
         self.update_target_network()
     
     def get_model_summary(self) -> str:
