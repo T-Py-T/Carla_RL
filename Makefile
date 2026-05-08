@@ -132,21 +132,18 @@ diff:
 
 # ---- Local GitHub Actions (https://github.com/nektos/act) ----
 # Requires: act, and a Docker-compatible engine (OrbStack, Docker Desktop, colima, etc.)
-# First run: cp .actrc.example .actrc
+# Runner image + arch: see repo-root .actrc (default linux/arm64 for Apple Silicon).
 
 act-list:
-	@test -f .actrc || cp .actrc.example .actrc
 	act -l
 
 act-pr:
-	@test -f .actrc || cp .actrc.example .actrc
 	act pull_request \
 		-j pr-quality-checks \
 		-W .github/workflows/pr-checks.yml \
 		-e .github/act/event-pull-request.json
 
 act-merge:
-	@test -f .actrc || cp .actrc.example .actrc
 	act pull_request \
 		-j merge-validation \
 		-W .github/workflows/merge-validation.yml \

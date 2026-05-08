@@ -104,7 +104,7 @@ Use [nektos/act](https://github.com/nektos/act) with any **Docker-compatible** r
 
 1. Install **act** (e.g. `brew install act`).
 2. Start **OrbStack** (or your engine) so `docker info` works.
-3. From the repo root: **`cp .actrc.example .actrc`** (optional; `make act-*` copies it automatically). Edit `.actrc` if you need a different runner image.
+3. Repo root **`.actrc`** sets **`--container-architecture linux/arm64`** for **Apple Silicon + OrbStack**. On **Intel Mac**, edit `.actrc` and use **`linux/amd64`** (see comments in **`.actrc.example`**).
 
 ### Commands (Makefile)
 
@@ -119,7 +119,7 @@ Workflows are triggered as **`pull_request`** with a small payload in **`.github
 ### Notes
 
 - **`make act-merge`** needs **`--bind`** so the job can run `docker build` using **your** OrbStack/Docker daemon.
-- If checkout or tool images fail on **Apple Silicon**, try adding to your act invocation: `--container-architecture linux/amd64` (or set in `.actrc` if supported by your act version).
+- **Architecture:** `.actrc` defaults to **`linux/arm64`** (Apple Silicon). For **Intel Mac** or strict parity with **GitHub `ubuntu-latest` amd64**, switch to **`linux/amd64`** in `.actrc`.
 - Act is **not** identical to GitHub-hosted runners; treat failures as “fix locally or in CI,” not proof the cloud workflow is wrong.
 
 ### For ML Operations
