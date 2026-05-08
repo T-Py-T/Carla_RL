@@ -2,7 +2,7 @@
 # Root Makefile for managing different components
 # Usage: make <target>
 
-.PHONY: help setup-sim setup-serving test-sim test-serving clean lint test security docker-check ci-checks act-list act-pr act-merge
+.PHONY: help setup-sim setup-serving test-sim test-serving clean lint test security docker-check ci-checks act-list act-pr act-merge act-all
 
 # Default target
 help:
@@ -29,6 +29,7 @@ help:
 	@echo "  make act-list         - List runnable workflow jobs"
 	@echo "  make act-pr           - Run pr-checks workflow (fast)"
 	@echo "  make act-merge        - Run merge-validation (tests + docker build; needs --bind)"
+	@echo "  make act-all          - Run all portable workflows via .github/scripts/act-all.sh"
 	@echo ""
 	@echo "Quick Commands:"
 	@echo "  make train-highway    - Train Highway RL model"
@@ -149,3 +150,6 @@ act-merge:
 		-W .github/workflows/merge-validation.yml \
 		-e .github/act/event-pull-request.json \
 		--bind
+
+act-all:
+	@./.github/scripts/act-all.sh

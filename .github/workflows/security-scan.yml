@@ -127,7 +127,8 @@ jobs:
         
     - name: Upload security report
       uses: actions/upload-artifact@v4
-      if: always()
+      # upload-artifact requires ACTIONS_RUNTIME_TOKEN; skip under nektos/act (env.ACT=true).
+      if: always() && env.ACT != 'true'
       with:
         name: security-report
         path: security-report.json

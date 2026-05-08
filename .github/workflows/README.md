@@ -113,8 +113,13 @@ Use [nektos/act](https://github.com/nektos/act) with any **Docker-compatible** r
 | `make act-list` | Lists jobs act can run |
 | `make act-pr` | **pr-checks.yml** — syntax + ruff (fast) |
 | `make act-merge` | **merge-validation.yml** — sync, tests, **Docker build** (`--bind` mounts the host Docker socket) |
+| `make act-all` | Runs **`.github/scripts/act-all.sh`** — all portable jobs (see script for list). |
 
 Workflows are triggered as **`pull_request`** with a small payload in **`.github/act/event-pull-request.json`** so steps that echo PR metadata get sensible values.
+
+**`feature-release-artifact.yml`** is intentionally **not** included in `act-all` (release branch, GitHub API, `git push`). Run it manually with a crafted event if you need to test it.
+
+Under **act**, **`actions/upload-artifact`** and PR **`github-script`** steps are skipped when **`env.ACT == 'true'`** (artifact upload needs `ACTIONS_RUNTIME_TOKEN`; commenting needs a real token).
 
 ### Notes
 
