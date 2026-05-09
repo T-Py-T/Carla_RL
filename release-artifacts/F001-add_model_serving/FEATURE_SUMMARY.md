@@ -7,30 +7,15 @@
 **Author:** T-Py-T
 
 ## Description
-<!-- CURSOR_SUMMARY -->
-> [!NOTE]
-> Rebrands the project to , adds strict Ruff/linting and test tooling, introduces serving PRD/task docs, removes legacy CARLA remnants, and refreshes dependencies/lockfile for Python 3.11+.
-> 
-> - **Project**:
->   - Rename  → ; update description and  to  in .
-> - **Tooling/Config**:
->   - Add comprehensive Ruff config () with linting rules, isort, per-file ignores; dev extras include , , .
-> - **Docs/Planning**:
->   - Add serving PRD and task breakdown (, ).
-> - **Cleanup**:
->   - Remove legacy CARLA files () and obsolete test compatibility shims under .
-> - **Dependencies**:
->   - Overhaul : drop legacy ML stacks, add/upgrade core tooling (, , , ), and align with Python 3.11+.
-> 
-> <sup>Written by [Cursor Bugbot](https://cursor.com/dashboard?tab=bugbot) for commit 7e60c865ef38a413313cd0ca77987539699958ba. This will update automatically on new commits. Configure [here](https://cursor.com/dashboard?tab=bugbot).</sup>
-<!-- /CURSOR_SUMMARY -->
+
+Adds model-serving layout, strict Ruff and test tooling, serving PRD and task documentation, removal of legacy CARLA remnants, and a dependency refresh aligned with Python 3.11+.
 
 ## Files Changed
 ```
-.cursor/rules/create-prd.mdc
-.cursor/rules/generate-tasks.mdc
-.cursor/rules/process-task-list.mdc
-.cursor/rules/release-workflow.mdc
+.github/workflow-rules/create-prd.mdc
+.github/workflow-rules/generate-tasks.mdc
+.github/workflow-rules/process-task-list.mdc
+.github/workflow-rules/release-workflow.mdc
 .github/BRANCH_PROTECTION.md
 .github/workflows/README.md
 .github/workflows/feature-release-artifact.yml
@@ -139,7 +124,7 @@ d769848 feat: add basic CI checks for PRs
 8cbe004 fix: remove manually created release artifacts
 1490652 feat: move tasks folder cleanup to final step
 97c94c7 fix: clarify tasks/ folder workflow and restore working directory
-329fdca docs: update Cursor rules for tasks/ folder workflow
+329fdca docs: update workflow rules for tasks/ folder workflow
 f53c8fa feat: create F001-add-model-serving release artifact (manual test)
 ef7493e feat: implement structured feature release naming with F001-feature-name format
 74eaa97 refactor: remove emojis from GitHub Action for professional appearance

@@ -1,7 +1,7 @@
 ---
 alwaysApply: false
 ---
-**CRITICAL: See .cursor/rules/no-emojis.mdc - NO EMOJIS EVER**
+**CRITICAL: See .github/workflow-rules/no-emojis.mdc - NO EMOJIS EVER**
 
 # Rule: Feature Release Workflow
 

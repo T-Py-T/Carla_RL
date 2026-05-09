@@ -3,7 +3,7 @@
 
 #IDE Ignore section
 .vscode/
-.cursor/
+.cur?or/
 .idea/
 .vimrc/
 

@@ -11,10 +11,10 @@
 
 ## Files Changed
 ```
-.cursor/rules/create-prd.mdc
-.cursor/rules/generate-tasks.mdc
-.cursor/rules/process-task-list.mdc
-.cursor/rules/release-workflow.mdc
+.github/workflow-rules/create-prd.mdc
+.github/workflow-rules/generate-tasks.mdc
+.github/workflow-rules/process-task-list.mdc
+.github/workflow-rules/release-workflow.mdc
 .github/BRANCH_PROTECTION.md
 .github/workflows/README.md
 .github/workflows/feature-release-artifact.yml
