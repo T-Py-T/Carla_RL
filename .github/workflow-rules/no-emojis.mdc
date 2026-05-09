@@ -1,0 +1,7 @@
+---
+alwaysApply: false
+---
+
+# No emojis in repository output
+
+Do not use emojis in repository documentation, workflow summaries, or commit messages unless the repository owner explicitly requests them.

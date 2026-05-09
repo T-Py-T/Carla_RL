@@ -15,7 +15,7 @@ This file tracks all feature releases and their associated artifacts.
 
 **Key Changes:**
 - .actrc
-- .cursor/rules/process-task-list.mdc
+- .github/workflow-rules/process-task-list.mdc
 - .github/workflows/feature-release-artifact.yml
 - .github/workflows/merge-validation.yml
 - .github/workflows/performance-regression-test.yml
@@ -250,9 +250,9 @@ This release represents the complete Model Serving microservice implementation w
 
 Next: GitHub Action will automatically create F002, F003, etc.
 
-* docs: update Cursor rules for tasks/ folder workflow
+* docs: update workflow rules for tasks/ folder workflow
 
-Updated Cursor MDC rules to reflect established patterns:
+Updated MDC rules to reflect established patterns:
 - PRDs and task lists always saved to tasks/ folder
 - Documents automatically preserved in release artifacts
 - Added new release-workflow.mdc with complete guidelines
@@ -493,7 +493,7 @@ Benefits:
 * Remove all emojis from workflow files and add strict no-emoji rule
 
 - Removed all emojis from pr-checks.yml, merge-validation.yml, ml-pipeline-trigger.yml, security-scan.yml
-- Created .cursor/rules/no-emojis.mdc with mandatory no-emoji policy
+- Created .github/workflow-rules/no-emojis.mdc with mandatory no-emoji policy
 - All echo statements now use plain text
 - Professional appearance maintained throughout
 
@@ -737,9 +737,9 @@ This release represents the complete Model Serving microservice implementation w
 
 Next: GitHub Action will automatically create F002, F003, etc.
 
-* docs: update Cursor rules for tasks/ folder workflow
+* docs: update workflow rules for tasks/ folder workflow
 
-Updated Cursor MDC rules to reflect established patterns:
+Updated MDC rules to reflect established patterns:
 - PRDs and task lists always saved to tasks/ folder
 - Documents automatically preserved in release artifacts
 - Added new release-workflow.mdc with complete guidelines
@@ -980,7 +980,7 @@ Benefits:
 * Remove all emojis from workflow files and add strict no-emoji rule
 
 - Removed all emojis from pr-checks.yml, merge-validation.yml, ml-pipeline-trigger.yml, security-scan.yml
-- Created .cursor/rules/no-emojis.mdc with mandatory no-emoji policy
+- Created .github/workflow-rules/no-emojis.mdc with mandatory no-emoji policy
 - All echo statements now use plain text
 - Professional appearance maintained throughout
 
@@ -1070,13 +1070,13 @@ This prevents creating release artifacts on every merge and keeps all release-re
 
 * removing artifacts from dev, they should only be in staging.
 
-* Add GitHub Workflow SOP for Cursor agents
+* Add GitHub Workflow SOP for automation contributors
 
 - Created comprehensive SOP for GitHub workflow procedures
 - Covers branch strategy, development workflow, and release management
 - Includes commit standards, file organization rules, and best practices
 - Set alwaysApply: true for consistent application across repositories
-- Provides clear guidance for Cursor agents on proper GitHub operations
+- Provides clear guidance for automation contributors on GitHub operations
 
 * Fix merge validation workflow pytest dependency issue
 
@@ -1107,7 +1107,7 @@ This prevents creating release artifacts on every merge and keeps all release-re
 ---------
 
 **Key Changes:**
-- .cursor/rules/github-workflow-sop.mdc
+- .github/workflow-rules/github-workflow-sop.mdc
 - .github/REQUIRED_STATUS_CHECKS.md
 - .github/workflows/branch-validation.yml
 - .github/workflows/feature-release-artifact.yml

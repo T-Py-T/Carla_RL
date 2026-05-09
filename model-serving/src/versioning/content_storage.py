@@ -492,12 +492,10 @@ class ContentAddressableStorage:
     def _get_content_reference(self, content_hash: str) -> Optional[ContentReference]:
         """Get content reference from database."""
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
+            row = conn.execute(
                 "SELECT data FROM content_refs WHERE content_hash = ? ORDER BY id DESC LIMIT 1",
                 (content_hash,),
-            )
-            row = cursor.fetchone()
+            ).fetchone()
 
             if row:
                 data = json.loads(row[0])
@@ -510,10 +508,7 @@ class ContentAddressableStorage:
         references = []
 
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT data FROM content_refs")
-
-            for row in cursor.fetchall():
+            for row in conn.execute("SELECT data FROM content_refs").fetchall():
                 data = json.loads(row[0])
                 references.append(ContentReference.from_dict(data))
 
@@ -524,10 +519,7 @@ class ContentAddressableStorage:
         hashes = []
 
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT DISTINCT content_hash FROM content_refs")
-
-            for row in cursor.fetchall():
+            for row in conn.execute("SELECT DISTINCT content_hash FROM content_refs").fetchall():
                 hashes.append(row[0])
 
         return hashes
@@ -535,8 +527,7 @@ class ContentAddressableStorage:
     def _store_reference(self, reference: ContentReference) -> None:
         """Store content reference in database."""
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
+            conn.execute(
                 "INSERT INTO content_refs (content_hash, data) VALUES (?, ?)",
                 (reference.content_hash, json.dumps(reference.to_dict())),
             )
@@ -553,8 +544,7 @@ class ContentAddressableStorage:
     def _remove_reference(self, content_hash: str) -> None:
         """Remove content reference from database."""
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute("DELETE FROM content_refs WHERE content_hash = ?", (content_hash,))
+            conn.execute("DELETE FROM content_refs WHERE content_hash = ?", (content_hash,))
             conn.commit()
 
     def _get_total_size(self) -> int:
@@ -565,8 +555,7 @@ class ContentAddressableStorage:
     def _init_database(self) -> None:
         """Initialize the content index database."""
         with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
+            conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS content_refs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
