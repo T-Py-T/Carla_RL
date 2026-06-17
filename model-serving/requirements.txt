@@ -99,7 +99,7 @@ pydantic-core==2.46.4
     # via pydantic
 python-dotenv==1.2.2
     # via uvicorn
-python-multipart==0.0.27
+python-multipart==0.0.31
     # via carla-rl-serving
 pyyaml==6.0.3
     # via
