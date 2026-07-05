@@ -165,8 +165,7 @@ release-artifacts/
 - `Dockerfile`
 - `docker-compose.yml`
 - `.gitignore`
-- `.github/` (workflows)
-- `.cursor/` (rules)
+- `.github/` (workflows, workflow rules under `.github/workflow-rules/`)
 
 ### Forbidden Root Files
 - `RELEASE_CHANGELOG.md`
@@ -256,7 +255,7 @@ git push origin <branch-name>
 - [ ] Create branch protection rules
 - [ ] Set up CI/CD workflows
 - [ ] Configure dependabot
-- [ ] Add `.cursor/rules/` directory
+- [ ] Add `.github/workflow-rules/` directory for shared workflow guidance
 - [ ] Create this SOP file
 - [ ] Set up release workflow (if needed)
 
@@ -343,9 +342,9 @@ git branch --merged | grep -v master | xargs -n 1 git branch -d
 - Create temporary files in root directory
 - Skip CI checks
 
-## Integration with Cursor Agents
+## Integration with automation assistants
 
-### When Working with Agents
+### When working with automated contributors
 1. **Always specify the target branch** for changes
 2. **Never allow agents to create branches** - use existing ones
 3. **Ensure agents follow the branch hierarchy**

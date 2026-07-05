@@ -25,14 +25,14 @@ jobs:
         
     - name: Install root dependencies
       run: |
-        uv sync --dev
+        uv sync --dev --python 3.13
         
     - name: Check Python syntax
       run: |
         echo "Checking Python syntax..."
         # Use find with -exec for better performance and no while loop
         find . -name "*.py" \
-          -not -path "./.venv/*" \
+          -not -path "*/.venv/*" \
           -not -path "./*/__pycache__/*" \
           -not -path "./*/node_modules/*" \
           -not -path "./.git/*" \

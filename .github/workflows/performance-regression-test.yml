@@ -31,7 +31,7 @@ jobs:
     - name: Install dependencies
       run: |
         cd model-serving
-        uv sync --dev
+        uv sync --extra dev --python 3.13
         
     - name: Run environment-aware performance test
       run: |
@@ -50,13 +50,13 @@ jobs:
           
     - name: Upload performance results
       uses: actions/upload-artifact@v4
-      if: always()
+      if: always() && env.ACT != 'true'
       with:
         name: performance-test-results
         path: model-serving/performance_results.json
         
     - name: Comment PR with results
-      if: github.event_name == 'pull_request'
+      if: github.event_name == 'pull_request' && env.ACT != 'true'
       uses: actions/github-script@v7
       with:
         script: |

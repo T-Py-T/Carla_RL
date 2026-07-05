@@ -5,7 +5,7 @@ Unit tests for metrics collection module.
 import pytest
 import time
 from unittest.mock import patch, MagicMock
-from prometheus_client import CollectorRegistry
+from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry
 
 from src.monitoring.metrics import MetricsCollector, get_metrics_collector, initialize_metrics
 
@@ -226,7 +226,7 @@ class TestMetricsCollector:
         collector = MetricsCollector()
         
         content_type = collector.get_metrics_content_type()
-        from prometheus_client import CONTENT_TYPE_LATEST
+
         assert content_type == CONTENT_TYPE_LATEST
     
     @patch('psutil.cpu_percent')

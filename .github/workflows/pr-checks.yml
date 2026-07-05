@@ -26,14 +26,14 @@ jobs:
         
     - name: Install dependencies
       run: |
-        uv sync --dev
+        uv sync --dev --python 3.13
         
     - name: Check Python syntax
       run: |
         echo "Checking Python syntax..."
         # Check only our source Python files (exclude all build/cache directories)
         find . -name "*.py" \
-          -not -path "./.venv/*" \
+          -not -path "*/.venv/*" \
           -not -path "./*/__pycache__/*" \
           -not -path "./*/node_modules/*" \
           -not -path "./.git/*" \

@@ -12,7 +12,7 @@
 ## Files Changed
 ```
 .actrc
-.cursor/rules/process-task-list.mdc
+.github/workflow-rules/process-task-list.mdc
 .github/workflows/feature-release-artifact.yml
 .github/workflows/merge-validation.yml
 .github/workflows/performance-regression-test.yml

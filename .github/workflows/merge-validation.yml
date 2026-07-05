@@ -37,15 +37,15 @@ jobs:
     - name: Install dependencies
       run: |
 
-        # Install root dependencies
-        uv sync --dev
-        # Install model-serving dependencies
+        # Install root dependencies (3.13)
+        uv sync --dev --python 3.13
+        # model-serving: 3.13 (see .github/UPGRADE_TRACKER.md)
         if [ -d "model-serving" ]; then
-          cd model-serving && uv sync --dev && cd ..
+          cd model-serving && uv sync --extra dev --python 3.13 && cd ..
         fi
-        # Install model-sim dependencies  
+        # model-sim: stay on 3.13 until TensorFlow ships cp314 wheels (UPGRADE_TRACKER.md)
         if [ -d "model-sim" ]; then
-          cd model-sim && uv sync --dev && cd ..
+          cd model-sim && uv sync --extra dev --python 3.13 && cd ..
         fi
 
         
@@ -54,7 +54,7 @@ jobs:
         echo "Checking Python syntax..."
         # Use find with -exec for better performance and no while loop
         find . -name "*.py" \
-          -not -path "./.venv/*" \
+          -not -path "*/.venv/*" \
           -not -path "./*/__pycache__/*" \
           -not -path "./*/node_modules/*" \
           -not -path "./.git/*" \
