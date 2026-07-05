@@ -226,7 +226,8 @@ class TestMetricsCollector:
         collector = MetricsCollector()
         
         content_type = collector.get_metrics_content_type()
-        assert content_type == "text/plain; version=0.0.4; charset=utf-8"
+        from prometheus_client import CONTENT_TYPE_LATEST
+        assert content_type == CONTENT_TYPE_LATEST
     
     @patch('psutil.cpu_percent')
     @patch('psutil.virtual_memory')

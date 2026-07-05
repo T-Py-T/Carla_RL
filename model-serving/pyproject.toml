@@ -7,7 +7,9 @@ name = "carla-rl-serving"
 version = "0.1.0"
 description = "High-performance serving infrastructure for CarlaRL policies"
 readme = "README.md"
-requires-python = ">=3.11"
+# numpy 2.5+ requires Python >=3.12; the stack is verified on 3.13 (the ceiling
+# shared with model-sim, whose TensorFlow 2.21 has no cp314 wheels).
+requires-python = ">=3.12,<3.14"
 license = {file = "LICENSE"}
 authors = [
     {name = "CarlaRL Team", email = "team@carlarl.ai"},
@@ -27,47 +29,53 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
 dependencies = [
-    "fastapi>=0.104.1,<0.105.0",
-    "uvicorn[standard]>=0.24.0,<0.25.0",
-    "pydantic>=2.5.0,<3.0.0",
-    "torch>=2.1.0,<3.0.0",
-    "numpy>=1.24.0,<2.0.0",
-    "pyyaml>=6.0.0,<7.0.0",
-    "python-multipart>=0.0.6,<0.1.0",
-    "psutil>=5.9.8",
-    "ruff>=0.1.15",
-    "mypy>=1.18.2",
-    "pytest-cov>=4.1.0",
-    "httpx>=0.25.2",
-    "requests>=2.32.5",
-    "pip-audit>=2.6.0,<3.0.0",
+    "fastapi>=0.139.0",
+    "uvicorn[standard]>=0.50.0",
+    "pydantic>=2.13.0",
+    "torch>=2.12.0",
+    "numpy>=2.1.0",
+    "pyyaml>=6.0.3",
+    "python-multipart>=0.0.32",
+    "toml>=0.10.2",
+    "prometheus-client>=0.25.0",
+    "jinja2>=3.1.4",
+    "watchdog>=4.0.0",
+    "deepdiff>=8.0.0",
+    "psutil>=7.0.0",
+    "ruff>=0.15.0",
+    "mypy>=2.1.0",
+    "pytest-cov>=7.0.0",
+    "httpx>=0.28.0",
+    "requests>=2.34.0",
+    "pip-audit>=2.10.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=9.0.3,<10.0.0",
-    "pytest-asyncio>=0.21.0,<0.22.0",
-    "pytest-cov>=4.1.0,<5.0.0",
-    "httpx>=0.25.0,<0.26.0",
-    "black>=23.9.0,<24.0.0",
-    "ruff>=0.1.0,<0.2.0",
-    "mypy>=1.6.0,<2.0.0",
-    "pre-commit>=3.5.0,<4.0.0",
+    "pytest>=9.0.0",
+    "pytest-asyncio>=1.0.0",
+    "pytest-cov>=7.0.0",
+    "httpx>=0.28.0",
+    "black>=26.0.0",
+    "ruff>=0.15.0",
+    "mypy>=2.1.0",
+    "pre-commit>=4.0.0",
 ]
 
 gpu = [
-    "torch>=2.1.0,<3.0.0",
+    "torch>=2.12.0",
 ]
 
 monitoring = [
-    "prometheus-client>=0.17.0,<0.18.0",
-    "psutil>=5.9.0,<6.0.0",
+    "prometheus-client>=0.25.0",
+    "psutil>=7.0.0",
 ]
 
 all = [
@@ -93,7 +101,7 @@ pattern = "MODEL_VERSION = \"(?P<version>[^\"]+)\""
 # Black code formatting
 [tool.black]
 line-length = 100
-target-version = ['py311']
+target-version = ['py312']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -111,7 +119,7 @@ extend-exclude = '''
 
 # Ruff linting
 [tool.ruff]
-target-version = "py311"
+target-version = "py312"
 line-length = 100
 
 [tool.ruff.lint]
@@ -144,7 +152,7 @@ known-first-party = ["src"]
 
 # MyPy type checking
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

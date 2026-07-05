@@ -288,6 +288,15 @@ class CPUOptimizer:
 
     def _quantize_model(self, model: nn.Module) -> nn.Module:
         """Apply quantization to the model."""
+        # torch 2.12 leaves torch.backends.quantized.engine == "none" on some
+        # platforms (e.g. macOS arm64); dynamic quantization then fails at
+        # runtime with "NoQEngine". Select an available engine first.
+        if torch.backends.quantized.engine == "none":
+            available = [
+                e for e in torch.backends.quantized.supported_engines if e != "none"
+            ]
+            if available:
+                torch.backends.quantized.engine = available[0]
         if self.config.quantization_bits == 8:
             return torch.quantization.quantize_dynamic(
                 model, 

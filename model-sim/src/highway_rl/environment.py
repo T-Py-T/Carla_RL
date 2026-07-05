@@ -55,6 +55,14 @@ class HighwayEnvironment:
                 # For newer gymnasium versions, configuration is handled differently
                 self.env.unwrapped.configure(config_overrides)
         
+        # highway-env (like gymnasium in general) only rebuilds its
+        # observation/action spaces inside reset() via define_spaces(). Reading
+        # env.observation_space before the first reset returns the pre-config
+        # default shape, so the agent would otherwise be built with the wrong
+        # input dimensions. Reset once here so the captured spaces reflect any
+        # applied config overrides.
+        self.env.reset()
+
         # Environment info
         self.observation_space = self.env.observation_space
         self.action_space = self.env.action_space
