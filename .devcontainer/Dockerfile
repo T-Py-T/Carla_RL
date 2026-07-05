@@ -26,11 +26,10 @@ COPY model-serving/requirements.txt /tmp/model-serving-requirements.txt
 RUN pip install --no-cache-dir -r /tmp/model-serving-requirements.txt
 
 RUN pip install --no-cache-dir \
-        "numpy==1.26.2" \
-        "highway-env>=1.10.1" \
-        "gymnasium>=1.1.1" \
-        "opencv-python-headless>=4.5.0" \
-        "colorama>=0.4.4" \
+        "highway-env>=1.11" \
+        "gymnasium>=1.3.0" \
+        "opencv-python-headless>=4.11.0" \
+        "colorama>=0.4.6" \
         "wandb>=0.22.0" \
         "tensorflow>=2.21.0,<2.22" \
         "pytest-timeout>=2.2.0" \
