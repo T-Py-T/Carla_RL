@@ -43,8 +43,13 @@ try:
         
         print(f"Evaluating model: {latest_model.name}")
         
-        # Create environment and agent
-        env = HighwayEnvironment('highway')
+        # Create environment and agent. Use the same optimized config as
+        # training so the observation shape (and therefore the network input)
+        # matches the saved weights.
+        env = HighwayEnvironment(
+            'highway',
+            config_overrides=HighwayEnvironment.get_optimized_config('highway'),
+        )
         agent = HighwayDQNAgent(env.observation_space.shape, env.action_space.n)
         
         # Load model
