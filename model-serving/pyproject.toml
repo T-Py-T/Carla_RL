@@ -16,7 +16,7 @@ authors = [
 ]
 keywords = [
     "reinforcement-learning",
-    "autonomous-vehicles", 
+    "autonomous-vehicles",
     "carla",
     "model-serving",
     "fastapi",
