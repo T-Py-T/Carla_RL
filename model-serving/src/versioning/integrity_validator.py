@@ -8,11 +8,10 @@ model inference.
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .artifact_manager import ArtifactManager
 from .semantic_version import SemanticVersion, parse_version
-
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +54,7 @@ class IntegrityValidator:
         artifacts_dir: Path,
         required_artifacts: Optional[List[str]] = None,
         strict_mode: bool = True,
-    ) -> Tuple[bool, Dict[str, any]]:
+    ) -> Tuple[bool, Dict[str, Any]]:
         """
         Validate all model artifacts for a version.
 
@@ -82,7 +81,43 @@ class IntegrityValidator:
             logger.debug(f"Using cached validation result for {version}")
             return self._validation_cache[cache_key], {"cached": True}
 
-        validation_report = {
+        validation_report = self._new_validation_report(version, artifacts_dir, strict_mode)
+
+        try:
+            artifacts_to_validate = self._artifacts_to_validate(
+                version, required_artifacts, validation_report, strict_mode
+            )
+            validation_report["total_artifacts"] = len(artifacts_to_validate)
+            for artifact_path, expected_hash in artifacts_to_validate.items():
+                self._validate_artifact(
+                    version,
+                    artifacts_dir,
+                    artifact_path,
+                    expected_hash,
+                    validation_report,
+                    strict_mode,
+                )
+
+            is_valid = not (
+                validation_report["invalid_artifacts"]
+                or validation_report["missing_artifacts"]
+                or validation_report["errors"]
+            )
+            validation_report["is_valid"] = is_valid
+            if is_valid:
+                self._validation_cache[cache_key] = True
+            self._log_validation_result(version, validation_report, is_valid)
+            return is_valid, validation_report
+        except IntegrityValidationError:
+            raise
+        except Exception as exc:
+            return self._handle_unexpected_error(exc, version, validation_report, strict_mode)
+
+    def _new_validation_report(
+        self, version: SemanticVersion, artifacts_dir: Path, strict_mode: bool
+    ) -> Dict[str, Any]:
+        """Create an empty validation report."""
+        return {
             "version": str(version),
             "artifacts_dir": str(artifacts_dir),
             "validation_timestamp": self._get_current_timestamp(),
@@ -96,135 +131,149 @@ class IntegrityValidator:
             "warnings": [],
         }
 
-        try:
-            # Get manifest for this version
-            manifest = self.artifact_manager.get_manifest(version)
-            if not manifest:
-                error_msg = f"No manifest found for version {version}"
-                validation_report["errors"].append(error_msg)
-                if strict_mode:
-                    raise IntegrityValidationError(error_msg, str(version))
-                else:
-                    validation_report["warnings"].append(error_msg)
-                    return False, validation_report
-
-            # Determine which artifacts to validate
+    def _artifacts_to_validate(
+        self,
+        version: SemanticVersion,
+        required_artifacts: Optional[List[str]],
+        report: Dict[str, Any],
+        strict_mode: bool,
+    ) -> Dict[str, Optional[str]]:
+        """Resolve the manifest entries requested by the caller."""
+        manifest = self.artifact_manager.get_manifest(version)
+        if manifest:
             if required_artifacts:
-                artifacts_to_validate = {
-                    art: manifest.artifacts.get(art) for art in required_artifacts
+                return {
+                    artifact: manifest.artifacts.get(artifact) for artifact in required_artifacts
                 }
-            else:
-                artifacts_to_validate = manifest.artifacts
+            artifacts: Dict[str, Optional[str]] = dict(manifest.artifacts)
+            return artifacts
 
-            validation_report["total_artifacts"] = len(artifacts_to_validate)
+        message = f"No manifest found for version {version}"
+        report["errors"].append(message)
+        if strict_mode:
+            raise IntegrityValidationError(message, str(version))
+        report["warnings"].append(message)
+        return {}
 
-            # Validate each artifact
-            for artifact_path, expected_hash in artifacts_to_validate.items():
-                if expected_hash is None:
-                    error_msg = f"Required artifact not found in manifest: {artifact_path}"
-                    validation_report["errors"].append(error_msg)
-                    validation_report["missing_artifacts"] += 1
-                    validation_report["artifacts"][artifact_path] = {
-                        "status": "missing",
-                        "error": error_msg,
-                    }
-                    if strict_mode:
-                        raise IntegrityValidationError(error_msg, str(version), [artifact_path])
-                    continue
-
-                full_path = artifacts_dir / artifact_path
-
-                # Check if file exists
-                if not full_path.exists():
-                    error_msg = f"Artifact file missing: {artifact_path}"
-                    validation_report["errors"].append(error_msg)
-                    validation_report["missing_artifacts"] += 1
-                    validation_report["artifacts"][artifact_path] = {
-                        "status": "missing",
-                        "error": error_msg,
-                    }
-                    if strict_mode:
-                        raise IntegrityValidationError(error_msg, str(version), [artifact_path])
-                    continue
-
-                # Validate file integrity
-                try:
-                    actual_hash = self.artifact_manager.calculate_file_hash(full_path)
-                    if actual_hash == expected_hash:
-                        validation_report["valid_artifacts"] += 1
-                        validation_report["artifacts"][artifact_path] = {
-                            "status": "valid",
-                            "expected_hash": expected_hash,
-                            "actual_hash": actual_hash,
-                        }
-                        logger.debug(f"Artifact {artifact_path} passed integrity check")
-                    else:
-                        error_msg = f"Hash mismatch for {artifact_path}: expected {expected_hash}, got {actual_hash}"
-                        validation_report["errors"].append(error_msg)
-                        validation_report["invalid_artifacts"] += 1
-                        validation_report["artifacts"][artifact_path] = {
-                            "status": "invalid",
-                            "expected_hash": expected_hash,
-                            "actual_hash": actual_hash,
-                            "error": error_msg,
-                        }
-                        if strict_mode:
-                            raise IntegrityValidationError(error_msg, str(version), [artifact_path])
-                        else:
-                            logger.warning(
-                                f"Artifact {artifact_path} failed integrity check: {error_msg}"
-                            )
-
-                except Exception as e:
-                    error_msg = f"Error validating {artifact_path}: {str(e)}"
-                    validation_report["errors"].append(error_msg)
-                    validation_report["invalid_artifacts"] += 1
-                    validation_report["artifacts"][artifact_path] = {
-                        "status": "error",
-                        "error": error_msg,
-                    }
-                    if strict_mode:
-                        raise IntegrityValidationError(error_msg, str(version), [artifact_path])
-                    else:
-                        logger.error(f"Error validating artifact {artifact_path}: {e}")
-
-            # Determine overall validation result
-            is_valid = (
-                validation_report["invalid_artifacts"] == 0
-                and validation_report["missing_artifacts"] == 0
-                and len(validation_report["errors"]) == 0
+    def _validate_artifact(
+        self,
+        version: SemanticVersion,
+        artifacts_dir: Path,
+        artifact_path: str,
+        expected_hash: Optional[str],
+        report: Dict[str, Any],
+        strict_mode: bool,
+    ) -> None:
+        """Validate one manifest entry and update the shared report."""
+        if expected_hash is None:
+            self._record_artifact_failure(
+                version,
+                artifact_path,
+                f"Required artifact not found in manifest: {artifact_path}",
+                "missing",
+                report,
+                strict_mode,
             )
+            return
 
-            validation_report["is_valid"] = is_valid
+        full_path = artifacts_dir / artifact_path
+        if not full_path.exists():
+            self._record_artifact_failure(
+                version,
+                artifact_path,
+                f"Artifact file missing: {artifact_path}",
+                "missing",
+                report,
+                strict_mode,
+            )
+            return
 
-            # Cache the result if valid
-            if is_valid:
-                self._validation_cache[cache_key] = True
+        try:
+            actual_hash = self.artifact_manager.calculate_file_hash(full_path)
+        except Exception as exc:
+            self._record_artifact_failure(
+                version,
+                artifact_path,
+                f"Error validating {artifact_path}: {exc}",
+                "error",
+                report,
+                strict_mode,
+            )
+            return
 
-            if is_valid:
-                logger.info(
-                    f"Integrity validation passed for version {version}: {validation_report['valid_artifacts']} artifacts valid"
-                )
-            else:
-                logger.warning(
-                    f"Integrity validation failed for version {version}: {validation_report['invalid_artifacts']} invalid, {validation_report['missing_artifacts']} missing"
-                )
+        if actual_hash == expected_hash:
+            report["valid_artifacts"] += 1
+            report["artifacts"][artifact_path] = {
+                "status": "valid",
+                "expected_hash": expected_hash,
+                "actual_hash": actual_hash,
+            }
+            return
 
-            return is_valid, validation_report
+        self._record_artifact_failure(
+            version,
+            artifact_path,
+            f"Hash mismatch for {artifact_path}: expected {expected_hash}, got {actual_hash}",
+            "invalid",
+            report,
+            strict_mode,
+            expected_hash=expected_hash,
+            actual_hash=actual_hash,
+        )
 
-        except IntegrityValidationError:
-            # Re-raise integrity validation errors
-            raise
-        except Exception as e:
-            error_msg = f"Unexpected error during integrity validation: {str(e)}"
-            logger.error(error_msg)
-            validation_report["errors"].append(error_msg)
-            validation_report["is_valid"] = False
+    @staticmethod
+    def _record_artifact_failure(
+        version: SemanticVersion,
+        artifact_path: str,
+        message: str,
+        status: str,
+        report: Dict[str, Any],
+        strict_mode: bool,
+        **hashes: str,
+    ) -> None:
+        report["errors"].append(message)
+        counter = "missing_artifacts" if status == "missing" else "invalid_artifacts"
+        report[counter] += 1
+        report["artifacts"][artifact_path] = {
+            "status": status,
+            **hashes,
+            "error": message,
+        }
+        if strict_mode:
+            raise IntegrityValidationError(message, str(version), [artifact_path])
 
-            if strict_mode:
-                raise IntegrityValidationError(error_msg, str(version))
-            else:
-                return False, validation_report
+    @staticmethod
+    def _log_validation_result(
+        version: SemanticVersion, report: Dict[str, Any], is_valid: bool
+    ) -> None:
+        if is_valid:
+            logger.info(
+                "Integrity validation passed for version %s: %s artifacts valid",
+                version,
+                report["valid_artifacts"],
+            )
+            return
+        logger.warning(
+            "Integrity validation failed for version %s: %s invalid, %s missing",
+            version,
+            report["invalid_artifacts"],
+            report["missing_artifacts"],
+        )
+
+    @staticmethod
+    def _handle_unexpected_error(
+        error: Exception,
+        version: SemanticVersion,
+        report: Dict[str, Any],
+        strict_mode: bool,
+    ) -> Tuple[bool, Dict[str, Any]]:
+        message = f"Unexpected error during integrity validation: {error}"
+        logger.error(message)
+        report["errors"].append(message)
+        report["is_valid"] = False
+        if strict_mode:
+            raise IntegrityValidationError(message, str(version))
+        return False, report
 
     def validate_required_artifacts(
         self,
@@ -232,7 +281,7 @@ class IntegrityValidator:
         artifacts_dir: Path,
         required_artifacts: List[str],
         strict_mode: bool = True,
-    ) -> Tuple[bool, Dict[str, any]]:
+    ) -> Tuple[bool, Dict[str, Any]]:
         """
         Validate only the required artifacts for model loading.
 
@@ -275,7 +324,7 @@ class IntegrityValidator:
             logger.error(f"Quick validation failed: {e}")
             return False
 
-    def get_validation_summary(self, validation_report: Dict[str, any]) -> str:
+    def get_validation_summary(self, validation_report: Dict[str, Any]) -> str:
         """
         Generate a human-readable validation summary.
 
@@ -308,7 +357,7 @@ class IntegrityValidator:
         self._validation_cache.clear()
         logger.debug("Validation cache cleared")
 
-    def get_cache_stats(self) -> Dict[str, int]:
+    def get_cache_stats(self) -> Dict[str, Any]:
         """Get validation cache statistics."""
         return {
             "cached_validations": len(self._validation_cache),
@@ -330,7 +379,7 @@ class ModelLoaderIntegrityMixin:
     model loading classes to add automatic integrity validation.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._integrity_validator: Optional[IntegrityValidator] = None
         self._validation_enabled = True

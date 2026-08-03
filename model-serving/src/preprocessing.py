@@ -5,7 +5,7 @@ This module handles preprocessing of observations to maintain train-serve parity
 and provides utilities for feature transformation and normalization.
 """
 
-import pickle
+import json
 from pathlib import Path
 from typing import Any
 
@@ -22,11 +22,11 @@ class FeaturePreprocessor:
     Ensures consistent feature transformation between training and serving.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.is_fitted = False
-        self.feature_names = []
-        self.input_shape = None
-        self.output_shape = None
+        self.feature_names: list[str] = []
+        self.input_shape: list[int] | None = None
+        self.output_shape: list[int] | None = None
 
     def fit(self, observations: list[Observation]) -> "FeaturePreprocessor":
         """
@@ -72,8 +72,8 @@ class FeaturePreprocessor:
             path: Path to save preprocessor
         """
         try:
-            with open(path, "wb") as f:
-                pickle.dump(self, f)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(_serialize_preprocessor(self), f, indent=2)
         except Exception as e:
             raise PreprocessingError(f"Failed to save preprocessor to {path}: {str(e)}")
 
@@ -89,16 +89,12 @@ class FeaturePreprocessor:
             Loaded preprocessor instance
         """
         try:
-            with open(path, "rb") as f:
-                preprocessor = pickle.load(f)
+            with open(path, encoding="utf-8") as f:
+                payload = json.load(f)
+            return _deserialize_preprocessor(payload)
 
-            if not isinstance(preprocessor, FeaturePreprocessor):
-                raise PreprocessingError(
-                    f"Loaded object is not a FeaturePreprocessor: {type(preprocessor)}"
-                )
-
-            return preprocessor
-
+        except PreprocessingError:
+            raise
         except Exception as e:
             raise PreprocessingError(f"Failed to load preprocessor from {path}: {str(e)}")
 
@@ -190,7 +186,9 @@ class StandardFeaturePreprocessor(FeaturePreprocessor):
             if self.normalize_sensors:
                 # Clip sensors before computing stats
                 clipped_sensors = np.clip(
-                    features["sensors"], self.sensor_clip_range[0], self.sensor_clip_range[1]
+                    features["sensors"],
+                    self.sensor_clip_range[0],
+                    self.sensor_clip_range[1],
                 )
                 self.sensor_stats["mean"] = float(np.mean(clipped_sensors))
                 self.sensor_stats["std"] = float(np.std(clipped_sensors) + 1e-8)
@@ -251,7 +249,10 @@ class StandardFeaturePreprocessor(FeaturePreprocessor):
         except Exception as e:
             raise PreprocessingError(
                 f"Failed to transform observations: {str(e)}",
-                details={"num_observations": len(observations), "is_fitted": self.is_fitted},
+                details={
+                    "num_observations": len(observations),
+                    "is_fitted": self.is_fitted,
+                },
             )
 
     def get_feature_info(self) -> dict[str, Any]:
@@ -284,7 +285,7 @@ class MinimalPreprocessor(FeaturePreprocessor):
     No normalization or scaling applied - useful for models that expect raw features.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.feature_names = ["speed", "steering", "sensors"]
 
@@ -345,6 +346,109 @@ class MinimalPreprocessor(FeaturePreprocessor):
                 f"Failed to transform observations: {str(e)}",
                 details={"num_observations": len(observations)},
             )
+
+
+def _serialize_preprocessor(preprocessor: FeaturePreprocessor) -> dict[str, Any]:
+    """Serialize an allowlisted preprocessor to data-only JSON."""
+    state: dict[str, Any] = {
+        "is_fitted": preprocessor.is_fitted,
+        "feature_names": preprocessor.feature_names,
+        "input_shape": preprocessor.input_shape,
+        "output_shape": preprocessor.output_shape,
+    }
+
+    if isinstance(preprocessor, StandardFeaturePreprocessor):
+        preprocessor_type = "standard"
+        state.update(
+            {
+                "normalize_speed": preprocessor.normalize_speed,
+                "normalize_steering": preprocessor.normalize_steering,
+                "normalize_sensors": preprocessor.normalize_sensors,
+                "sensor_clip_range": list(preprocessor.sensor_clip_range),
+                "speed_stats": preprocessor.speed_stats,
+                "steering_stats": preprocessor.steering_stats,
+                "sensor_stats": preprocessor.sensor_stats,
+            }
+        )
+    elif isinstance(preprocessor, MinimalPreprocessor):
+        preprocessor_type = "minimal"
+    else:
+        raise PreprocessingError(f"Unsupported preprocessor type: {type(preprocessor).__name__}")
+
+    return {"format_version": 1, "type": preprocessor_type, "state": state}
+
+
+def _deserialize_preprocessor(payload: Any) -> FeaturePreprocessor:
+    """Reconstruct an allowlisted preprocessor from validated JSON data."""
+    if not isinstance(payload, dict) or payload.get("format_version") != 1:
+        raise PreprocessingError("Unsupported preprocessor serialization format")
+
+    state = payload.get("state")
+    if not isinstance(state, dict):
+        raise PreprocessingError("Preprocessor state must be an object")
+
+    preprocessor_type = payload.get("type")
+    if preprocessor_type == "standard":
+        clip_range = _float_pair(state.get("sensor_clip_range"), "sensor_clip_range")
+        standard = StandardFeaturePreprocessor(
+            normalize_speed=_boolean(state, "normalize_speed"),
+            normalize_steering=_boolean(state, "normalize_steering"),
+            normalize_sensors=_boolean(state, "normalize_sensors"),
+            sensor_clip_range=clip_range,
+        )
+        preprocessor: FeaturePreprocessor = standard
+        standard.speed_stats = _statistics(state.get("speed_stats"), "speed_stats")
+        standard.steering_stats = _statistics(state.get("steering_stats"), "steering_stats")
+        standard.sensor_stats = _statistics(state.get("sensor_stats"), "sensor_stats")
+    elif preprocessor_type == "minimal":
+        preprocessor = MinimalPreprocessor()
+    else:
+        raise PreprocessingError(f"Unsupported preprocessor type: {preprocessor_type}")
+
+    preprocessor.is_fitted = _boolean(state, "is_fitted")
+    preprocessor.feature_names = _string_list(state.get("feature_names"), "feature_names")
+    preprocessor.input_shape = _optional_shape(state.get("input_shape"), "input_shape")
+    preprocessor.output_shape = _optional_shape(state.get("output_shape"), "output_shape")
+    return preprocessor
+
+
+def _boolean(state: dict[str, Any], key: str) -> bool:
+    value = state.get(key)
+    if not isinstance(value, bool):
+        raise PreprocessingError(f"Preprocessor field {key} must be a boolean")
+    return value
+
+
+def _float_pair(value: Any, field_name: str) -> tuple[float, float]:
+    if not isinstance(value, list) or len(value) != 2:
+        raise PreprocessingError(f"Preprocessor field {field_name} must contain two numbers")
+    if not all(isinstance(item, (int, float)) for item in value):
+        raise PreprocessingError(f"Preprocessor field {field_name} must contain two numbers")
+    return float(value[0]), float(value[1])
+
+
+def _statistics(value: Any, field_name: str) -> dict[str, float]:
+    if not isinstance(value, dict):
+        raise PreprocessingError(f"Preprocessor field {field_name} must be an object")
+    mean = value.get("mean")
+    std = value.get("std")
+    if not isinstance(mean, (int, float)) or not isinstance(std, (int, float)):
+        raise PreprocessingError(f"Preprocessor field {field_name} has invalid statistics")
+    return {"mean": float(mean), "std": float(std)}
+
+
+def _string_list(value: Any, field_name: str) -> list[str]:
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise PreprocessingError(f"Preprocessor field {field_name} must be a string list")
+    return value
+
+
+def _optional_shape(value: Any, field_name: str) -> list[int] | None:
+    if value is None:
+        return None
+    if not isinstance(value, list) or not all(isinstance(item, int) for item in value):
+        raise PreprocessingError(f"Preprocessor field {field_name} must be an integer list")
+    return value
 
 
 def create_preprocessor(config: dict[str, Any]) -> FeaturePreprocessor:
@@ -422,7 +526,10 @@ def validate_preprocessing_parity(
         if train_features.shape != serve_features.shape:
             raise PreprocessingError(
                 "Shape mismatch between train and serve features",
-                details={"train_shape": train_features.shape, "serve_shape": serve_features.shape},
+                details={
+                    "train_shape": train_features.shape,
+                    "serve_shape": serve_features.shape,
+                },
             )
 
         max_diff = np.max(np.abs(train_features - serve_features))

@@ -11,27 +11,65 @@ Provides comprehensive configuration management including:
 - Schema documentation
 """
 
-from .settings import (
-    BaseConfig, AppConfig, ServerConfig, ModelConfig, LoggingConfig,
-    MonitoringConfig, DatabaseConfig, CacheConfig, SecurityConfig,
-    Environment, LogLevel, ModelBackend, DatabaseBackend, CacheBackend
-)
+from .diff import compare_configs
 from .loader import ConfigLoader, load_config
+from .schema import SchemaFormat, generate_schema_docs
+from .settings import (
+    AppConfig,
+    BaseConfig,
+    CacheBackend,
+    CacheConfig,
+    DatabaseBackend,
+    DatabaseConfig,
+    Environment,
+    LoggingConfig,
+    LogLevel,
+    ModelBackend,
+    ModelConfig,
+    MonitoringConfig,
+    SecurityConfig,
+    ServerConfig,
+)
+from .templates import TemplateEngine
 from .validation import (
-    ValidationSeverity, ValidationIssue, ValidationResult, ValidationError,
-    ConfigValidator, validate_config, format_validation_result
+    ConfigValidator,
+    ValidationError,
+    ValidationIssue,
+    ValidationResult,
+    ValidationSeverity,
+    format_validation_result,
+    validate_config,
 )
 
 __all__ = [
     # Settings
-    "BaseConfig", "AppConfig", "ServerConfig", "ModelConfig", "LoggingConfig",
-    "MonitoringConfig", "DatabaseConfig", "CacheConfig", "SecurityConfig",
-    "Environment", "LogLevel", "ModelBackend", "DatabaseBackend", "CacheBackend",
-    
+    "BaseConfig",
+    "AppConfig",
+    "ServerConfig",
+    "ModelConfig",
+    "LoggingConfig",
+    "MonitoringConfig",
+    "DatabaseConfig",
+    "CacheConfig",
+    "SecurityConfig",
+    "Environment",
+    "LogLevel",
+    "ModelBackend",
+    "DatabaseBackend",
+    "CacheBackend",
     # Loader
-    "ConfigLoader", "load_config",
-    
+    "ConfigLoader",
+    "load_config",
+    "compare_configs",
+    "SchemaFormat",
+    "generate_schema_docs",
+    "TemplateEngine",
     # Validation
-    "ValidationSeverity", "ValidationIssue", "ValidationResult", "ValidationError",
-    "ConfigValidator", "validate_config", "format_validation_result",
+    "ValidationSeverity",
+    "ValidationIssue",
+    "ValidationResult",
+    "ValidationError",
+    "ConfigValidator",
+    "validate_config",
+    "format_validation_result",
 ]

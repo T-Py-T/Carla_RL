@@ -7,12 +7,11 @@ and the existing model loading infrastructure.
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from .artifact_manager import ArtifactManager
-from .integrity_validator import IntegrityValidator, IntegrityValidationError
+from .integrity_validator import IntegrityValidationError, IntegrityValidator
 from .semantic_version import SemanticVersion, parse_version
-
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +34,7 @@ class ModelLoaderWithIntegrity:
         self.artifacts_dir = Path(artifacts_dir)
         self.artifact_manager = ArtifactManager(self.artifacts_dir)
         self.integrity_validator = IntegrityValidator(self.artifact_manager)
-        self._loaded_models: Dict[str, any] = {}
+        self._loaded_models: Dict[str, Dict[str, Any]] = {}
 
         logger.info(
             f"Initialized ModelLoaderWithIntegrity with artifacts_dir: {self.artifacts_dir}"
@@ -47,7 +46,7 @@ class ModelLoaderWithIntegrity:
         required_artifacts: Optional[List[str]] = None,
         strict_validation: bool = True,
         validate_integrity: bool = True,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Load a model with integrity validation.
 
@@ -81,37 +80,7 @@ class ModelLoaderWithIntegrity:
 
         # Perform integrity validation if requested
         if validate_integrity:
-            logger.info(f"Validating integrity for model version {version_str}")
-
-            try:
-                is_valid, validation_report = self.integrity_validator.validate_model_artifacts(
-                    version, version_dir, required_artifacts, strict_validation
-                )
-
-                if not is_valid:
-                    error_msg = f"Integrity validation failed for model version {version_str}"
-                    logger.error(error_msg)
-                    logger.error(self.integrity_validator.get_validation_summary(validation_report))
-
-                    if strict_validation:
-                        raise IntegrityValidationError(
-                            error_msg, version_str, validation_report.get("failed_artifacts", [])
-                        )
-                    else:
-                        logger.warning(f"Integrity validation failed but continuing: {error_msg}")
-
-                logger.info(f"Integrity validation passed for model version {version_str}")
-
-            except IntegrityValidationError:
-                # Re-raise integrity validation errors
-                raise
-            except Exception as e:
-                error_msg = f"Unexpected error during integrity validation: {e}"
-                logger.error(error_msg)
-                if strict_validation:
-                    raise IntegrityValidationError(error_msg, version_str)
-                else:
-                    logger.warning(f"Integrity validation error but continuing: {error_msg}")
+            self._validate_before_load(version, version_dir, required_artifacts, strict_validation)
 
         # Load the model (placeholder implementation)
         model_data = self._load_model_artifacts(version_dir, required_artifacts)
@@ -121,6 +90,46 @@ class ModelLoaderWithIntegrity:
 
         logger.info(f"Successfully loaded model version {version_str}")
         return model_data
+
+    def _validate_before_load(
+        self,
+        version: SemanticVersion,
+        version_dir: Path,
+        required_artifacts: Optional[List[str]],
+        strict_validation: bool,
+    ) -> None:
+        """Validate a version and apply the caller's strictness policy."""
+        version_str = str(version)
+        logger.info("Validating integrity for model version %s", version_str)
+        try:
+            is_valid, report = self.integrity_validator.validate_model_artifacts(
+                version, version_dir, required_artifacts, strict_validation
+            )
+        except IntegrityValidationError:
+            raise
+        except Exception as exc:
+            self._handle_validation_error(exc, version_str, strict_validation)
+            return
+
+        if is_valid:
+            logger.info("Integrity validation passed for model version %s", version_str)
+            return
+
+        message = f"Integrity validation failed for model version {version_str}"
+        logger.error(self.integrity_validator.get_validation_summary(report))
+        if strict_validation:
+            raise IntegrityValidationError(message, version_str, report.get("failed_artifacts", []))
+        logger.warning("Integrity validation failed but continuing: %s", message)
+
+    @staticmethod
+    def _handle_validation_error(
+        error: Exception, version_str: str, strict_validation: bool
+    ) -> None:
+        message = f"Unexpected error during integrity validation: {error}"
+        logger.error(message)
+        if strict_validation:
+            raise IntegrityValidationError(message, version_str)
+        logger.warning("Integrity validation error but continuing: %s", message)
 
     def unload_model(self, version: Union[str, SemanticVersion]) -> bool:
         """
@@ -151,7 +160,7 @@ class ModelLoaderWithIntegrity:
         """
         return list(self._loaded_models.keys())
 
-    def get_model_info(self, version: Union[str, SemanticVersion]) -> Optional[Dict[str, any]]:
+    def get_model_info(self, version: Union[str, SemanticVersion]) -> Optional[Dict[str, Any]]:
         """
         Get information about a loaded model.
 
@@ -169,7 +178,7 @@ class ModelLoaderWithIntegrity:
         version: Union[str, SemanticVersion],
         required_artifacts: Optional[List[str]] = None,
         strict_mode: bool = True,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Validate model integrity without loading.
 
@@ -187,7 +196,7 @@ class ModelLoaderWithIntegrity:
         if not version_dir.exists():
             raise FileNotFoundError(f"Model version {version} not found at {version_dir}")
 
-        is_valid, report = self.integrity_validator.validate_model_artifacts(
+        _, report = self.integrity_validator.validate_model_artifacts(
             version, version_dir, required_artifacts, strict_mode
         )
 
@@ -202,7 +211,7 @@ class ModelLoaderWithIntegrity:
         """
         return self.artifact_manager.list_versions()
 
-    def get_model_manifest(self, version: Union[str, SemanticVersion]) -> Optional[Dict[str, any]]:
+    def get_model_manifest(self, version: Union[str, SemanticVersion]) -> Optional[Dict[str, Any]]:
         """
         Get model manifest for a version.
 
@@ -222,7 +231,7 @@ class ModelLoaderWithIntegrity:
 
     def _load_model_artifacts(
         self, version_dir: Path, required_artifacts: Optional[List[str]] = None
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Load model artifacts from directory.
 
@@ -236,7 +245,7 @@ class ModelLoaderWithIntegrity:
         # This is a placeholder implementation
         # In a real implementation, this would load the actual model files
 
-        model_data = {
+        model_data: Dict[str, Any] = {
             "version": version_dir.name,
             "artifacts_dir": str(version_dir),
             "loaded_at": self._get_current_timestamp(),
@@ -244,37 +253,45 @@ class ModelLoaderWithIntegrity:
         }
 
         # Find and load artifact files
-        if required_artifacts:
-            artifact_files = [version_dir / artifact for artifact in required_artifacts]
-        else:
-            # Find all artifact files
-            artifact_extensions = {".pt", ".pkl", ".yaml", ".yml", ".json", ".txt", ".md"}
-            artifact_files = []
-            for file_path in version_dir.rglob("*"):
-                if file_path.is_file() and file_path.suffix.lower() in artifact_extensions:
-                    artifact_files.append(file_path)
+        artifact_files = self._find_artifact_files(version_dir, required_artifacts)
 
         # Load each artifact file
         for artifact_file in artifact_files:
             if artifact_file.exists():
-                relative_path = artifact_file.relative_to(version_dir)
-                try:
-                    # In a real implementation, this would load the actual file content
-                    # For now, we'll just store metadata
-                    model_data["artifacts"][str(relative_path)] = {
-                        "path": str(artifact_file),
-                        "size": artifact_file.stat().st_size,
-                        "loaded": True,
-                    }
-                except Exception as e:
-                    logger.warning(f"Failed to load artifact {artifact_file}: {e}")
-                    model_data["artifacts"][str(relative_path)] = {
-                        "path": str(artifact_file),
-                        "error": str(e),
-                        "loaded": False,
-                    }
+                relative_path = str(artifact_file.relative_to(version_dir))
+                model_data["artifacts"][relative_path] = self._artifact_metadata(artifact_file)
 
         return model_data
+
+    @staticmethod
+    def _find_artifact_files(
+        version_dir: Path, required_artifacts: Optional[List[str]]
+    ) -> List[Path]:
+        if required_artifacts:
+            return [version_dir / artifact for artifact in required_artifacts]
+        extensions = {".pt", ".pkl", ".yaml", ".yml", ".json", ".txt", ".md"}
+        return [
+            path
+            for path in version_dir.rglob("*")
+            if path.is_file() and path.suffix.lower() in extensions
+        ]
+
+    @staticmethod
+    def _artifact_metadata(artifact_file: Path) -> Dict[str, Any]:
+        """Return load metadata for one artifact path."""
+        try:
+            return {
+                "path": str(artifact_file),
+                "size": artifact_file.stat().st_size,
+                "loaded": True,
+            }
+        except OSError as exc:
+            logger.warning("Failed to load artifact %s: %s", artifact_file, exc)
+            return {
+                "path": str(artifact_file),
+                "error": str(exc),
+                "loaded": False,
+            }
 
     def _get_current_timestamp(self) -> str:
         """Get current timestamp as ISO string."""
@@ -307,13 +324,13 @@ class IntegrityValidationMiddleware:
 
     def validate_and_load(
         self,
-        load_function,
+        load_function: Callable[..., Any],
         version: Union[str, SemanticVersion],
         artifacts_dir: Path,
         required_artifacts: List[str],
-        *args,
-        **kwargs,
-    ) -> any:
+        *args: Any,
+        **kwargs: Any,
+    ) -> Any:
         """
         Validate artifacts and then load model using provided function.
 

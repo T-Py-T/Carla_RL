@@ -5,18 +5,19 @@ Modern DQN implementation optimized for highway-env and Apple Silicon.
 Features improved architecture and training stability.
 """
 
+import os
+import random
+from collections import deque
+from typing import Any, Dict, Tuple
+
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
-import random
-from collections import deque
-from typing import Tuple, Dict, Any
-import os
 
 
 class HighwayDQNAgent:
     """DQN Agent optimized for highway driving scenarios."""
-    
+
     def __init__(
         self,
         state_size: Tuple[int, ...],
@@ -30,11 +31,11 @@ class HighwayDQNAgent:
         target_update_freq: int = 100,
         double_dqn: bool = True,
         dueling_dqn: bool = True,
-        use_mixed_precision: bool = True
-    ):
+        use_mixed_precision: bool = True,
+    ) -> None:
         """
         Initialize Highway DQN Agent.
-        
+
         Args:
             state_size: Shape of state observations
             action_size: Number of possible actions
@@ -65,24 +66,27 @@ class HighwayDQNAgent:
         self.target_update_freq = target_update_freq
         self.double_dqn = double_dqn
         self.dueling_dqn = dueling_dqn
-        
+        self.rng = np.random.default_rng()
+
         # Mixed precision for Apple Silicon optimization
         if use_mixed_precision:
-            policy = keras.mixed_precision.Policy('mixed_float16')
+            policy = keras.mixed_precision.Policy("mixed_float16")
             keras.mixed_precision.set_global_policy(policy)
-        
+
         # Experience replay buffer
-        self.memory = deque(maxlen=memory_size)
-        
+        self.memory: deque[tuple[np.ndarray, int, float, np.ndarray, bool]] = deque(
+            maxlen=memory_size
+        )
+
         # Neural networks
         self.q_network = self._build_network()
         self.target_network = self._build_network()
         self.update_target_network()
-        
+
         # Training metrics
         self.training_step = 0
-        self.loss_history = []
-        
+        self.loss_history: list[float] = []
+
     def _build_network(self) -> keras.Model:
         """Build the neural network architecture."""
         if len(self.state_size) == 2:
@@ -93,37 +97,39 @@ class HighwayDQNAgent:
             return self._build_cnn_network()
         else:
             raise ValueError(f"Unsupported state shape: {self.state_size}")
-    
+
     def _build_dense_network(self) -> keras.Model:
         """Build dense network for kinematic observations."""
         inputs = keras.layers.Input(shape=self.state_size)
-        
+
         # Flatten if needed
         if len(self.state_size) > 1:
             x = keras.layers.Flatten()(inputs)
         else:
             x = inputs
-            
+
         # Dense layers with batch normalization
-        x = keras.layers.Dense(256, activation='relu')(x)
+        x = keras.layers.Dense(256, activation="relu")(x)
         x = keras.layers.BatchNormalization()(x)
         x = keras.layers.Dropout(0.2)(x)
-        
-        x = keras.layers.Dense(256, activation='relu')(x)
+
+        x = keras.layers.Dense(256, activation="relu")(x)
         x = keras.layers.BatchNormalization()(x)
         x = keras.layers.Dropout(0.2)(x)
-        
-        x = keras.layers.Dense(128, activation='relu')(x)
+
+        x = keras.layers.Dense(128, activation="relu")(x)
         x = keras.layers.BatchNormalization()(x)
-        
+
         if self.dueling_dqn:
             # Dueling DQN architecture
-            value_stream = keras.layers.Dense(64, activation='relu')(x)
-            value = keras.layers.Dense(1, name='value')(value_stream)
-            
-            advantage_stream = keras.layers.Dense(64, activation='relu')(x)
-            advantage = keras.layers.Dense(self.action_size, name='advantage')(advantage_stream)
-            
+            value_stream = keras.layers.Dense(64, activation="relu")(x)
+            value = keras.layers.Dense(1, name="value")(value_stream)
+
+            advantage_stream = keras.layers.Dense(64, activation="relu")(x)
+            advantage = keras.layers.Dense(self.action_size, name="advantage")(
+                advantage_stream
+            )
+
             # Combine value and advantage. Keras 3's ``Lambda`` requires an
             # explicit ``output_shape`` when the wrapped function is not a
             # trivial passthrough - auto-inference via symbolic tracing was
@@ -132,93 +138,99 @@ class HighwayDQNAgent:
                 lambda x: tf.reduce_mean(x, axis=1, keepdims=True),
                 output_shape=(1,),
             )(advantage)
-            
-            q_values = keras.layers.Add()([
-                value,
-                keras.layers.Subtract()([advantage, mean_advantage])
-            ])
+
+            q_values = keras.layers.Add()(
+                [value, keras.layers.Subtract()([advantage, mean_advantage])]
+            )
         else:
             # Standard DQN
-            q_values = keras.layers.Dense(self.action_size, activation='linear')(x)
-        
+            q_values = keras.layers.Dense(self.action_size, activation="linear")(x)
+
         model = keras.Model(inputs=inputs, outputs=q_values)
         model.compile(
             optimizer=keras.optimizers.Adam(learning_rate=self.learning_rate),
-            loss='mse'
+            loss="mse",
         )
-        
+
         return model
-    
+
     def _build_cnn_network(self) -> keras.Model:
         """Build CNN network for image observations."""
         inputs = keras.layers.Input(shape=self.state_size)
-        
+
         # Convolutional layers
-        x = keras.layers.Conv2D(32, (8, 8), strides=4, activation='relu')(inputs)
+        x = keras.layers.Conv2D(32, (8, 8), strides=4, activation="relu")(inputs)
         x = keras.layers.BatchNormalization()(x)
-        
-        x = keras.layers.Conv2D(64, (4, 4), strides=2, activation='relu')(x)
+
+        x = keras.layers.Conv2D(64, (4, 4), strides=2, activation="relu")(x)
         x = keras.layers.BatchNormalization()(x)
-        
-        x = keras.layers.Conv2D(64, (3, 3), strides=1, activation='relu')(x)
+
+        x = keras.layers.Conv2D(64, (3, 3), strides=1, activation="relu")(x)
         x = keras.layers.BatchNormalization()(x)
-        
+
         x = keras.layers.Flatten()(x)
-        
+
         # Dense layers
-        x = keras.layers.Dense(512, activation='relu')(x)
+        x = keras.layers.Dense(512, activation="relu")(x)
         x = keras.layers.Dropout(0.2)(x)
-        
+
         if self.dueling_dqn:
             # Dueling architecture for CNN
-            value_stream = keras.layers.Dense(256, activation='relu')(x)
-            value = keras.layers.Dense(1, name='value')(value_stream)
-            
-            advantage_stream = keras.layers.Dense(256, activation='relu')(x)
-            advantage = keras.layers.Dense(self.action_size, name='advantage')(advantage_stream)
-            
+            value_stream = keras.layers.Dense(256, activation="relu")(x)
+            value = keras.layers.Dense(1, name="value")(value_stream)
+
+            advantage_stream = keras.layers.Dense(256, activation="relu")(x)
+            advantage = keras.layers.Dense(self.action_size, name="advantage")(
+                advantage_stream
+            )
+
             mean_advantage = keras.layers.Lambda(
                 lambda x: tf.reduce_mean(x, axis=1, keepdims=True),
                 output_shape=(1,),
             )(advantage)
-            
-            q_values = keras.layers.Add()([
-                value,
-                keras.layers.Subtract()([advantage, mean_advantage])
-            ])
+
+            q_values = keras.layers.Add()(
+                [value, keras.layers.Subtract()([advantage, mean_advantage])]
+            )
         else:
-            q_values = keras.layers.Dense(self.action_size, activation='linear')(x)
-        
+            q_values = keras.layers.Dense(self.action_size, activation="linear")(x)
+
         model = keras.Model(inputs=inputs, outputs=q_values)
         model.compile(
             optimizer=keras.optimizers.Adam(learning_rate=self.learning_rate),
-            loss='mse'
+            loss="mse",
         )
-        
+
         return model
-    
-    def remember(self, state: np.ndarray, action: int, reward: float, 
-                 next_state: np.ndarray, done: bool):
+
+    def remember(
+        self,
+        state: np.ndarray,
+        action: int,
+        reward: float,
+        next_state: np.ndarray,
+        done: bool,
+    ) -> None:
         """Store experience in replay buffer."""
         self.memory.append((state, action, reward, next_state, done))
-    
+
     def act(self, state: np.ndarray, training: bool = True) -> int:
         """Choose action using epsilon-greedy policy."""
-        if training and np.random.random() <= self.epsilon:
+        if training and self.rng.random() <= self.epsilon:
             return random.randrange(self.action_size)
-        
+
         # Ensure state has batch dimension
         if len(state.shape) == len(self.state_size):
             state = np.expand_dims(state, axis=0)
-            
+
         q_values = self.q_network.predict(state, verbose=0)
-        return np.argmax(q_values[0])
-    
+        return int(np.argmax(q_values[0]))
+
     def replay(self) -> Dict[str, float]:
         """Train the agent on a batch of experiences."""
         if len(self.memory) < self.batch_size:
             return {}
-        
+
         # Sample batch
         batch = random.sample(self.memory, self.batch_size)
         states = np.array([e[0] for e in batch])
@@ -226,122 +238,130 @@ class HighwayDQNAgent:
         rewards = np.array([e[2] for e in batch])
         next_states = np.array([e[3] for e in batch])
         dones = np.array([e[4] for e in batch])
-        
+
         # Current Q-values
         current_q_values = self.q_network.predict(states, verbose=0)
-        
+
         if self.double_dqn:
             # Double DQN: use main network to select actions, target network to evaluate
-            next_actions = np.argmax(self.q_network.predict(next_states, verbose=0), axis=1)
+            next_actions = np.argmax(
+                self.q_network.predict(next_states, verbose=0), axis=1
+            )
             next_q_values = self.target_network.predict(next_states, verbose=0)
-            target_q_values = rewards + (1 - dones) * 0.95 * next_q_values[np.arange(self.batch_size), next_actions]
+            target_q_values = (
+                rewards
+                + (1 - dones)
+                * 0.95
+                * next_q_values[np.arange(self.batch_size), next_actions]
+            )
         else:
             # Standard DQN
             next_q_values = self.target_network.predict(next_states, verbose=0)
-            target_q_values = rewards + (1 - dones) * 0.95 * np.amax(next_q_values, axis=1)
-        
+            target_q_values = rewards + (1 - dones) * 0.95 * np.amax(
+                next_q_values, axis=1
+            )
+
         # Update Q-values for taken actions
         target_q_full = current_q_values.copy()
         target_q_full[np.arange(self.batch_size), actions] = target_q_values
-        
+
         # Train network
         history = self.q_network.fit(
-            states, target_q_full,
-            batch_size=self.batch_size,
-            epochs=1,
-            verbose=0
+            states, target_q_full, batch_size=self.batch_size, epochs=1, verbose=0
         )
-        
+
         # Update epsilon
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
-        
+
         # Update training metrics
         self.training_step += 1
-        loss = history.history['loss'][0]
+        loss = history.history["loss"][0]
         self.loss_history.append(loss)
-        
+
         # Update target network periodically
         if self.training_step % self.target_update_freq == 0:
             self.update_target_network()
-        
+
         return {
-            'loss': loss,
-            'epsilon': self.epsilon,
-            'q_mean': np.mean(current_q_values),
-            'q_std': np.std(current_q_values),
-            'learning_rate': float(self.q_network.optimizer.learning_rate),
-            'buffer_size': len(self.memory)
+            "loss": loss,
+            "epsilon": self.epsilon,
+            "q_mean": np.mean(current_q_values),
+            "q_std": np.std(current_q_values),
+            "learning_rate": float(self.q_network.optimizer.learning_rate),
+            "buffer_size": len(self.memory),
         }
-    
-    def update_target_network(self):
+
+    def update_target_network(self) -> None:
         """Update target network with main network weights."""
         self.target_network.set_weights(self.q_network.get_weights())
-    
-    def save(self, filepath: str):
+
+    def save(self, filepath: str) -> None:
         """Save model weights and configuration."""
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
-        
+
         # Keras 3 only accepts weight paths ending in ``.weights.h5`` (or
         # ``.keras``); the legacy Keras 2 format just saw this as a normal
         # filename suffix, so we can use it on both major versions.
         self.q_network.save_weights(f"{filepath}.weights.h5")
-        
+
         # Save configuration
         config = {
-            'state_size': self.state_size,
-            'action_size': self.action_size,
-            'learning_rate': self.learning_rate,
-            'epsilon': self.epsilon,
-            'epsilon_min': self.epsilon_min,
-            'epsilon_decay': self.epsilon_decay,
-            'memory_size': self.memory_size,
-            'batch_size': self.batch_size,
-            'target_update_freq': self.target_update_freq,
-            'double_dqn': self.double_dqn,
-            'dueling_dqn': self.dueling_dqn,
-            'training_step': self.training_step
+            "state_size": self.state_size,
+            "action_size": self.action_size,
+            "learning_rate": self.learning_rate,
+            "epsilon": self.epsilon,
+            "epsilon_min": self.epsilon_min,
+            "epsilon_decay": self.epsilon_decay,
+            "memory_size": self.memory_size,
+            "batch_size": self.batch_size,
+            "target_update_freq": self.target_update_freq,
+            "double_dqn": self.double_dqn,
+            "dueling_dqn": self.dueling_dqn,
+            "training_step": self.training_step,
         }
-        
+
         import json
-        with open(f"{filepath}_config.json", 'w') as f:
+
+        with open(f"{filepath}_config.json", "w") as f:
             json.dump(config, f, indent=2)
-    
-    def load(self, filepath: str):
+
+    def load(self, filepath: str) -> None:
         """Load model weights and configuration."""
         import json
-        
+
         # Load configuration
-        with open(f"{filepath}_config.json", 'r') as f:
+        with open(f"{filepath}_config.json", "r") as f:
             config = json.load(f)
-        
+
         # Update agent configuration
-        self.epsilon = config.get('epsilon', self.epsilon)
-        self.training_step = config.get('training_step', 0)
-        
+        self.epsilon = config.get("epsilon", self.epsilon)
+        self.training_step = config.get("training_step", 0)
+
         self.q_network.load_weights(f"{filepath}.weights.h5")
         self.update_target_network()
-    
+
     def get_model_summary(self) -> str:
         """Get model architecture summary."""
         import io
+
         stream = io.StringIO()
-        self.q_network.summary(print_fn=lambda x: stream.write(x + '\n'))
+        self.q_network.summary(print_fn=lambda x: stream.write(x + "\n"))
         return stream.getvalue()
-    
+
     def get_training_metrics(self) -> Dict[str, Any]:
         """Get training performance metrics."""
         if not self.loss_history:
             return {}
-            
+
         recent_losses = self.loss_history[-100:]  # Last 100 training steps
-        
+
         return {
-            'total_training_steps': self.training_step,
-            'current_epsilon': self.epsilon,
-            'recent_mean_loss': np.mean(recent_losses),
-            'recent_loss_std': np.std(recent_losses),
-            'memory_utilization': len(self.memory) / self.memory_size,
-            'model_parameters': self.q_network.count_params()
+            "total_training_steps": self.training_step,
+            "current_epsilon": self.epsilon,
+            "recent_mean_loss": np.mean(recent_losses),
+            "recent_loss_std": np.std(recent_losses),
+            "memory_utilization": len(self.memory) / self.memory_size,
+            "model_parameters": self.q_network.count_params(),
         }

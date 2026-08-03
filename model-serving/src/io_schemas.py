@@ -10,6 +10,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+EXAMPLE_MODEL_VERSION = "v0.1.0"
+
 
 class Observation(BaseModel):
     """
@@ -21,7 +23,11 @@ class Observation(BaseModel):
 
     model_config = ConfigDict(
         json_schema_extra={
-            "example": {"speed": 25.5, "steering": 0.1, "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]}
+            "example": {
+                "speed": 25.5,
+                "steering": 0.1,
+                "sensors": [0.8, 0.2, 0.5, 0.9, 0.1],
+            }
         }
     )
 
@@ -68,10 +74,16 @@ class Action(BaseModel):
         description="Throttle intensity (0.0 = no throttle, 1.0 = full throttle)",
     )
     brake: float = Field(
-        ..., ge=0.0, le=1.0, description="Brake intensity (0.0 = no brake, 1.0 = full brake)"
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Brake intensity (0.0 = no brake, 1.0 = full brake)",
     )
     steer: float = Field(
-        ..., ge=-1.0, le=1.0, description="Steering angle (-1.0 = full left, 1.0 = full right)"
+        ...,
+        ge=-1.0,
+        le=1.0,
+        description="Steering angle (-1.0 = full left, 1.0 = full right)",
     )
 
 
@@ -86,7 +98,11 @@ class PredictRequest(BaseModel):
         json_schema_extra={
             "example": {
                 "observations": [
-                    {"speed": 25.5, "steering": 0.1, "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]}
+                    {
+                        "speed": 25.5,
+                        "steering": 0.1,
+                        "sensors": [0.8, 0.2, 0.5, 0.9, 0.1],
+                    }
                 ],
                 "deterministic": True,
             }
@@ -94,10 +110,14 @@ class PredictRequest(BaseModel):
     )
 
     observations: list[Observation] = Field(
-        ..., min_length=1, max_length=1000, description="Batch of observations to process"
+        ...,
+        min_length=1,
+        max_length=1000,
+        description="Batch of observations to process",
     )
     deterministic: bool | None = Field(
-        default=False, description="Whether to use deterministic inference (reproducible outputs)"
+        default=False,
+        description="Whether to use deterministic inference (reproducible outputs)",
     )
 
 
@@ -112,7 +132,7 @@ class PredictResponse(BaseModel):
         json_schema_extra={
             "example": {
                 "actions": [{"throttle": 0.7, "brake": 0.0, "steer": 0.1}],
-                "version": "v0.1.0",
+                "version": EXAMPLE_MODEL_VERSION,
                 "timingMs": 8.5,
                 "deterministic": True,
             }
@@ -134,7 +154,7 @@ class HealthResponse(BaseModel):
         json_schema_extra={
             "example": {
                 "status": "ok",
-                "version": "v0.1.0",
+                "version": EXAMPLE_MODEL_VERSION,
                 "git": "abc123ef",
                 "device": "cpu",
                 "timestamp": 1695825600.0,
@@ -156,10 +176,14 @@ class MetadataResponse(BaseModel):
         json_schema_extra={
             "example": {
                 "modelName": "carla-ppo",
-                "version": "v0.1.0",
+                "version": EXAMPLE_MODEL_VERSION,
                 "device": "cpu",
                 "inputShape": [5],
-                "actionSpace": {"throttle": [0.0, 1.0], "brake": [0.0, 1.0], "steer": [-1.0, 1.0]},
+                "actionSpace": {
+                    "throttle": [0.0, 1.0],
+                    "brake": [0.0, 1.0],
+                    "steer": [-1.0, 1.0],
+                },
             }
         }
     )
@@ -209,7 +233,7 @@ class ErrorResponse(BaseModel):
 
 class VersionInfo(BaseModel):
     """Model version information for version discovery."""
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -217,11 +241,11 @@ class VersionInfo(BaseModel):
                 "is_stable": True,
                 "is_current": False,
                 "performance_metrics": {"latency_p50_ms": 8.5, "throughput_rps": 120},
-                "model_card": {"model_name": "carla-ppo", "framework": "pytorch"}
+                "model_card": {"model_name": "carla-ppo", "framework": "pytorch"},
             }
         }
     )
-    
+
     version: str = Field(description="Semantic version string (e.g., v1.2.3)")
     is_stable: bool = Field(description="Whether this is a stable release (not prerelease)")
     is_current: bool = Field(description="Whether this is the currently loaded version")
@@ -235,7 +259,7 @@ class VersionInfo(BaseModel):
 
 class VersionsResponse(BaseModel):
     """Response schema for /versions endpoint - lists available model versions."""
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -246,15 +270,15 @@ class VersionsResponse(BaseModel):
                         "is_stable": True,
                         "is_current": True,
                         "performance_metrics": {"latency_p50_ms": 8.5},
-                        "model_card": {"model_name": "carla-ppo"}
+                        "model_card": {"model_name": "carla-ppo"},
                     }
                 ],
                 "selection_strategy": "latest_stable",
-                "artifacts_root": "/app/artifacts"
+                "artifacts_root": "/app/artifacts",
             }
         }
     )
-    
+
     current_version: str = Field(description="Currently loaded model version")
     available_versions: list[VersionInfo] = Field(description="List of available model versions")
     selection_strategy: str = Field(description="Version selection strategy used")

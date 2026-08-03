@@ -8,14 +8,13 @@ and rollback support.
 
 import json
 import logging
+import shutil
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Union, Callable, Any
-import shutil
+from typing import Any, Callable, Dict, List, Optional, Union
 
-from .semantic_version import SemanticVersion, parse_version
 from .artifact_manager import ArtifactManager
-
+from .semantic_version import SemanticVersion, parse_version
 
 logger = logging.getLogger(__name__)
 
@@ -293,11 +292,10 @@ class MigrationManager:
                     )
 
             # Validate migration if requested
-            if validate_after:
-                if not self._validate_migration_result(plan):
-                    raise MigrationError(
-                        "Migration validation failed", plan.from_version, plan.to_version
-                    )
+            if validate_after and not self._validate_migration_result(plan):
+                raise MigrationError(
+                    "Migration validation failed", plan.from_version, plan.to_version
+                )
 
             # Update status
             result.status = "completed"
@@ -468,13 +466,10 @@ class MigrationManager:
             step_to = parse_version(step.to_version)
 
             # Check if step can be part of the migration path
-            if step_from == from_version and step_to <= to_version:
-                available_steps.append(step)
-            elif step_from < from_version and step_to >= to_version:
-                # Step spans the entire range
-                available_steps.append(step)
-            elif step_from >= from_version and step_to <= to_version:
-                # Step is within the range
+            starts_at_source = step_from == from_version and step_to <= to_version
+            spans_range = step_from < from_version and step_to >= to_version
+            within_range = step_from >= from_version and step_to <= to_version
+            if starts_at_source or spans_range or within_range:
                 available_steps.append(step)
 
         # Sort by target version
@@ -631,26 +626,18 @@ def create_builtin_migration_steps() -> List[MigrationStep]:
     def schema_upgrade_v1_to_v2(context: Dict[str, Any]) -> None:
         """Upgrade schema from v1 to v2."""
         logger.info("Upgrading schema from v1 to v2")
-        # Implementation would go here
-        pass
 
     def schema_rollback_v2_to_v1(context: Dict[str, Any]) -> None:
         """Rollback schema from v2 to v1."""
         logger.info("Rolling back schema from v2 to v1")
-        # Implementation would go here
-        pass
 
     def data_migration_v1_to_v2(context: Dict[str, Any]) -> None:
         """Migrate data from v1 to v2."""
         logger.info("Migrating data from v1 to v2")
-        # Implementation would go here
-        pass
 
     def data_rollback_v2_to_v1(context: Dict[str, Any]) -> None:
         """Rollback data from v2 to v1."""
         logger.info("Rolling back data from v2 to v1")
-        # Implementation would go here
-        pass
 
     steps = [
         MigrationStep(

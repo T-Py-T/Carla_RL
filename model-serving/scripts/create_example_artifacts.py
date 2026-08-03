@@ -2,7 +2,7 @@
 """Create example model artifacts for CarlaRL Policy-as-a-Service.
 
 Generates a small example policy and preprocessor so the serving stack has a
-working `model.pt` + `preprocessor.pkl` pair to load. Intended for local
+working `model.pt` + `preprocessor.json` pair to load. Intended for local
 development, CI, and Docker image builds — not for production training.
 
 Usage
@@ -19,7 +19,7 @@ import argparse
 import hashlib
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import torch
 import torch.nn as nn
@@ -45,9 +45,7 @@ class ExampleCarlaModel(nn.Module):
     [throttle, brake, steer] action space.
     """
 
-    def __init__(
-        self, input_dim: int = 5, hidden_dim: int = 64, output_dim: int = 3
-    ):
+    def __init__(self, input_dim: int = 5, hidden_dim: int = 64, output_dim: int = 3):
         super().__init__()
         self.network = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
@@ -107,12 +105,11 @@ def compute_file_hash(file_path: Path) -> str:
 
 
 def _save_model(model: nn.Module, model_path: Path) -> str:
-    """Save `model` to `model_path`, preferring TorchScript.
+    """Save `model` to `model_path` as TorchScript.
 
     Tracing captures `forward` into a portable TorchScript module so loading
-    does not require the original Python class on the import path. If tracing
-    fails (e.g. on exotic custom ops), fall back to a full `nn.Module` pickle
-    so the artifact still works via the PyTorch load path in model_loader.
+    does not require the original Python class on the import path and never
+    requires unsafe Python-object deserialization.
     """
     model.eval()
     example_input = torch.randn(1, 5)
@@ -121,9 +118,7 @@ def _save_model(model: nn.Module, model_path: Path) -> str:
         torch.jit.save(scripted, str(model_path))
         return "torchscript"
     except Exception as exc:  # noqa: BLE001
-        print(f"WARNING: TorchScript tracing failed ({exc}); saving nn.Module pickle")
-        torch.save(model, str(model_path))
-        return "pytorch"
+        raise RuntimeError("Model must be exportable as TorchScript") from exc
 
 
 def create_artifacts(output_dir: Path, version: str = "v0.1.0") -> Path:
@@ -136,7 +131,7 @@ def create_artifacts(output_dir: Path, version: str = "v0.1.0") -> Path:
     save_format = _save_model(create_example_model(), model_path)
     print(f"  saved {save_format} model -> {model_path}")
 
-    preprocessor_path = artifact_dir / "preprocessor.pkl"
+    preprocessor_path = artifact_dir / "preprocessor.json"
     preprocessor = create_example_preprocessor()
     preprocessor.save(preprocessor_path)
     print(f"  saved preprocessor -> {preprocessor_path}")
@@ -145,7 +140,7 @@ def create_artifacts(output_dir: Path, version: str = "v0.1.0") -> Path:
     preprocessor_hash = compute_file_hash(preprocessor_path)
 
     model_card_path = artifact_dir / "model_card.yaml"
-    model_card = {}
+    model_card: dict[str, Any] = {}
     if model_card_path.exists():
         with open(model_card_path) as handle:
             model_card = yaml.safe_load(handle) or {}
@@ -153,9 +148,10 @@ def create_artifacts(output_dir: Path, version: str = "v0.1.0") -> Path:
     model_card.setdefault("model_name", "carla-ppo")
     model_card.setdefault("version", version)
     model_card.setdefault("model_type", save_format)
+    model_card["preprocessor_filename"] = preprocessor_path.name
     model_card["artifact_hashes"] = {
         "model.pt": model_hash,
-        "preprocessor.pkl": preprocessor_hash,
+        preprocessor_path.name: preprocessor_hash,
     }
 
     with open(model_card_path, "w") as handle:
@@ -172,9 +168,7 @@ def create_artifacts(output_dir: Path, version: str = "v0.1.0") -> Path:
 
 
 def main(argv: Optional[list[str]] = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Create example CarlaRL model artifacts"
-    )
+    parser = argparse.ArgumentParser(description="Create example CarlaRL model artifacts")
     parser.add_argument(
         "--output",
         type=Path,
