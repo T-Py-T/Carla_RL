@@ -23,14 +23,16 @@ def load_benchmark_results(file_path: str) -> Dict[str, Any]:
         print(f"Error: Invalid JSON in benchmark results file: {e}")
         sys.exit(1)
 
-def grade_value(value, excellent, good, adequate):
+def grade_value(value, excellent, good, adequate, *, inclusive=True):
     """Grade a numeric value against descending thresholds."""
-    if value >= excellent:
-        return "Excellent"
-    if value >= good:
-        return "Good"
-    if value >= adequate:
-        return "Adequate"
+    grades = (
+        (excellent, "Excellent"),
+        (good, "Good"),
+        (adequate, "Adequate"),
+    )
+    for threshold, grade in grades:
+        if value > threshold or (inclusive and value == threshold):
+            return grade
     return "Limited"
 
 
@@ -233,7 +235,9 @@ def analyze_batch_performance(benchmarks: Dict[str, Any]) -> Dict[str, Any]:
     
     best_ratio, optimal_batch = find_optimal_batch(batch_results)
     analysis["optimal_batch_size"] = optimal_batch
-    analysis["scaling_efficiency"] = grade_value(best_ratio, 100, 50, 20)
+    analysis["scaling_efficiency"] = grade_value(
+        best_ratio, 100, 50, 20, inclusive=False
+    )
     if best_ratio <= 20:
         analysis["scaling_efficiency"] = "Poor"
         analysis["recommendations"].append("Batch scaling efficiency needs improvement")

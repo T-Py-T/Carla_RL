@@ -198,3 +198,21 @@ class TestVersionSelector:
         # Test status
         status = manager.get_version_status()
         assert status["current_version"] == "v1.0.0"
+
+    def test_non_mapping_model_cards_do_not_abort_discovery(self):
+        invalid_cards = {
+            "v3.0.0": "not a model card",
+            "v4.0.0": ["not", "a", "model", "card"],
+        }
+        for version, model_card in invalid_cards.items():
+            version_dir = self.artifacts_root / version
+            version_dir.mkdir()
+            with open(version_dir / "model_card.yaml", "w") as model_card_file:
+                yaml.safe_dump(model_card, model_card_file)
+
+        versions = self.selector.discover_versions(force_rescan=True)
+
+        for version in invalid_cards:
+            parsed_version = parse_version(version)
+            assert parsed_version in versions
+            assert self.selector.get_version_info(parsed_version)["model_card"] == {}

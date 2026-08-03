@@ -168,11 +168,10 @@ def check_compatibility(artifact_manager: ArtifactManager,
 
 
 def get_recommendation(artifact_manager: ArtifactManager, 
-                      use_case: str = "general",
-                      performance_requirements: Optional[dict] = None) -> None:
+                      use_case: str = "general") -> None:
     """Get recommended version for a use case."""
     selector = VersionSelector(artifact_manager)
-    recommended = selector.get_recommended_version(use_case, performance_requirements)
+    recommended = selector.get_recommended_version(use_case)
     
     if recommended:
         print(f"Recommended version for {use_case}: {recommended}")
@@ -317,11 +316,6 @@ Examples:
         default="general",
         help="Use case for recommendation"
     )
-    recommend_parser.add_argument(
-        "--performance-requirements",
-        help="Path to JSON file with performance requirements"
-    )
-    
     # History command
     history_parser = subparsers.add_parser("history", help="Show selection history")
     history_parser.add_argument(
@@ -381,12 +375,7 @@ Examples:
             check_compatibility(artifact_manager, args.version, args.constraints)
         
         elif args.command == "recommend":
-            performance_requirements = None
-            if args.performance_requirements:
-                with open(args.performance_requirements, 'r') as f:
-                    performance_requirements = json.load(f)
-            
-            get_recommendation(artifact_manager, args.use_case, performance_requirements)
+            get_recommendation(artifact_manager, args.use_case)
         
         elif args.command == "history":
             show_selection_history(artifact_manager, args.limit)

@@ -82,7 +82,7 @@ serve-multi: ## Run production server with multiple workers
 
 # Docker operations
 docker-build: ## Build Docker image
-	docker build -t model-serving:latest .
+	docker build -t $(MODEL_SERVING_IMAGE) .
 
 docker-build-gpu: ## Build Docker image with GPU support
 	docker build -t model-serving:gpu --build-arg USE_GPU=1 .
@@ -91,7 +91,7 @@ docker-run: ## Run Docker container
 	docker run --rm -p 8080:8080 \
 		-e ARTIFACT_DIR=/app/artifacts \
 		-e MODEL_VERSION=v0.1.0 \
-		model-serving:latest
+		$(MODEL_SERVING_IMAGE)
 
 docker-run-gpu: ## Run Docker container with GPU support
 	docker run --rm -p 8080:8080 --gpus all \
@@ -105,10 +105,10 @@ docker-run-dev: ## Run Docker container with volume mounts for development
 		-v $(PWD)/artifacts:/app/artifacts \
 		-v $(PWD)/src:/app/src \
 		-e MODEL_VERSION=v0.1.0 \
-		model-serving:latest
+		$(MODEL_SERVING_IMAGE)
 
 docker-push: ## Push Docker image to registry
-	docker tag model-serving:latest $(REGISTRY)/model-serving:$(VERSION)
+	docker tag $(MODEL_SERVING_IMAGE) $(REGISTRY)/model-serving:$(VERSION)
 	docker push $(REGISTRY)/model-serving:$(VERSION)
 
 docker-compose-up: ## Start services with docker-compose
@@ -162,7 +162,7 @@ deploy-local: docker-build ## Deploy locally with Docker
 		-e ARTIFACT_DIR=/app/artifacts \
 		-e MODEL_VERSION=v0.1.0 \
 		--restart unless-stopped \
-		model-serving:latest
+		$(MODEL_SERVING_IMAGE)
 
 deploy-k8s: ## Deploy to Kubernetes
 	kubectl apply -f deploy/k8s/
@@ -175,7 +175,7 @@ test-docker: docker-build create-artifacts ## Test with Docker (simple)
 	@echo "Testing Model Serving Service with Docker"
 	docker run --rm -d --name model-serving-test -p 8080:8080 \
 		-e ARTIFACT_DIR=/app/artifacts -e MODEL_VERSION=v0.1.0 \
-		model-serving:latest
+		$(MODEL_SERVING_IMAGE)
 	@echo "Waiting for service to start..."
 	@sleep 15
 	@echo "Running validation tests..."
@@ -220,6 +220,7 @@ docs-serve: ## Serve documentation locally
 # Environment variables for make commands
 REGISTRY ?= your-registry.com
 VERSION ?= $(shell git rev-parse --short HEAD)
+MODEL_SERVING_IMAGE ?= model-serving:v0.1.0
 MODEL_PATH ?= models/latest.pt
 
 # Print environment info

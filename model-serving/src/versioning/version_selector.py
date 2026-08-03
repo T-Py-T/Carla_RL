@@ -213,7 +213,10 @@ class VersionSelector:
             return None
         try:
             with open(path) as model_card_file:
-                return yaml.safe_load(model_card_file) or {}
+                model_card = yaml.safe_load(model_card_file)
+                if model_card is None:
+                    return {}
+                return model_card if isinstance(model_card, dict) else None
         except (OSError, yaml.YAMLError):
             return None
 

@@ -311,7 +311,7 @@ config = BenchmarkConfig(
 
 # Run benchmark
 engine = BenchmarkEngine(config)
-results = await engine.run_benchmark(inference_function, batch_size=1)
+results = engine.run_benchmark(inference_function, batch_size=1)
 ```
 
 ### Performance Validation
