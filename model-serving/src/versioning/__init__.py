@@ -6,6 +6,9 @@ Re-exports the commonly used versioning primitives so callers can write
 of reaching into individual submodules.
 """
 
+from .artifact_manager import ArtifactManager
+from .content_storage import ContentAddressableArtifactManager
+from .migration_manager import MigrationError, MigrationManager
 from .semantic_version import (
     SemanticVersion,
     VersionError,
@@ -36,6 +39,10 @@ __all__ = [
     "sort_versions",
     "get_latest_version",
     "get_stable_versions",
+    "ArtifactManager",
+    "ContentAddressableArtifactManager",
+    "MigrationManager",
+    "MigrationError",
     "VersionSelector",
     "VersionManager",
     "VersionSelectionStrategy",

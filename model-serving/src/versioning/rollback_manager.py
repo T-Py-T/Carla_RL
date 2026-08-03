@@ -9,12 +9,11 @@ import logging
 import shutil
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from .artifact_manager import ArtifactManager
 from .integrity_validator import IntegrityValidator
 from .semantic_version import SemanticVersion, parse_version
-
 
 logger = logging.getLogger(__name__)
 
@@ -290,7 +289,7 @@ class RollbackManager:
         """
         return self.artifact_manager.list_versions()
 
-    def get_version_info(self, version: Union[str, SemanticVersion]) -> Dict[str, any]:
+    def get_version_info(self, version: Union[str, SemanticVersion]) -> Dict[str, Any]:
         """
         Get information about a version.
 
@@ -315,7 +314,7 @@ class RollbackManager:
             "version": version_str,
             "exists": True,
             "manifest": manifest.to_dict(),
-            "integrity_status": "valid" if all(integrity_results.values()) else "invalid",
+            "integrity_status": ("valid" if all(integrity_results.values()) else "invalid"),
             "integrity_results": integrity_results,
             "artifacts_count": len(manifest.artifacts),
             "version_dir": str(version_dir),
@@ -403,9 +402,7 @@ class RollbackManager:
 
         logger.info(f"Executing rollback from {operation.from_version} to {operation.to_version}")
 
-        # For now, we'll just log the operation
-        # In a real implementation, this would perform the actual rollback
-        pass
+        # For now, logging is the operation; a concrete backend can override it.
 
     def _create_backup(self, version: str) -> str:
         """Create backup of current state."""

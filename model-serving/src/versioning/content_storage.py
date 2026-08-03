@@ -10,16 +10,15 @@ import json
 import logging
 import os
 import shutil
+import sqlite3
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional, Union, Any
-import sqlite3
-import threading
+from typing import Any, Dict, List, Optional, Union
 
+from .artifact_manager import ArtifactIntegrityError, ArtifactManager, ArtifactManifest
 from .semantic_version import SemanticVersion, parse_version
-from .artifact_manager import ArtifactManager, ArtifactManifest, ArtifactIntegrityError
-
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,10 @@ class ContentStorageError(Exception):
     """Exception raised for content storage errors."""
 
     def __init__(
-        self, message: str, content_hash: Optional[str] = None, operation: Optional[str] = None
+        self,
+        message: str,
+        content_hash: Optional[str] = None,
+        operation: Optional[str] = None,
     ):
         super().__init__(message)
         self.content_hash = content_hash
@@ -176,7 +178,9 @@ class ContentAddressableStorage:
                 # Check storage limits
                 if self.max_size and self._get_total_size() + content_size > self.max_size:
                     raise ContentStorageError(
-                        f"Storage limit exceeded: {self.max_size} bytes", content_hash, "store"
+                        f"Storage limit exceeded: {self.max_size} bytes",
+                        content_hash,
+                        "store",
                     )
 
                 # Store content
@@ -374,7 +378,7 @@ class ContentAddressableStorage:
 
             total_objects = len(references)
             total_size = sum(ref.size for ref in references)
-            unique_hashes = len(set(ref.content_hash for ref in references))
+            unique_hashes = len({ref.content_hash for ref in references})
             duplicate_objects = total_objects - unique_hashes
 
             # Calculate storage efficiency
@@ -555,16 +559,14 @@ class ContentAddressableStorage:
     def _init_database(self) -> None:
         """Initialize the content index database."""
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS content_refs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     content_hash TEXT NOT NULL,
                     data TEXT NOT NULL,
                     UNIQUE(content_hash, id)
                 )
-            """
-            )
+            """)
             conn.commit()
 
     def _get_current_timestamp(self) -> str:

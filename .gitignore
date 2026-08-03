@@ -148,6 +148,8 @@ __pycache__/
 *.pth
 *.pkl
 *.onnx
+*.weights.h5
+*.keras
 
 # Model-serving generated artifact trees. The YAML manifests are rewritten by
 # scripts/create_example_artifacts.py on container start / image build, so

@@ -16,9 +16,10 @@ spec:
         app: model-serving
         version: v0.1.0
     spec:
+      automountServiceAccountToken: false
       containers:
       - name: model-serving
-        image: model-serving:latest
+        image: model-serving:v0.1.0
         imagePullPolicy: Never
         ports:
         - containerPort: 8080
@@ -38,9 +39,11 @@ spec:
           requests:
             cpu: 100m
             memory: 256Mi
+            ephemeral-storage: 128Mi
           limits:
             cpu: 500m
             memory: 1Gi
+            ephemeral-storage: 512Mi
         livenessProbe:
           httpGet:
             path: /healthz

@@ -8,7 +8,6 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
-
 from src.versioning.artifact_manager import ArtifactManager
 from src.versioning.integrity_validator import IntegrityValidator
 
@@ -93,7 +92,12 @@ class TestValidateArtifactsCLI:
         assert exc_info.value.code == 1
 
     def test_validate_version_artifacts_with_output(
-        self, artifact_manager, integrity_validator, sample_artifacts, pinned_artifacts, temp_dir
+        self,
+        artifact_manager,
+        integrity_validator,
+        sample_artifacts,
+        pinned_artifacts,
+        temp_dir,
     ):
         """Test version validation with output file."""
         from scripts.validate_artifacts import validate_version_artifacts
@@ -139,7 +143,12 @@ class TestValidateArtifactsCLI:
         validate_all_versions(artifact_manager, integrity_validator, args)
 
     def test_validate_all_versions_with_output(
-        self, artifact_manager, integrity_validator, sample_artifacts, pinned_artifacts, temp_dir
+        self,
+        artifact_manager,
+        integrity_validator,
+        sample_artifacts,
+        pinned_artifacts,
+        temp_dir,
     ):
         """Test validating all versions with output file."""
         from scripts.validate_artifacts import validate_all_versions
@@ -167,7 +176,12 @@ class TestValidateArtifactsCLI:
         assert "total_versions" in report["summary"]
 
     def test_generate_integrity_report(
-        self, artifact_manager, integrity_validator, sample_artifacts, pinned_artifacts, temp_dir
+        self,
+        artifact_manager,
+        integrity_validator,
+        sample_artifacts,
+        pinned_artifacts,
+        temp_dir,
     ):
         """Test generating integrity report."""
         from scripts.validate_artifacts import generate_integrity_report
@@ -239,7 +253,7 @@ class TestValidateArtifactsCLI:
         args.verbose = False
 
         # Run comparison
-        compare_versions(artifact_manager, integrity_validator, "v1.1.0", "v1.2.0", args)
+        compare_versions(artifact_manager, "v1.1.0", "v1.2.0", args)
 
         # Check that output file was created
         output_file = Path(args.output)
@@ -266,7 +280,7 @@ class TestValidateArtifactsCLI:
 
         # This should raise SystemExit
         with pytest.raises(SystemExit) as exc_info:
-            compare_versions(artifact_manager, integrity_validator, "v1.1.0", "v999.999.999", args)
+            compare_versions(artifact_manager, "v1.1.0", "v999.999.999", args)
 
         assert exc_info.value.code == 1
 
@@ -325,7 +339,11 @@ class TestValidateArtifactsCLI:
         # This should raise SystemExit due to invalid version format
         with pytest.raises(SystemExit) as exc_info:
             validate_version_artifacts(
-                artifact_manager, integrity_validator, "invalid-version", sample_artifacts, args
+                artifact_manager,
+                integrity_validator,
+                "invalid-version",
+                sample_artifacts,
+                args,
             )
 
         assert exc_info.value.code == 1
@@ -354,7 +372,12 @@ class TestValidateArtifactsCLI:
         assert exc_info.value.code == 1
 
     def test_validate_version_artifacts_verbose_output(
-        self, artifact_manager, integrity_validator, sample_artifacts, pinned_artifacts, capsys
+        self,
+        artifact_manager,
+        integrity_validator,
+        sample_artifacts,
+        pinned_artifacts,
+        capsys,
     ):
         """Test validation with verbose output."""
         from scripts.validate_artifacts import validate_version_artifacts
@@ -408,7 +431,7 @@ class TestValidateArtifactsCLI:
         args.verbose = True
 
         # Run comparison
-        compare_versions(artifact_manager, integrity_validator, "v1.1.0", "v1.2.0", args)
+        compare_versions(artifact_manager, "v1.1.0", "v1.2.0", args)
 
         # Check that verbose output was produced
         captured = capsys.readouterr()

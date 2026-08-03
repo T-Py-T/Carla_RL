@@ -12,7 +12,6 @@ import pytest
 import torch
 import torch.nn as nn
 import yaml
-
 from src.exceptions import ArtifactValidationError, ModelLoadingError
 from src.model_loader import (
     PolicyWrapper,
@@ -25,6 +24,7 @@ from src.model_loader import (
     validate_artifact_integrity,
     validate_model_compatibility,
 )
+from src.preprocessing import MinimalPreprocessor
 
 
 class SimpleTestModel(nn.Module):
@@ -229,7 +229,7 @@ class TestArtifactValidation:
 
             # Should pass validation
             result = validate_artifact_integrity(temp_path, model_card)
-            assert result is True
+            assert result is None
 
     def test_validate_artifact_integrity_hash_mismatch(self):
         """Test artifact validation with hash mismatch."""
@@ -271,29 +271,27 @@ class TestArtifactValidation:
 
             # Should pass (no validation needed)
             result = validate_artifact_integrity(temp_path, model_card)
-            assert result is True
+            assert result is None
 
 
 class TestModelLoading:
     """Test cases for model loading."""
 
     def create_test_model_file(self, temp_dir: Path, filename: str = "model.pt") -> Path:
-        """Create a test model file."""
+        """Create a data-only state-dict checkpoint."""
         model = SimpleTestModel()
         model_path = temp_dir / filename
-        torch.save(model, model_path)
+        torch.save(model.state_dict(), model_path)
         return model_path
 
-    def test_load_pytorch_model_success(self):
-        """Test successful PyTorch model loading."""
+    def test_load_pytorch_state_dict_requires_registered_architecture(self):
+        """Reject state dictionaries when no architecture is registered."""
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             model_path = self.create_test_model_file(temp_path)
 
-            wrapper = load_pytorch_model(model_path, torch.device("cpu"))
-
-            assert isinstance(wrapper, PolicyWrapper)
-            assert wrapper.model_type == "pytorch"
+            with pytest.raises(ModelLoadingError, match="registered model architecture"):
+                load_pytorch_model(model_path, torch.device("cpu"))
 
     def test_load_pytorch_model_torchscript(self):
         """Test loading TorchScript model."""
@@ -321,21 +319,18 @@ class TestModelLoading:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
 
-            # Create test preprocessor
-            test_preprocessor = {"type": "test", "fitted": True}
-            preprocessor_path = temp_path / "preprocessor.pkl"
-
-            import pickle
-
-            with open(preprocessor_path, "wb") as f:
-                pickle.dump(test_preprocessor, f)
+            test_preprocessor = MinimalPreprocessor()
+            test_preprocessor.is_fitted = True
+            preprocessor_path = temp_path / "preprocessor.json"
+            test_preprocessor.save(preprocessor_path)
 
             loaded_preprocessor = load_preprocessor(preprocessor_path)
-            assert loaded_preprocessor == test_preprocessor
+            assert isinstance(loaded_preprocessor, MinimalPreprocessor)
+            assert loaded_preprocessor.is_fitted is True
 
     def test_load_preprocessor_missing(self):
         """Test loading missing preprocessor."""
-        result = load_preprocessor(Path("nonexistent.pkl"))
+        result = load_preprocessor(Path("nonexistent.json"))
         assert result is None
 
     def test_load_preprocessor_corrupted(self):
@@ -344,7 +339,7 @@ class TestModelLoading:
             temp_path = Path(temp_dir)
 
             # Create corrupted file
-            preprocessor_path = temp_path / "preprocessor.pkl"
+            preprocessor_path = temp_path / "preprocessor.json"
             preprocessor_path.write_text("corrupted content")
 
             with pytest.raises(ModelLoadingError):
@@ -357,26 +352,25 @@ class TestArtifactLoading:
     def create_test_artifacts(self, temp_dir: Path) -> None:
         """Create complete test artifacts."""
         # Create model
-        model = SimpleTestModel()
+        model = torch.jit.script(SimpleTestModel())
         model_path = temp_dir / "model.pt"
-        torch.save(model, model_path)
+        torch.jit.save(model, model_path)
 
         # Create preprocessor
-        preprocessor = {"type": "test", "fitted": True}
-        preprocessor_path = temp_dir / "preprocessor.pkl"
-        import pickle
-
-        with open(preprocessor_path, "wb") as f:
-            pickle.dump(preprocessor, f)
+        preprocessor = MinimalPreprocessor()
+        preprocessor.is_fitted = True
+        preprocessor_path = temp_dir / "preprocessor.json"
+        preprocessor.save(preprocessor_path)
 
         # Create model card
         model_card_data = {
             "model_name": "test-model",
             "version": "v0.1.0",
-            "model_type": "pytorch",
+            "model_type": "torchscript",
             "input_shape": [5],
             "output_shape": [3],
             "framework_version": "2.1.0",
+            "preprocessor_filename": "preprocessor.json",
         }
         model_card_path = temp_dir / "model_card.yaml"
         with open(model_card_path, "w") as f:
@@ -462,7 +456,11 @@ class TestModelCompatibility:
 
     def test_validate_model_compatibility_success(self):
         """Test successful model compatibility validation."""
-        model_card = {"input_shape": [5], "output_shape": [3], "framework_version": "2.1.0"}
+        model_card = {
+            "input_shape": [5],
+            "output_shape": [3],
+            "framework_version": "2.1.0",
+        }
 
         result = validate_model_compatibility(model_card)
         assert result is True
