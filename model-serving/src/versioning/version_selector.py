@@ -100,9 +100,7 @@ def _coerce_to_artifact_manager(
     if isinstance(source, ArtifactManager):
         # The historical attribute is `artifacts_dir`; fall back to
         # `artifacts_root` for forward compatibility if it ever gets renamed.
-        root = getattr(source, "artifacts_dir", None) or getattr(
-            source, "artifacts_root", None
-        )
+        root = getattr(source, "artifacts_dir", None) or getattr(source, "artifacts_root", None)
         if root is None:
             raise VersionSelectionError(
                 "ArtifactManager instance is missing artifacts_dir/artifacts_root"
@@ -317,7 +315,9 @@ class VersionSelector:
         if force_rescan:
             self._refresh_version_cache()
 
-        strategy = self._coerce_strategy(strategy) if strategy is not None else self.default_strategy
+        strategy = (
+            self._coerce_strategy(strategy) if strategy is not None else self.default_strategy
+        )
         spec = target_version or version_spec or exact_version
         if fallback_strategies is None:
             fallback_strategies = [
@@ -412,13 +412,9 @@ class VersionSelector:
         available = self._filter_available_versions(
             minimum_version, exclude_prereleases, constraints
         )
-        selected = self._select_candidate(
-            available, spec, strategy, performance_threshold
-        )
+        selected = self._select_candidate(available, spec, strategy, performance_threshold)
         if performance_weight > 0.0:
-            selected = self._apply_performance_weighting(
-                available, selected, performance_weight
-            )
+            selected = self._apply_performance_weighting(available, selected, performance_weight)
 
         return VersionSelectionResult(
             selected_version=selected,
@@ -462,9 +458,7 @@ class VersionSelector:
         try:
             minimum = parse_version(minimum_version)
         except Exception as exc:
-            raise VersionSelectionError(
-                f"Invalid minimum version: {minimum_version}"
-            ) from exc
+            raise VersionSelectionError(f"Invalid minimum version: {minimum_version}") from exc
         return [version for version in available if version >= minimum]
 
     def _filter_constraints(
@@ -489,12 +483,8 @@ class VersionSelector:
         selectors = {
             VersionSelectionStrategy.LATEST: lambda: max(available),
             VersionSelectionStrategy.STABLE: lambda: self._select_stable(available),
-            VersionSelectionStrategy.SPECIFIC: lambda: self._select_specific(
-                available, spec
-            ),
-            VersionSelectionStrategy.COMPATIBLE: lambda: self._select_compatible(
-                available, spec
-            ),
+            VersionSelectionStrategy.SPECIFIC: lambda: self._select_specific(available, spec),
+            VersionSelectionStrategy.COMPATIBLE: lambda: self._select_compatible(available, spec),
             VersionSelectionStrategy.PERFORMANCE_OPTIMIZED: lambda: self._select_by_performance(
                 available, performance_threshold
             ),
@@ -539,13 +529,9 @@ class VersionSelector:
     ) -> SemanticVersion:
         """Select the newest stable-compatible candidate for a version spec."""
         if not spec:
-            raise VersionSelectionError(
-                "Version specification required for compatible selection"
-            )
+            raise VersionSelectionError("Version specification required for compatible selection")
         target = parse_version(spec)
-        compatible = [
-            v for v in available if v.major == target.major and v >= target
-        ]
+        compatible = [v for v in available if v.major == target.major and v >= target]
         # Compatibility selection should prefer stable releases over
         # prereleases: a caller asking for "compatible with v1.0.0" wants
         # a drop-in replacement, not v1.2.0-beta.
@@ -553,9 +539,7 @@ class VersionSelector:
         if stable_compatible:
             compatible = stable_compatible
         if not compatible:
-            raise VersionSelectionError(
-                f"No compatible versions found for {target}"
-            )
+            raise VersionSelectionError(f"No compatible versions found for {target}")
         return max(compatible)
 
     def _apply_performance_weighting(
@@ -649,14 +633,8 @@ class VersionSelector:
     def register_custom_selector(self, name: str, selector_func: Callable) -> None:
         self.custom_selectors[name] = selector_func
 
-    def get_selection_history(
-        self, limit: Optional[int] = None
-    ) -> List[VersionSelectionResult]:
-        return (
-            self.selection_history.copy()
-            if limit is None
-            else self.selection_history[-limit:]
-        )
+    def get_selection_history(self, limit: Optional[int] = None) -> List[VersionSelectionResult]:
+        return self.selection_history.copy() if limit is None else self.selection_history[-limit:]
 
     def update_performance_metrics(
         self, version: Union[str, SemanticVersion], metrics: Dict[str, float]
@@ -666,9 +644,7 @@ class VersionSelector:
         if info is not None:
             info.performance_metrics.update(metrics)
 
-    def validate_version_availability(
-        self, version_str: str
-    ) -> Tuple[bool, Optional[str]]:
+    def validate_version_availability(self, version_str: str) -> Tuple[bool, Optional[str]]:
         """Return `(is_available, error_message)` for the requested version."""
         try:
             version = parse_version(version_str)
@@ -735,9 +711,7 @@ class VersionManager:
             self._notify_version_change(fallback.selected_version)
             return fallback.selected_version
 
-    def register_version_change_callback(
-        self, callback: Callable[[SemanticVersion], None]
-    ) -> None:
+    def register_version_change_callback(self, callback: Callable[[SemanticVersion], None]) -> None:
         self.version_callbacks.append(callback)
 
     def _notify_version_change(self, version: SemanticVersion) -> None:
@@ -750,9 +724,7 @@ class VersionManager:
     def get_version_status(self) -> Dict[str, Any]:
         return {
             "current_version": str(self.current_version) if self.current_version else None,
-            "available_versions": [
-                str(v) for v in self.selector.list_available_versions()
-            ],
+            "available_versions": [str(v) for v in self.selector.list_available_versions()],
             "stable_versions": [
                 str(v) for v in self.selector.list_available_versions(stable_only=True)
             ],
@@ -796,9 +768,7 @@ def get_version_from_environment(
         available, error = selector.validate_version_availability(env_version)
         if available:
             return parse_version(env_version)
-        logger.warning(
-            "Environment version %s not available: %s", env_version, error
-        )
+        logger.warning("Environment version %s not available: %s", env_version, error)
     try:
         result = selector.select_version(strategy=fallback_strategy)
         return result.selected_version

@@ -186,7 +186,7 @@ class BenchmarkEngine:
                 failed_measurements += 1
                 if failed_measurements > iterations * 0.1:  # More than 10% failures
                     print(
-                        f"Warning: High failure rate during latency measurement: {failed_measurements}/{i+1}"
+                        f"Warning: High failure rate during latency measurement: {failed_measurements}/{i + 1}"
                     )
                 continue
 
@@ -611,9 +611,7 @@ class BenchmarkEngine:
             # that don't want to walk the nested structure.
             "cpu_count": hardware_info.cpu.cores,
             "memory_total_gb": hardware_info.memory.total_gb,
-            "torch_cuda_available": bool(
-                hardware_info.gpu and hardware_info.gpu.cuda_available
-            ),
+            "torch_cuda_available": bool(hardware_info.gpu and hardware_info.gpu.cuda_available),
         }
 
     def run_benchmark(self, inference_func: Callable, batch_size: int = 1) -> BenchmarkResult:
@@ -996,13 +994,15 @@ class BenchmarkEngine:
         total_tests = len(self.results)
         successful_tests = sum(result.overall_success for result in self.results)
         success_rate = successful_tests / total_tests * 100
-        report.extend([
-            "SUMMARY:",
-            f"  Total Tests: {total_tests}",
-            f"  Successful: {successful_tests}",
-            f"  Success Rate: {success_rate:.1f}%",
-            "",
-        ])
+        report.extend(
+            [
+                "SUMMARY:",
+                f"  Total Tests: {total_tests}",
+                f"  Successful: {successful_tests}",
+                f"  Success Rate: {success_rate:.1f}%",
+                "",
+            ]
+        )
 
         for index, result in enumerate(self.results, 1):
             report.extend(self._format_result_report(index, result))

@@ -1,5 +1,4 @@
 import pytest
-
 from scripts.analyze_benchmarks import analyze_batch_performance
 
 

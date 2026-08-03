@@ -159,9 +159,7 @@ def create_error_response(error: Exception, request_id: str | None = None) -> di
         }
 
 
-def carla_rl_exception_handler(
-    request: Request, exc: CarlaRLServingException
-) -> JSONResponse:
+def carla_rl_exception_handler(request: Request, exc: CarlaRLServingException) -> JSONResponse:
     """
     FastAPI exception handler for CarlaRLServingException.
 
@@ -190,9 +188,7 @@ def carla_rl_exception_handler(
     return JSONResponse(status_code=exc.status_code, content=error_response)
 
 
-def validation_exception_handler(
-    request: Request, exc: PydanticValidationError
-) -> JSONResponse:
+def validation_exception_handler(request: Request, exc: PydanticValidationError) -> JSONResponse:
     """
     FastAPI exception handler for Pydantic validation errors.
 

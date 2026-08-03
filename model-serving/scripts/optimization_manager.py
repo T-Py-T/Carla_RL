@@ -15,15 +15,15 @@ from typing import Dict, List
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from optimization.optimization_manager import OptimizationManager
 from benchmarking.hardware_detector import HardwareDetector
+from optimization.optimization_manager import OptimizationManager
 
 
 def print_hardware_info(hardware_info) -> None:
     """Print hardware information in a formatted way."""
     print("Hardware Information:")
     print("=" * 50)
-    
+
     # CPU Info
     print(f"CPU: {hardware_info.cpu.model}")
     print(f"  Cores: {hardware_info.cpu.cores} physical, {hardware_info.cpu.threads} logical")
@@ -34,7 +34,7 @@ def print_hardware_info(hardware_info) -> None:
     print(f"  SSE Support: {'Yes' if hardware_info.cpu.sse_support else 'No'}")
     print(f"  Intel MKL: {'Yes' if hardware_info.cpu.intel_mkl_available else 'No'}")
     print(f"  Cache Size: {hardware_info.cpu.cache_size_mb:.1f} MB")
-    
+
     # GPU Info
     if hardware_info.gpu:
         print(f"\nGPU: {hardware_info.gpu.model}")
@@ -46,14 +46,14 @@ def print_hardware_info(hardware_info) -> None:
         print(f"  CUDA Version: {hardware_info.gpu.cuda_version}")
     else:
         print("\nGPU: Not available")
-    
+
     # Memory Info
     print("\nMemory:")
     print(f"  Total: {hardware_info.memory.total_gb:.1f} GB")
     print(f"  Available: {hardware_info.memory.available_gb:.1f} GB")
     print(f"  Swap: {hardware_info.memory.swap_gb:.1f} GB")
     print(f"  Type: {hardware_info.memory.memory_type}")
-    
+
     # System Info
     print("\nSystem:")
     print(f"  Platform: {hardware_info.platform}")
@@ -65,11 +65,11 @@ def print_optimization_recommendations(recommendations: List[str]) -> None:
     """Print optimization recommendations."""
     print("\nOptimization Recommendations:")
     print("=" * 50)
-    
+
     if not recommendations:
         print("No specific recommendations available.")
         return
-    
+
     for i, recommendation in enumerate(recommendations, 1):
         print(f"{i}. {recommendation}")
 
@@ -78,15 +78,15 @@ def print_performance_metrics(metrics: Dict) -> None:
     """Print performance metrics."""
     print("\nPerformance Metrics:")
     print("=" * 50)
-    
+
     if not metrics.get("optimization_applied", False):
         print("No optimizations applied.")
         return
-    
+
     # Hardware info
     if metrics.get("hardware_info"):
         print("Hardware detected and optimized.")
-    
+
     if "cpu_optimizations" in metrics:
         print_cpu_metrics(metrics["cpu_optimizations"])
 
@@ -184,12 +184,12 @@ def hardware_output(hardware_info) -> Dict:
 def detect_hardware(args) -> None:
     """Detect and display hardware information."""
     print("Detecting hardware...")
-    
+
     detector = HardwareDetector()
     hardware_info = detector.get_hardware_info()
-    
+
     print_hardware_info(hardware_info)
-    
+
     if args.output:
         with open(args.output, "w") as output_file:
             json.dump(hardware_output(hardware_info), output_file, indent=2)
@@ -199,40 +199,40 @@ def detect_hardware(args) -> None:
 def optimize_hardware(args) -> None:
     """Apply hardware optimizations."""
     print("Applying hardware optimizations...")
-    
+
     manager = OptimizationManager()
-    
+
     # Apply optimizations
     optimizations = manager.auto_optimize(
         target_latency_ms=args.latency,
         target_throughput_rps=args.throughput,
-        memory_limit_gb=args.memory_limit
+        memory_limit_gb=args.memory_limit,
     )
-    
+
     print(f"\nOptimization Profile: {optimizations['profile']['name']}")
     print(f"Description: {optimizations['profile']['description']}")
     print(f"Target Latency: {optimizations['profile']['target_latency_ms']} ms")
     print(f"Target Throughput: {optimizations['profile']['target_throughput_rps']} RPS")
-    
+
     # Get recommendations
     recommendations = manager.get_optimization_recommendations()
     print_optimization_recommendations(recommendations)
-    
+
     # Get performance metrics
     metrics = manager.get_performance_metrics()
     print_performance_metrics(metrics)
-    
+
     if args.output:
         output_data = {
             "optimizations": optimizations,
             "recommendations": recommendations,
-            "metrics": metrics
+            "metrics": metrics,
         }
-        
-        with open(args.output, 'w') as f:
+
+        with open(args.output, "w") as f:
             json.dump(output_data, f, indent=2)
         print(f"\nOptimization results saved to {args.output}")
-    
+
     # Cleanup
     manager.cleanup()
 
@@ -240,7 +240,7 @@ def optimize_hardware(args) -> None:
 def benchmark_optimizations() -> None:
     """Benchmark optimization performance."""
     print("Benchmarking optimization performance...")
-    
+
     # This would integrate with the existing benchmarking framework
     print("Benchmarking functionality would be implemented here.")
     print("This would run performance tests to validate optimizations.")
@@ -265,66 +265,63 @@ Examples:
   # Save results to file
   python optimization_manager.py detect --output hardware.json
   python optimization_manager.py optimize --output optimizations.json
-        """
+        """,
     )
-    
-    subparsers = parser.add_subparsers(dest='command', help='Available commands')
-    
+
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+
     # Detect command
-    detect_parser = subparsers.add_parser('detect', help='Detect hardware information')
+    detect_parser = subparsers.add_parser("detect", help="Detect hardware information")
     detect_parser.add_argument(
-        '--output', '-o',
-        help='Output file for hardware information (JSON format)'
+        "--output", "-o", help="Output file for hardware information (JSON format)"
     )
-    
+
     # Optimize command
-    optimize_parser = subparsers.add_parser('optimize', help='Apply hardware optimizations')
+    optimize_parser = subparsers.add_parser("optimize", help="Apply hardware optimizations")
     optimize_parser.add_argument(
-        '--latency', '-l',
+        "--latency",
+        "-l",
         type=float,
         default=10.0,
-        help='Target latency in milliseconds (default: 10.0)'
+        help="Target latency in milliseconds (default: 10.0)",
     )
     optimize_parser.add_argument(
-        '--throughput', '-t',
+        "--throughput",
+        "-t",
         type=int,
         default=1000,
-        help='Target throughput in requests per second (default: 1000)'
+        help="Target throughput in requests per second (default: 1000)",
     )
     optimize_parser.add_argument(
-        '--memory-limit', '-m',
-        type=float,
-        help='Memory limit in GB (optional)'
+        "--memory-limit", "-m", type=float, help="Memory limit in GB (optional)"
     )
     optimize_parser.add_argument(
-        '--output', '-o',
-        help='Output file for optimization results (JSON format)'
+        "--output", "-o", help="Output file for optimization results (JSON format)"
     )
-    
+
     # Benchmark command
-    benchmark_parser = subparsers.add_parser('benchmark', help='Benchmark optimization performance')
+    benchmark_parser = subparsers.add_parser("benchmark", help="Benchmark optimization performance")
     benchmark_parser.add_argument(
-        '--output', '-o',
-        help='Output file for benchmark results (JSON format)'
+        "--output", "-o", help="Output file for benchmark results (JSON format)"
     )
-    
+
     args = parser.parse_args()
-    
+
     if not args.command:
         parser.print_help()
         return
-    
+
     try:
-        if args.command == 'detect':
+        if args.command == "detect":
             detect_hardware(args)
-        elif args.command == 'optimize':
+        elif args.command == "optimize":
             optimize_hardware(args)
-        elif args.command == 'benchmark':
+        elif args.command == "benchmark":
             benchmark_optimizations()
         else:
             print(f"Unknown command: {args.command}")
             parser.print_help()
-    
+
     except Exception as e:
         print(f"Error: {e}")
         sys.exit(1)

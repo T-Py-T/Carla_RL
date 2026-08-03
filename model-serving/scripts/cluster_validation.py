@@ -27,6 +27,7 @@ METRICS_ENDPOINT = "Metrics Endpoint"
 @dataclass
 class TestResult:
     """Container for test results."""
+
     name: str
     passed: bool
     duration_ms: float
@@ -67,13 +68,17 @@ class ClusterValidator:
                     "status": data.get("status"),
                     "version": data.get("version"),
                     "device": data.get("device"),
-                    "response_time_ms": duration_ms
+                    "response_time_ms": duration_ms,
                 }
                 return TestResult(SERVICE_HEALTH_CHECK, True, duration_ms, details)
             else:
-                return TestResult(SERVICE_HEALTH_CHECK, False, duration_ms,
-                                {"status_code": response.status_code},
-                                f"HTTP {response.status_code}")
+                return TestResult(
+                    SERVICE_HEALTH_CHECK,
+                    False,
+                    duration_ms,
+                    {"status_code": response.status_code},
+                    f"HTTP {response.status_code}",
+                )
 
         except Exception as e:
             duration_ms = (time.perf_counter() - start_time) * 1000
@@ -97,17 +102,25 @@ class ClusterValidator:
                         "model_name": data.get("modelName"),
                         "model_version": data.get("version"),
                         "input_shape": data.get("inputShape"),
-                        "action_space_keys": list(data.get("actionSpace", {}).keys())
+                        "action_space_keys": list(data.get("actionSpace", {}).keys()),
                     }
                     return TestResult(MODEL_METADATA, True, duration_ms, details)
                 else:
-                    return TestResult(MODEL_METADATA, False, duration_ms,
-                                    {"missing_fields": missing_fields},
-                                    f"Missing fields: {missing_fields}")
+                    return TestResult(
+                        MODEL_METADATA,
+                        False,
+                        duration_ms,
+                        {"missing_fields": missing_fields},
+                        f"Missing fields: {missing_fields}",
+                    )
             else:
-                return TestResult(MODEL_METADATA, False, duration_ms,
-                                {"status_code": response.status_code},
-                                f"HTTP {response.status_code}")
+                return TestResult(
+                    MODEL_METADATA,
+                    False,
+                    duration_ms,
+                    {"status_code": response.status_code},
+                    f"HTTP {response.status_code}",
+                )
 
         except Exception as e:
             duration_ms = (time.perf_counter() - start_time) * 1000
@@ -118,12 +131,10 @@ class ClusterValidator:
         start_time = time.perf_counter()
 
         request_data = {
-            "observations": [{
-                "speed": 25.5,
-                "steering": 0.1,
-                "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]
-            }],
-            "deterministic": True
+            "observations": [
+                {"speed": 25.5, "steering": 0.1, "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]}
+            ],
+            "deterministic": True,
         }
 
         try:
@@ -131,7 +142,7 @@ class ClusterValidator:
                 f"{self.base_url}/predict",
                 json=request_data,
                 headers={"Content-Type": JSON_CONTENT_TYPE},
-                timeout=30
+                timeout=30,
             )
             duration_ms = (time.perf_counter() - start_time) * 1000
 
@@ -142,9 +153,9 @@ class ClusterValidator:
                 if len(actions) == 1:
                     action = actions[0]
                     valid_action = (
-                        0.0 <= action.get("throttle", -1) <= 1.0 and
-                        0.0 <= action.get("brake", -1) <= 1.0 and
-                        -1.0 <= action.get("steer", -2) <= 1.0
+                        0.0 <= action.get("throttle", -1) <= 1.0
+                        and 0.0 <= action.get("brake", -1) <= 1.0
+                        and -1.0 <= action.get("steer", -2) <= 1.0
                     )
 
                     details = {
@@ -152,19 +163,32 @@ class ClusterValidator:
                         "total_time_ms": duration_ms,
                         "action": action,
                         "deterministic": data.get("deterministic"),
-                        "model_version": data.get("version")
+                        "model_version": data.get("version"),
                     }
 
-                    return TestResult(SINGLE_PREDICTION, valid_action, duration_ms, details,
-                                    "" if valid_action else "Invalid action values")
+                    return TestResult(
+                        SINGLE_PREDICTION,
+                        valid_action,
+                        duration_ms,
+                        details,
+                        "" if valid_action else "Invalid action values",
+                    )
                 else:
-                    return TestResult(SINGLE_PREDICTION, False, duration_ms,
-                                    {"action_count": len(actions)},
-                                    f"Expected 1 action, got {len(actions)}")
+                    return TestResult(
+                        SINGLE_PREDICTION,
+                        False,
+                        duration_ms,
+                        {"action_count": len(actions)},
+                        f"Expected 1 action, got {len(actions)}",
+                    )
             else:
-                return TestResult(SINGLE_PREDICTION, False, duration_ms,
-                                {"status_code": response.status_code},
-                                f"HTTP {response.status_code}")
+                return TestResult(
+                    SINGLE_PREDICTION,
+                    False,
+                    duration_ms,
+                    {"status_code": response.status_code},
+                    f"HTTP {response.status_code}",
+                )
 
         except Exception as e:
             duration_ms = (time.perf_counter() - start_time) * 1000
@@ -179,11 +203,11 @@ class ClusterValidator:
                 {
                     "speed": 20.0 + i * 2.0,
                     "steering": (i - 5) * 0.1,
-                    "sensors": [0.1 * j + i * 0.05 for j in range(5)]
+                    "sensors": [0.1 * j + i * 0.05 for j in range(5)],
                 }
                 for i in range(batch_size)
             ],
-            "deterministic": False
+            "deterministic": False,
         }
 
         try:
@@ -191,7 +215,7 @@ class ClusterValidator:
                 f"{self.base_url}/predict",
                 json=request_data,
                 headers={"Content-Type": JSON_CONTENT_TYPE},
-                timeout=60
+                timeout=60,
             )
             duration_ms = (time.perf_counter() - start_time) * 1000
 
@@ -202,9 +226,9 @@ class ClusterValidator:
                 if len(actions) == batch_size:
                     # Validate all actions
                     valid_actions = all(
-                        0.0 <= action.get("throttle", -1) <= 1.0 and
-                        0.0 <= action.get("brake", -1) <= 1.0 and
-                        -1.0 <= action.get("steer", -2) <= 1.0
+                        0.0 <= action.get("throttle", -1) <= 1.0
+                        and 0.0 <= action.get("brake", -1) <= 1.0
+                        and -1.0 <= action.get("steer", -2) <= 1.0
                         for action in actions
                     )
 
@@ -213,20 +237,32 @@ class ClusterValidator:
                         "inference_time_ms": data.get("timingMs"),
                         "total_time_ms": duration_ms,
                         "avg_time_per_obs": duration_ms / batch_size,
-                        "throughput_obs_per_sec": batch_size / (duration_ms / 1000)
+                        "throughput_obs_per_sec": batch_size / (duration_ms / 1000),
                     }
 
-                    return TestResult(f"Batch Prediction ({batch_size})", valid_actions,
-                                    duration_ms, details,
-                                    "" if valid_actions else "Invalid action values")
+                    return TestResult(
+                        f"Batch Prediction ({batch_size})",
+                        valid_actions,
+                        duration_ms,
+                        details,
+                        "" if valid_actions else "Invalid action values",
+                    )
                 else:
-                    return TestResult(f"Batch Prediction ({batch_size})", False, duration_ms,
-                                    {"expected": batch_size, "actual": len(actions)},
-                                    "Action count mismatch")
+                    return TestResult(
+                        f"Batch Prediction ({batch_size})",
+                        False,
+                        duration_ms,
+                        {"expected": batch_size, "actual": len(actions)},
+                        "Action count mismatch",
+                    )
             else:
-                return TestResult(f"Batch Prediction ({batch_size})", False, duration_ms,
-                                {"status_code": response.status_code},
-                                f"HTTP {response.status_code}")
+                return TestResult(
+                    f"Batch Prediction ({batch_size})",
+                    False,
+                    duration_ms,
+                    {"status_code": response.status_code},
+                    f"HTTP {response.status_code}",
+                )
 
         except Exception as e:
             duration_ms = (time.perf_counter() - start_time) * 1000
@@ -246,13 +282,17 @@ class ClusterValidator:
                     "warmup_status": data.get("status"),
                     "warmup_time_ms": data.get("timingMs"),
                     "total_time_ms": duration_ms,
-                    "device": data.get("device")
+                    "device": data.get("device"),
                 }
                 return TestResult(MODEL_WARMUP, True, duration_ms, details)
             else:
-                return TestResult(MODEL_WARMUP, False, duration_ms,
-                                {"status_code": response.status_code},
-                                f"HTTP {response.status_code}")
+                return TestResult(
+                    MODEL_WARMUP,
+                    False,
+                    duration_ms,
+                    {"status_code": response.status_code},
+                    f"HTTP {response.status_code}",
+                )
 
         except Exception as e:
             duration_ms = (time.perf_counter() - start_time) * 1000
@@ -261,12 +301,8 @@ class ClusterValidator:
     def test_latency_consistency(self, iterations: int = 20) -> TestResult:
         """Test latency consistency over multiple requests."""
         request_data = {
-            "observations": [{
-                "speed": 25.0,
-                "steering": 0.0,
-                "sensors": [0.5] * 5
-            }],
-            "deterministic": True
+            "observations": [{"speed": 25.0, "steering": 0.0, "sensors": [0.5] * 5}],
+            "deterministic": True,
         }
 
         latencies = []
@@ -281,7 +317,7 @@ class ClusterValidator:
                     f"{self.base_url}/predict",
                     json=request_data,
                     headers={"Content-Type": JSON_CONTENT_TYPE},
-                    timeout=10
+                    timeout=10,
                 )
                 req_duration = (time.perf_counter() - req_start) * 1000
 
@@ -304,28 +340,37 @@ class ClusterValidator:
                 "min_latency_ms": min(latencies),
                 "max_latency_ms": max(latencies),
                 "std_dev_ms": statistics.stdev(latencies) if len(latencies) > 1 else 0,
-                "success_rate": len(latencies) / iterations
+                "success_rate": len(latencies) / iterations,
             }
 
             # Consider test passed if >90% success rate and reasonable latency
-            passed = (len(latencies) / iterations > 0.9 and
-                     statistics.median(latencies) < 1000)  # < 1 second median
+            passed = (
+                len(latencies) / iterations > 0.9 and statistics.median(latencies) < 1000
+            )  # < 1 second median
 
-            return TestResult("Latency Consistency", passed, total_duration, details,
-                            "" if passed else "High latency or low success rate")
+            return TestResult(
+                "Latency Consistency",
+                passed,
+                total_duration,
+                details,
+                "" if passed else "High latency or low success rate",
+            )
         else:
-            return TestResult("Latency Consistency", False, total_duration,
-                            {"errors": errors}, "All requests failed")
+            return TestResult(
+                "Latency Consistency",
+                False,
+                total_duration,
+                {"errors": errors},
+                "All requests failed",
+            )
 
-    def test_concurrent_requests(self, concurrency: int = 5, requests_per_thread: int = 5) -> TestResult:
+    def test_concurrent_requests(
+        self, concurrency: int = 5, requests_per_thread: int = 5
+    ) -> TestResult:
         """Test concurrent request handling."""
         request_data = {
-            "observations": [{
-                "speed": 30.0,
-                "steering": 0.0,
-                "sensors": [0.6] * 5
-            }],
-            "deterministic": False
+            "observations": [{"speed": 30.0, "steering": 0.0, "sensors": [0.6] * 5}],
+            "deterministic": False,
         }
 
         def make_requests() -> list[float]:
@@ -338,7 +383,7 @@ class ClusterValidator:
                         f"{self.base_url}/predict",
                         json=request_data,
                         headers={"Content-Type": JSON_CONTENT_TYPE},
-                        timeout=30
+                        timeout=30,
                     )
                     req_duration = (time.perf_counter() - req_start) * 1000
 
@@ -375,17 +420,27 @@ class ClusterValidator:
                 "avg_latency_ms": statistics.mean(all_latencies),
                 "median_latency_ms": statistics.median(all_latencies),
                 "total_time_ms": total_duration,
-                "effective_throughput_rps": successful_requests / (total_duration / 1000)
+                "effective_throughput_rps": successful_requests / (total_duration / 1000),
             }
 
             # Consider passed if >80% success rate under concurrent load
             passed = successful_requests / total_requests > 0.8
 
-            return TestResult("Concurrent Requests", passed, total_duration, details,
-                            "" if passed else "Low success rate under concurrent load")
+            return TestResult(
+                "Concurrent Requests",
+                passed,
+                total_duration,
+                details,
+                "" if passed else "Low success rate under concurrent load",
+            )
         else:
-            return TestResult("Concurrent Requests", False, total_duration,
-                            {"total_requests": total_requests}, "All requests failed")
+            return TestResult(
+                "Concurrent Requests",
+                False,
+                total_duration,
+                {"total_requests": total_requests},
+                "All requests failed",
+            )
 
     def test_error_handling(self) -> TestResult:
         """Test error handling with invalid requests."""
@@ -393,11 +448,13 @@ class ClusterValidator:
 
         # Test with invalid data
         invalid_request = {
-            "observations": [{
-                "speed": -10.0,  # Invalid negative speed
-                "steering": 0.0,
-                "sensors": [0.1, 0.2, 0.3]
-            }]
+            "observations": [
+                {
+                    "speed": -10.0,  # Invalid negative speed
+                    "steering": 0.0,
+                    "sensors": [0.1, 0.2, 0.3],
+                }
+            ]
         }
 
         try:
@@ -405,7 +462,7 @@ class ClusterValidator:
                 f"{self.base_url}/predict",
                 json=invalid_request,
                 headers={"Content-Type": JSON_CONTENT_TYPE},
-                timeout=10
+                timeout=10,
             )
             duration_ms = (time.perf_counter() - start_time) * 1000
 
@@ -417,15 +474,24 @@ class ClusterValidator:
                 details = {
                     "status_code": response.status_code,
                     "error_type": data.get("error"),
-                    "has_proper_structure": has_error_structure
+                    "has_proper_structure": has_error_structure,
                 }
 
-                return TestResult(ERROR_HANDLING, has_error_structure, duration_ms, details,
-                                "" if has_error_structure else "Missing error structure")
+                return TestResult(
+                    ERROR_HANDLING,
+                    has_error_structure,
+                    duration_ms,
+                    details,
+                    "" if has_error_structure else "Missing error structure",
+                )
             else:
-                return TestResult(ERROR_HANDLING, False, duration_ms,
-                                {"expected_status": 422, "actual_status": response.status_code},
-                                f"Expected 422, got {response.status_code}")
+                return TestResult(
+                    ERROR_HANDLING,
+                    False,
+                    duration_ms,
+                    {"expected_status": 422, "actual_status": response.status_code},
+                    f"Expected 422, got {response.status_code}",
+                )
 
         except Exception as e:
             duration_ms = (time.perf_counter() - start_time) * 1000
@@ -442,23 +508,30 @@ class ClusterValidator:
             if response.status_code == 200:
                 content = response.text
                 has_prometheus_format = (
-                    "# HELP" in content and
-                    "# TYPE" in content and
-                    "carla_rl" in content
+                    "# HELP" in content and "# TYPE" in content and "carla_rl" in content
                 )
 
                 details = {
                     "content_length": len(content),
                     "has_prometheus_format": has_prometheus_format,
-                    "sample_metrics": content[:200] + "..." if len(content) > 200 else content
+                    "sample_metrics": content[:200] + "..." if len(content) > 200 else content,
                 }
 
-                return TestResult(METRICS_ENDPOINT, has_prometheus_format, duration_ms, details,
-                                "" if has_prometheus_format else "Invalid Prometheus format")
+                return TestResult(
+                    METRICS_ENDPOINT,
+                    has_prometheus_format,
+                    duration_ms,
+                    details,
+                    "" if has_prometheus_format else "Invalid Prometheus format",
+                )
             else:
-                return TestResult(METRICS_ENDPOINT, False, duration_ms,
-                                {"status_code": response.status_code},
-                                f"HTTP {response.status_code}")
+                return TestResult(
+                    METRICS_ENDPOINT,
+                    False,
+                    duration_ms,
+                    {"status_code": response.status_code},
+                    f"HTTP {response.status_code}",
+                )
 
         except Exception as e:
             duration_ms = (time.perf_counter() - start_time) * 1000
@@ -509,25 +582,24 @@ class ClusterValidator:
                     "passed": r.passed,
                     "duration_ms": r.duration_ms,
                     "details": r.details,
-                    "error": r.error
+                    "error": r.error,
                 }
                 for r in self.results
-            ]
+            ],
         }
 
 
 def main():
     """Main entry point."""
-    parser = argparse.ArgumentParser(description="Validate CarlaRL Policy-as-a-Service cluster deployment")
+    parser = argparse.ArgumentParser(
+        description="Validate CarlaRL Policy-as-a-Service cluster deployment"
+    )
     parser.add_argument(
         "--url",
         default="http://localhost:8080",
-        help="Base URL of the service (default: http://localhost:8080)"
+        help="Base URL of the service (default: http://localhost:8080)",
     )
-    parser.add_argument(
-        "--output",
-        help="Output file for detailed results (JSON format)"
-    )
+    parser.add_argument("--output", help="Output file for detailed results (JSON format)")
 
     args = parser.parse_args()
 
@@ -536,7 +608,8 @@ def main():
 
     if args.output:
         import json
-        with open(args.output, 'w') as f:
+
+        with open(args.output, "w") as f:
             json.dump(results, f, indent=2)
         print(f"\nDetailed results saved to: {args.output}")
 

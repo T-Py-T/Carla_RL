@@ -8,14 +8,13 @@ and rollback support.
 
 import json
 import logging
+import shutil
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Union, Callable, Any
-import shutil
+from typing import Any, Callable, Dict, List, Optional, Union
 
-from .semantic_version import SemanticVersion, parse_version
 from .artifact_manager import ArtifactManager
-
+from .semantic_version import SemanticVersion, parse_version
 
 logger = logging.getLogger(__name__)
 

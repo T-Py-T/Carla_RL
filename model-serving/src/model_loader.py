@@ -163,7 +163,6 @@ def validate_artifact_integrity(artifact_dir: Path, model_card: dict[str, Any]) 
             )
 
 
-
 def load_model_card(artifact_dir: Path) -> dict[str, Any]:
     """
     Load and parse model card YAML file.
@@ -237,9 +236,7 @@ def load_pytorch_model(model_path: Path, device: torch.device) -> PolicyWrapper:
             # changed the default of `weights_only` to True, which refuses to
             # unpickle full nn.Module instances; serving needs to keep loading
             # those, so we restore the pre-2.6 behaviour explicitly.
-            model = torch.load(
-                str(model_path), map_location=device, weights_only=False
-            )
+            model = torch.load(str(model_path), map_location=device, weights_only=False)
 
             # Handle different save formats
             if isinstance(model, dict):

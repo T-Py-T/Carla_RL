@@ -211,7 +211,7 @@ class ErrorResponse(BaseModel):
 
 class VersionInfo(BaseModel):
     """Model version information for version discovery."""
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -219,11 +219,11 @@ class VersionInfo(BaseModel):
                 "is_stable": True,
                 "is_current": False,
                 "performance_metrics": {"latency_p50_ms": 8.5, "throughput_rps": 120},
-                "model_card": {"model_name": "carla-ppo", "framework": "pytorch"}
+                "model_card": {"model_name": "carla-ppo", "framework": "pytorch"},
             }
         }
     )
-    
+
     version: str = Field(description="Semantic version string (e.g., v1.2.3)")
     is_stable: bool = Field(description="Whether this is a stable release (not prerelease)")
     is_current: bool = Field(description="Whether this is the currently loaded version")
@@ -237,7 +237,7 @@ class VersionInfo(BaseModel):
 
 class VersionsResponse(BaseModel):
     """Response schema for /versions endpoint - lists available model versions."""
-    
+
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
@@ -248,15 +248,15 @@ class VersionsResponse(BaseModel):
                         "is_stable": True,
                         "is_current": True,
                         "performance_metrics": {"latency_p50_ms": 8.5},
-                        "model_card": {"model_name": "carla-ppo"}
+                        "model_card": {"model_name": "carla-ppo"},
                     }
                 ],
                 "selection_strategy": "latest_stable",
-                "artifacts_root": "/app/artifacts"
+                "artifacts_root": "/app/artifacts",
             }
         }
     )
-    
+
     current_version: str = Field(description="Currently loaded model version")
     available_versions: list[VersionInfo] = Field(description="List of available model versions")
     selection_strategy: str = Field(description="Version selection strategy used")

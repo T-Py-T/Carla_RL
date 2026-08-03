@@ -8,7 +8,6 @@ from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
-
 from src.versioning.artifact_manager import ArtifactManager
 from src.versioning.integrity_validator import IntegrityValidator
 

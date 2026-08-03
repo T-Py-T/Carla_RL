@@ -11,6 +11,7 @@ import json
 import platform
 import time
 
+
 def check_dependencies():
     """Check which dependencies are available."""
     dependencies = {
@@ -19,36 +20,41 @@ def check_dependencies():
         "psutil": False,
         "cuda": False,
         "tensorrt": False,
-        "mkl": False
+        "mkl": False,
     }
-    
+
     try:
         import torch
+
         dependencies["torch"] = True
         dependencies["cuda"] = torch.cuda.is_available()
     except ImportError:
         pass
-    
+
     try:
         import numpy as np
+
         dependencies["numpy"] = True
         dependencies["mkl"] = "mkl" in str(np.__config__)
     except ImportError:
         pass
-    
+
     try:
         import psutil  # noqa: F401
+
         dependencies["psutil"] = True
     except ImportError:
         pass
-    
+
     try:
         import tensorrt  # noqa: F401
+
         dependencies["tensorrt"] = True
     except ImportError:
         pass
-    
+
     return dependencies
+
 
 def get_system_info():
     """Get comprehensive system information."""
@@ -62,19 +68,20 @@ def get_system_info():
             "processor": platform.processor(),
             "python_version": platform.python_version(),
         },
-        "dependencies": check_dependencies()
+        "dependencies": check_dependencies(),
     }
-    
+
     # Get CPU info if psutil is available
     try:
         import psutil
+
         info["cpu"] = {
             "physical_cores": psutil.cpu_count(logical=False),
             "logical_cores": psutil.cpu_count(logical=True),
             "max_frequency": psutil.cpu_freq().max if psutil.cpu_freq() else 0,
             "current_frequency": psutil.cpu_freq().current if psutil.cpu_freq() else 0,
         }
-        
+
         # Try to get more detailed CPU info
         if platform.system() == "Linux":
             try:
@@ -88,7 +95,7 @@ def get_system_info():
                         info["cpu"]["sse_support"] = True
             except OSError:
                 pass
-        
+
         # Get memory info
         memory = psutil.virtual_memory()
         swap = psutil.swap_memory()
@@ -98,14 +105,15 @@ def get_system_info():
             "used_gb": memory.used / (1024**3),
             "swap_gb": swap.total / (1024**3),
         }
-        
+
     except ImportError:
         info["cpu"] = {"error": "psutil not available"}
         info["memory"] = {"error": "psutil not available"}
-    
+
     # Get GPU info if PyTorch is available
     try:
         import torch
+
         if torch.cuda.is_available():
             info["gpu"] = {
                 "available": True,
@@ -122,8 +130,9 @@ def get_system_info():
             info["gpu"] = {"available": False}
     except ImportError:
         info["gpu"] = {"available": False, "error": "PyTorch not available"}
-    
+
     return info
+
 
 def grade_capacity(value, excellent, good, adequate):
     """Grade a numeric hardware capacity against descending thresholds."""
@@ -141,9 +150,7 @@ def analyze_cpu(cpu, analysis):
     if "error" not in cpu:
         physical_cores = cpu.get("physical_cores", 0)
         max_freq = cpu.get("max_frequency", 0)
-        analysis["capabilities"]["cpu_performance"] = grade_capacity(
-            physical_cores, 16, 8, 4
-        )
+        analysis["capabilities"]["cpu_performance"] = grade_capacity(physical_cores, 16, 8, 4)
         if physical_cores >= 16:
             analysis["hardware_grade"] = "High-End"
         elif physical_cores >= 8:
@@ -154,9 +161,13 @@ def analyze_cpu(cpu, analysis):
             analysis["hardware_grade"] = "Low-End"
 
         if physical_cores < 8:
-            analysis["recommendations"].append("Consider upgrading to 8+ core CPU for better performance")
+            analysis["recommendations"].append(
+                "Consider upgrading to 8+ core CPU for better performance"
+            )
         if max_freq < 3000:
-            analysis["recommendations"].append("Consider higher frequency CPU for better single-threaded performance")
+            analysis["recommendations"].append(
+                "Consider higher frequency CPU for better single-threaded performance"
+            )
     else:
         analysis["recommendations"].append("Install psutil to get detailed CPU information")
 
@@ -165,11 +176,11 @@ def analyze_memory(memory, analysis):
     """Add memory capabilities and recommendations to an analysis."""
     if "error" not in memory:
         total_gb = memory.get("total_gb", 0)
-        analysis["capabilities"]["memory_capacity"] = grade_capacity(
-            total_gb, 32, 16, 8
-        )
+        analysis["capabilities"]["memory_capacity"] = grade_capacity(total_gb, 32, 16, 8)
         if total_gb < 8:
-            analysis["recommendations"].append("Consider upgrading to 16+ GB RAM for better performance")
+            analysis["recommendations"].append(
+                "Consider upgrading to 16+ GB RAM for better performance"
+            )
     else:
         analysis["recommendations"].append("Install psutil to get detailed memory information")
 
@@ -178,14 +189,14 @@ def analyze_gpu(gpu, analysis):
     """Add GPU capabilities and recommendations to an analysis."""
     if gpu.get("available", False):
         memory_gb = gpu.get("memory_total_gb", 0)
-        analysis["capabilities"]["gpu_performance"] = grade_capacity(
-            memory_gb, 16, 8, 4
-        )
+        analysis["capabilities"]["gpu_performance"] = grade_capacity(memory_gb, 16, 8, 4)
         if memory_gb < 4:
             analysis["recommendations"].append("Consider upgrading to GPU with 8+ GB VRAM")
     else:
         analysis["capabilities"]["gpu_performance"] = "Not Available"
-        analysis["recommendations"].append("Consider adding GPU for significant performance improvement")
+        analysis["recommendations"].append(
+            "Consider adding GPU for significant performance improvement"
+        )
 
 
 def analyze_dependencies(dependencies, gpu, analysis):
@@ -232,7 +243,9 @@ def print_hardware_summary(system_info):
 
     memory = system_info.get("memory", {})
     if "error" not in memory and memory:
-        print(f"Memory: {memory['total_gb']:.1f} GB total, {memory['available_gb']:.1f} GB available")
+        print(
+            f"Memory: {memory['total_gb']:.1f} GB total, {memory['available_gb']:.1f} GB available"
+        )
 
     gpu = system_info.get("gpu", {})
     if gpu.get("available", False):
@@ -269,22 +282,25 @@ def print_analysis(analysis):
         for recommendation in analysis["recommendations"]:
             print(f"  • {recommendation}")
 
+
 def main():
     """Main function."""
     parser = argparse.ArgumentParser(description="Collect system information for benchmarking")
     parser.add_argument("--output", "-o", help="Output file for system information (JSON)")
-    parser.add_argument("--analysis", action="store_true", help="Include system analysis and recommendations")
-    
+    parser.add_argument(
+        "--analysis", action="store_true", help="Include system analysis and recommendations"
+    )
+
     args = parser.parse_args()
-    
+
     print("Collecting system information...")
     system_info = get_system_info()
-    
+
     if args.analysis:
         print("Analyzing system capabilities...")
         analysis = analyze_system_capabilities(system_info)
         system_info["analysis"] = analysis
-    
+
     print("\nSystem Information Summary:")
     print("=" * 40)
     print_hardware_summary(system_info)
@@ -296,8 +312,9 @@ def main():
         with open(args.output, "w") as output_file:
             json.dump(system_info, output_file, indent=2)
         print(f"\nSystem information saved to {args.output}")
-    
+
     print("\nSystem information collection complete!")
+
 
 if __name__ == "__main__":
     main()

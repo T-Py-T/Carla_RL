@@ -9,12 +9,11 @@ import logging
 import shutil
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from .artifact_manager import ArtifactManager
 from .integrity_validator import IntegrityValidator
 from .semantic_version import SemanticVersion, parse_version
-
 
 logger = logging.getLogger(__name__)
 
@@ -290,7 +289,7 @@ class RollbackManager:
         """
         return self.artifact_manager.list_versions()
 
-    def get_version_info(self, version: Union[str, SemanticVersion]) -> Dict[str, any]:
+    def get_version_info(self, version: Union[str, SemanticVersion]) -> Dict[str, Any]:
         """
         Get information about a version.
 

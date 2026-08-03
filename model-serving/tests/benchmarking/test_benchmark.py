@@ -2,17 +2,17 @@
 Unit tests for benchmark engine.
 """
 
-import pytest
 import time
-import numpy as np
 from unittest.mock import Mock, patch
 
+import numpy as np
+import pytest
 from src.benchmarking.benchmark import (
-    BenchmarkEngine,
     BenchmarkConfig,
+    BenchmarkEngine,
     LatencyStats,
-    ThroughputStats,
     MemoryStats,
+    ThroughputStats,
 )
 
 

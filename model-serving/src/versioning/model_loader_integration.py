@@ -7,12 +7,11 @@ and the existing model loading infrastructure.
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from .artifact_manager import ArtifactManager
-from .integrity_validator import IntegrityValidator, IntegrityValidationError
+from .integrity_validator import IntegrityValidationError, IntegrityValidator
 from .semantic_version import SemanticVersion, parse_version
-
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +34,7 @@ class ModelLoaderWithIntegrity:
         self.artifacts_dir = Path(artifacts_dir)
         self.artifact_manager = ArtifactManager(self.artifacts_dir)
         self.integrity_validator = IntegrityValidator(self.artifact_manager)
-        self._loaded_models: Dict[str, any] = {}
+        self._loaded_models: Dict[str, Any] = {}
 
         logger.info(
             f"Initialized ModelLoaderWithIntegrity with artifacts_dir: {self.artifacts_dir}"
@@ -47,7 +46,7 @@ class ModelLoaderWithIntegrity:
         required_artifacts: Optional[List[str]] = None,
         strict_validation: bool = True,
         validate_integrity: bool = True,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Load a model with integrity validation.
 
@@ -81,9 +80,7 @@ class ModelLoaderWithIntegrity:
 
         # Perform integrity validation if requested
         if validate_integrity:
-            self._validate_before_load(
-                version, version_dir, required_artifacts, strict_validation
-            )
+            self._validate_before_load(version, version_dir, required_artifacts, strict_validation)
 
         # Load the model (placeholder implementation)
         model_data = self._load_model_artifacts(version_dir, required_artifacts)
@@ -121,9 +118,7 @@ class ModelLoaderWithIntegrity:
         message = f"Integrity validation failed for model version {version_str}"
         logger.error(self.integrity_validator.get_validation_summary(report))
         if strict_validation:
-            raise IntegrityValidationError(
-                message, version_str, report.get("failed_artifacts", [])
-            )
+            raise IntegrityValidationError(message, version_str, report.get("failed_artifacts", []))
         logger.warning("Integrity validation failed but continuing: %s", message)
 
     @staticmethod
@@ -165,7 +160,7 @@ class ModelLoaderWithIntegrity:
         """
         return list(self._loaded_models.keys())
 
-    def get_model_info(self, version: Union[str, SemanticVersion]) -> Optional[Dict[str, any]]:
+    def get_model_info(self, version: Union[str, SemanticVersion]) -> Optional[Dict[str, Any]]:
         """
         Get information about a loaded model.
 
@@ -183,7 +178,7 @@ class ModelLoaderWithIntegrity:
         version: Union[str, SemanticVersion],
         required_artifacts: Optional[List[str]] = None,
         strict_mode: bool = True,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Validate model integrity without loading.
 
@@ -216,7 +211,7 @@ class ModelLoaderWithIntegrity:
         """
         return self.artifact_manager.list_versions()
 
-    def get_model_manifest(self, version: Union[str, SemanticVersion]) -> Optional[Dict[str, any]]:
+    def get_model_manifest(self, version: Union[str, SemanticVersion]) -> Optional[Dict[str, Any]]:
         """
         Get model manifest for a version.
 
@@ -236,7 +231,7 @@ class ModelLoaderWithIntegrity:
 
     def _load_model_artifacts(
         self, version_dir: Path, required_artifacts: Optional[List[str]] = None
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Load model artifacts from directory.
 
@@ -264,9 +259,7 @@ class ModelLoaderWithIntegrity:
         for artifact_file in artifact_files:
             if artifact_file.exists():
                 relative_path = str(artifact_file.relative_to(version_dir))
-                model_data["artifacts"][relative_path] = self._artifact_metadata(
-                    artifact_file
-                )
+                model_data["artifacts"][relative_path] = self._artifact_metadata(artifact_file)
 
         return model_data
 
@@ -284,7 +277,7 @@ class ModelLoaderWithIntegrity:
         ]
 
     @staticmethod
-    def _artifact_metadata(artifact_file: Path) -> Dict[str, any]:
+    def _artifact_metadata(artifact_file: Path) -> Dict[str, Any]:
         """Return load metadata for one artifact path."""
         try:
             return {
@@ -337,7 +330,7 @@ class IntegrityValidationMiddleware:
         required_artifacts: List[str],
         *args,
         **kwargs,
-    ) -> any:
+    ) -> Any:
         """
         Validate artifacts and then load model using provided function.
 

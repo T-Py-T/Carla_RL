@@ -12,7 +12,6 @@ import pytest
 import torch
 import torch.nn as nn
 import yaml
-
 from src.exceptions import ArtifactValidationError, ModelLoadingError
 from src.model_loader import (
     PolicyWrapper,

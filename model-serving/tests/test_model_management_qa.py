@@ -13,8 +13,11 @@ import pytest
 import torch
 import torch.nn as nn
 import yaml
-
-from src.exceptions import ArtifactValidationError, ModelLoadingError, PreprocessingError
+from src.exceptions import (
+    ArtifactValidationError,
+    ModelLoadingError,
+    PreprocessingError,
+)
 from src.io_schemas import Observation
 from src.model_loader import (
     PolicyWrapper,
@@ -107,9 +110,9 @@ class TestModelManagementQA:
         output2 = wrapper(x, deterministic=True)
 
         # Should produce same output for deterministic mode
-        assert torch.allclose(
-            output1, output2
-        ), "Deterministic mode should produce identical outputs"
+        assert torch.allclose(output1, output2), (
+            "Deterministic mode should produce identical outputs"
+        )
 
         # Test stochastic mode (for models that support it)
         output3 = wrapper(x, deterministic=False)

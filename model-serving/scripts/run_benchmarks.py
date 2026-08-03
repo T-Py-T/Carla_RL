@@ -14,31 +14,36 @@ from pathlib import Path
 # Add model-serving to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.benchmarking import BenchmarkEngine, BenchmarkConfig, HardwareDetector, PerformanceValidator
+from src.benchmarking import (
+    BenchmarkConfig,
+    BenchmarkEngine,
+    HardwareDetector,
+    PerformanceValidator,
+)
 
 
 def create_mock_inference_function():
     """Create a mock inference function for testing."""
-    import time
     import random
-    
+    import time
+
     def mock_inference(observations, deterministic=False):
         """Mock inference function that simulates model prediction."""
         # Simulate some processing time
         time.sleep(random.uniform(0.001, 0.010))  # 1-10ms
-        
+
         # Return mock actions
         actions = []
         for _ in observations:
             action = {
                 "throttle": random.uniform(0.0, 1.0),
                 "brake": random.uniform(0.0, 1.0),
-                "steer": random.uniform(-1.0, 1.0)
+                "steer": random.uniform(-1.0, 1.0),
             }
             actions.append(action)
-        
+
         return actions
-    
+
     return mock_inference
 
 
@@ -60,98 +65,88 @@ Examples:
 
   # Generate detailed report
   python run_benchmarks.py --output report.json --verbose
-        """
+        """,
     )
-    
+
     # Benchmark configuration
     parser.add_argument(
-        "--iterations", "-i",
+        "--iterations",
+        "-i",
         type=int,
         default=100,
-        help="Number of measurement iterations (default: 100)"
+        help="Number of measurement iterations (default: 100)",
     )
-    
+
     parser.add_argument(
-        "--warmup-iterations", "-w",
+        "--warmup-iterations",
+        "-w",
         type=int,
         default=10,
-        help="Number of warmup iterations (default: 10)"
+        help="Number of warmup iterations (default: 10)",
     )
-    
+
     parser.add_argument(
         "--batch-sizes",
         type=str,
         default="1,4,8,16,32",
-        help="Comma-separated list of batch sizes (default: 1,4,8,16,32)"
+        help="Comma-separated list of batch sizes (default: 1,4,8,16,32)",
     )
-    
+
     # Performance thresholds
     parser.add_argument(
         "--p50-threshold",
         type=float,
         default=10.0,
-        help="P50 latency threshold in milliseconds (default: 10.0)"
+        help="P50 latency threshold in milliseconds (default: 10.0)",
     )
-    
+
     parser.add_argument(
         "--p95-threshold",
         type=float,
         default=20.0,
-        help="P95 latency threshold in milliseconds (default: 20.0)"
+        help="P95 latency threshold in milliseconds (default: 20.0)",
     )
-    
+
     parser.add_argument(
         "--p99-threshold",
         type=float,
         default=50.0,
-        help="P99 latency threshold in milliseconds (default: 50.0)"
+        help="P99 latency threshold in milliseconds (default: 50.0)",
     )
-    
+
     parser.add_argument(
         "--throughput-threshold",
         type=float,
         default=1000.0,
-        help="Throughput threshold in requests per second (default: 1000.0)"
+        help="Throughput threshold in requests per second (default: 1000.0)",
     )
-    
+
     parser.add_argument(
         "--memory-threshold",
         type=float,
         default=1024.0,
-        help="Memory usage threshold in MB (default: 1024.0)"
+        help="Memory usage threshold in MB (default: 1024.0)",
     )
-    
+
     # Output options
     parser.add_argument(
-        "--output", "-o",
-        type=str,
-        help="Output file for detailed results (JSON format)"
+        "--output", "-o", type=str, help="Output file for detailed results (JSON format)"
     )
-    
-    parser.add_argument(
-        "--report",
-        type=str,
-        help="Generate human-readable report to file"
-    )
-    
-    parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="Enable verbose output"
-    )
-    
+
+    parser.add_argument("--report", type=str, help="Generate human-readable report to file")
+
+    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output")
+
     # Hardware detection
     parser.add_argument(
-        "--detect-hardware",
-        action="store_true",
-        help="Show hardware information and exit"
+        "--detect-hardware", action="store_true", help="Show hardware information and exit"
     )
-    
+
     # Validation options
     parser.add_argument(
         "--validate-only",
         action="store_true",
-        help="Only validate against requirements, don't run full benchmark"
+        help="Only validate against requirements, don't run full benchmark",
     )
 
     return parser
@@ -205,7 +200,7 @@ def create_config(args, batch_sizes):
         p95_threshold_ms=args.p95_threshold,
         p99_threshold_ms=args.p99_threshold,
         throughput_threshold_rps=args.throughput_threshold,
-        max_memory_usage_mb=args.memory_threshold
+        max_memory_usage_mb=args.memory_threshold,
     )
 
 
@@ -327,6 +322,7 @@ def main():
         print(f"Error during benchmark: {e}")
         if args.verbose:
             import traceback
+
             traceback.print_exc()
         sys.exit(1)
 

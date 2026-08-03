@@ -9,12 +9,13 @@ performance reports with recommendations.
 import argparse
 import json
 import sys
-from typing import Dict, Any
+from typing import Any, Dict
+
 
 def load_benchmark_results(file_path: str) -> Dict[str, Any]:
     """Load benchmark results from JSON file."""
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             return json.load(f)
     except FileNotFoundError:
         print(f"Error: Benchmark results file '{file_path}' not found")
@@ -22,6 +23,7 @@ def load_benchmark_results(file_path: str) -> Dict[str, Any]:
     except json.JSONDecodeError as e:
         print(f"Error: Invalid JSON in benchmark results file: {e}")
         sys.exit(1)
+
 
 def grade_value(value, excellent, good, adequate, *, inclusive=True):
     """Grade a numeric value against descending thresholds."""
@@ -47,9 +49,13 @@ def analyze_cpu(cpu, analysis):
             break
     analysis["capabilities"]["cpu_performance"] = grade_value(physical_cores, 16, 8, 4)
     if physical_cores < 8:
-        analysis["recommendations"].append("Consider upgrading to 8+ core CPU for better performance")
+        analysis["recommendations"].append(
+            "Consider upgrading to 8+ core CPU for better performance"
+        )
     if cpu.get("max_frequency", 0) < 3000:
-        analysis["recommendations"].append("Consider higher frequency CPU for better single-threaded performance")
+        analysis["recommendations"].append(
+            "Consider higher frequency CPU for better single-threaded performance"
+        )
 
 
 def analyze_memory(memory, analysis):
@@ -57,14 +63,18 @@ def analyze_memory(memory, analysis):
     total_gb = memory.get("total_gb", 0)
     analysis["capabilities"]["memory_capacity"] = grade_value(total_gb, 32, 16, 8)
     if total_gb < 8:
-        analysis["recommendations"].append("Consider upgrading to 16+ GB RAM for better performance")
+        analysis["recommendations"].append(
+            "Consider upgrading to 16+ GB RAM for better performance"
+        )
 
 
 def analyze_gpu(gpu, analysis):
     """Populate GPU analysis fields."""
     if not gpu.get("available", False):
         analysis["capabilities"]["gpu_performance"] = "Not Available"
-        analysis["recommendations"].append("Consider adding GPU for significant performance improvement")
+        analysis["recommendations"].append(
+            "Consider adding GPU for significant performance improvement"
+        )
         return
 
     memory_gb = gpu.get("memory_total_gb", 0)
@@ -99,6 +109,7 @@ def analyze_system_info(system_info: Dict[str, Any]) -> Dict[str, Any]:
     analyze_gpu(gpu, analysis)
     analyze_dependencies(system_info.get("dependencies", {}), gpu, analysis)
     return analysis
+
 
 def analyze_latency_result(optimization, analysis):
     """Populate latency measurements and grade."""
@@ -157,24 +168,21 @@ def analyze_latency_performance(benchmarks: Dict[str, Any]) -> Dict[str, Any]:
     analyze_latency_improvement(optimization, analysis)
     return analysis
 
+
 def analyze_throughput_performance(benchmarks: Dict[str, Any]) -> Dict[str, Any]:
     """Analyze throughput performance."""
-    analysis = {
-        "throughput_rps": None,
-        "throughput_grade": "Unknown",
-        "recommendations": []
-    }
-    
+    analysis = {"throughput_rps": None, "throughput_grade": "Unknown", "recommendations": []}
+
     if "optimization" not in benchmarks:
         return analysis
-    
+
     opt_results = benchmarks["optimization"]
     if "with_optimization" in opt_results:
         throughput_data = opt_results["with_optimization"].get("throughput", {})
         if "throughput_rps" in throughput_data:
             throughput = throughput_data["throughput_rps"]
             analysis["throughput_rps"] = throughput
-            
+
             if throughput > 2000:
                 analysis["throughput_grade"] = "Excellent"
             elif throughput > 1000:
@@ -184,27 +192,24 @@ def analyze_throughput_performance(benchmarks: Dict[str, Any]) -> Dict[str, Any]
             else:
                 analysis["throughput_grade"] = "Poor"
                 analysis["recommendations"].append("Throughput performance needs improvement")
-    
+
     return analysis
+
 
 def analyze_memory_performance(benchmarks: Dict[str, Any]) -> Dict[str, Any]:
     """Analyze memory usage performance."""
-    analysis = {
-        "memory_usage_mb": None,
-        "memory_efficiency": "Unknown",
-        "recommendations": []
-    }
-    
+    analysis = {"memory_usage_mb": None, "memory_efficiency": "Unknown", "recommendations": []}
+
     if "optimization" not in benchmarks:
         return analysis
-    
+
     opt_results = benchmarks["optimization"]
     if "with_optimization" in opt_results:
         memory_data = opt_results["with_optimization"].get("memory", {})
         if "cpu_memory_mb" in memory_data:
             memory_usage = memory_data["cpu_memory_mb"]
             analysis["memory_usage_mb"] = memory_usage
-            
+
             if memory_usage < 100:
                 analysis["memory_efficiency"] = "Excellent"
             elif memory_usage < 500:
@@ -214,30 +219,25 @@ def analyze_memory_performance(benchmarks: Dict[str, Any]) -> Dict[str, Any]:
             else:
                 analysis["memory_efficiency"] = "Poor"
                 analysis["recommendations"].append("Memory usage is high, consider optimization")
-    
+
     return analysis
+
 
 def analyze_batch_performance(benchmarks: Dict[str, Any]) -> Dict[str, Any]:
     """Analyze batch size performance scaling."""
-    analysis = {
-        "optimal_batch_size": None,
-        "scaling_efficiency": "Unknown",
-        "recommendations": []
-    }
-    
+    analysis = {"optimal_batch_size": None, "scaling_efficiency": "Unknown", "recommendations": []}
+
     if "batch_sizes" not in benchmarks:
         return analysis
-    
+
     batch_results = benchmarks["batch_sizes"]
     if "error" in batch_results:
         analysis["recommendations"].append(f"Batch size benchmark error: {batch_results['error']}")
         return analysis
-    
+
     best_ratio, optimal_batch = find_optimal_batch(batch_results)
     analysis["optimal_batch_size"] = optimal_batch
-    analysis["scaling_efficiency"] = grade_value(
-        best_ratio, 100, 50, 20, inclusive=False
-    )
+    analysis["scaling_efficiency"] = grade_value(best_ratio, 100, 50, 20, inclusive=False)
     if best_ratio <= 20:
         analysis["scaling_efficiency"] = "Poor"
         analysis["recommendations"].append("Batch scaling efficiency needs improvement")
@@ -260,6 +260,7 @@ def find_optimal_batch(batch_results):
             best_ratio = ratio
             optimal_batch = int(key.split("_")[1])
     return best_ratio, optimal_batch
+
 
 def append_recommendations(report, title, recommendations):
     """Append a labeled recommendation list when non-empty."""
@@ -293,11 +294,13 @@ def format_latency_section(analysis):
         report.append("Latency data not available")
     else:
         status = "✓" if analysis["p50_requirement_met"] else "✗"
-        report.extend([
-            f"P50 Latency: {analysis['p50_latency_ms']:.2f}ms",
-            f"P50 Requirement Met: {status}",
-            f"Performance Grade: {analysis['performance_grade']}",
-        ])
+        report.extend(
+            [
+                f"P50 Latency: {analysis['p50_latency_ms']:.2f}ms",
+                f"P50 Requirement Met: {status}",
+                f"Performance Grade: {analysis['performance_grade']}",
+            ]
+        )
     report.append("")
     append_recommendations(report, "Latency", analysis["recommendations"])
     return report
@@ -309,10 +312,12 @@ def format_throughput_section(analysis):
     if analysis["throughput_rps"] is None:
         report.append("Throughput data not available")
     else:
-        report.extend([
-            f"Throughput: {analysis['throughput_rps']:.1f} RPS",
-            f"Throughput Grade: {analysis['throughput_grade']}",
-        ])
+        report.extend(
+            [
+                f"Throughput: {analysis['throughput_rps']:.1f} RPS",
+                f"Throughput Grade: {analysis['throughput_grade']}",
+            ]
+        )
     report.append("")
     append_recommendations(report, "Throughput", analysis["recommendations"])
     return report
@@ -324,10 +329,12 @@ def format_memory_section(analysis):
     if analysis["memory_usage_mb"] is None:
         report.append("Memory data not available")
     else:
-        report.extend([
-            f"Memory Usage: {analysis['memory_usage_mb']:.1f} MB",
-            f"Memory Efficiency: {analysis['memory_efficiency']}",
-        ])
+        report.extend(
+            [
+                f"Memory Usage: {analysis['memory_usage_mb']:.1f} MB",
+                f"Memory Efficiency: {analysis['memory_efficiency']}",
+            ]
+        )
     report.append("")
     append_recommendations(report, "Memory", analysis["recommendations"])
     return report
@@ -339,10 +346,12 @@ def format_batch_section(analysis):
     if analysis["optimal_batch_size"] is None:
         report.append("Batch performance data not available")
     else:
-        report.extend([
-            f"Optimal Batch Size: {analysis['optimal_batch_size']}",
-            f"Scaling Efficiency: {analysis['scaling_efficiency']}",
-        ])
+        report.extend(
+            [
+                f"Optimal Batch Size: {analysis['optimal_batch_size']}",
+                f"Scaling Efficiency: {analysis['scaling_efficiency']}",
+            ]
+        )
     report.append("")
     append_recommendations(report, "Batch", analysis["recommendations"])
     return report
@@ -387,18 +396,21 @@ def generate_performance_report(results: Dict[str, Any]) -> str:
     report.extend(["", "Report generated on: " + results.get("timestamp", "Unknown")])
     return "\n".join(report)
 
+
 def main():
     """Main analysis function."""
-    parser = argparse.ArgumentParser(description="Analyze benchmark results and generate performance report")
+    parser = argparse.ArgumentParser(
+        description="Analyze benchmark results and generate performance report"
+    )
     parser.add_argument("input_file", help="Input benchmark results JSON file")
     parser.add_argument("--output", "-o", help="Output report file (default: print to stdout)")
     parser.add_argument("--json", action="store_true", help="Output analysis as JSON")
-    
+
     args = parser.parse_args()
-    
+
     # Load benchmark results
     results = load_benchmark_results(args.input_file)
-    
+
     if args.json:
         # Generate JSON analysis
         analysis = {
@@ -406,21 +418,22 @@ def main():
             "latency_analysis": analyze_latency_performance(results.get("benchmarks", {})),
             "throughput_analysis": analyze_throughput_performance(results.get("benchmarks", {})),
             "memory_analysis": analyze_memory_performance(results.get("benchmarks", {})),
-            "batch_analysis": analyze_batch_performance(results.get("benchmarks", {}))
+            "batch_analysis": analyze_batch_performance(results.get("benchmarks", {})),
         }
-        
+
         output = json.dumps(analysis, indent=2)
     else:
         # Generate text report
         output = generate_performance_report(results)
-    
+
     # Output results
     if args.output:
-        with open(args.output, 'w') as f:
+        with open(args.output, "w") as f:
             f.write(output)
         print(f"Analysis report saved to {args.output}")
     else:
         print(output)
+
 
 if __name__ == "__main__":
     main()

@@ -48,10 +48,10 @@ High-performance serving infrastructure for CarlaRL reinforcement learning polic
    ```bash
    # Health check
    curl http://localhost:8080/healthz
-   
+
    # Model metadata
    curl http://localhost:8080/metadata
-   
+
    # Prediction
    curl -X POST http://localhost:8080/predict \
      -H "Content-Type: application/json" \
@@ -319,7 +319,7 @@ results = engine.run_benchmark(inference_function, batch_size=1)
 The system automatically validates performance requirements:
 
 - **P50 Latency**: < 10ms (configurable)
-- **P95 Latency**: < 20ms (configurable)  
+- **P95 Latency**: < 20ms (configurable)
 - **P99 Latency**: < 50ms (configurable)
 - **Throughput**: > 1000 RPS (configurable)
 - **Memory Usage**: < 1GB peak (configurable)
@@ -392,7 +392,7 @@ kubectl scale deployment carla-rl-serving --replicas=3
    ```bash
    # Check artifact integrity
    make validate-artifacts
-   
+
    # Verify model format
    python -c "import torch; print(torch.jit.load('artifacts/v0.1.0/model.pt'))"
    ```
@@ -401,7 +401,7 @@ kubectl scale deployment carla-rl-serving --replicas=3
    ```bash
    # Run benchmark
    make benchmark
-   
+
    # Check metrics
    curl http://localhost:8080/metrics
    ```
@@ -410,7 +410,7 @@ kubectl scale deployment carla-rl-serving --replicas=3
    ```bash
    # Monitor memory usage
    docker stats carla-rl-serving
-   
+
    # Check for memory leaks
    make test-performance
    ```

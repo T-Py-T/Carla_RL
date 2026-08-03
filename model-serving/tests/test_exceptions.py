@@ -11,7 +11,6 @@ import pytest
 from fastapi import HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError as PydanticValidationError
-
 from src.exceptions import (
     ArtifactValidationError,
     CarlaRLServingException,

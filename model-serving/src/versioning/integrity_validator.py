@@ -13,7 +13,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from .artifact_manager import ArtifactManager
 from .semantic_version import SemanticVersion, parse_version
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -55,7 +54,7 @@ class IntegrityValidator:
         artifacts_dir: Path,
         required_artifacts: Optional[List[str]] = None,
         strict_mode: bool = True,
-    ) -> Tuple[bool, Dict[str, any]]:
+    ) -> Tuple[bool, Dict[str, Any]]:
         """
         Validate all model artifacts for a version.
 
@@ -112,9 +111,7 @@ class IntegrityValidator:
         except IntegrityValidationError:
             raise
         except Exception as exc:
-            return self._handle_unexpected_error(
-                exc, version, validation_report, strict_mode
-            )
+            return self._handle_unexpected_error(exc, version, validation_report, strict_mode)
 
     def _new_validation_report(
         self, version: SemanticVersion, artifacts_dir: Path, strict_mode: bool
@@ -146,8 +143,7 @@ class IntegrityValidator:
         if manifest:
             if required_artifacts:
                 return {
-                    artifact: manifest.artifacts.get(artifact)
-                    for artifact in required_artifacts
+                    artifact: manifest.artifacts.get(artifact) for artifact in required_artifacts
                 }
             return manifest.artifacts
 
@@ -284,7 +280,7 @@ class IntegrityValidator:
         artifacts_dir: Path,
         required_artifacts: List[str],
         strict_mode: bool = True,
-    ) -> Tuple[bool, Dict[str, any]]:
+    ) -> Tuple[bool, Dict[str, Any]]:
         """
         Validate only the required artifacts for model loading.
 
@@ -327,7 +323,7 @@ class IntegrityValidator:
             logger.error(f"Quick validation failed: {e}")
             return False
 
-    def get_validation_summary(self, validation_report: Dict[str, any]) -> str:
+    def get_validation_summary(self, validation_report: Dict[str, Any]) -> str:
         """
         Generate a human-readable validation summary.
 
