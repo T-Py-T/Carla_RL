@@ -20,6 +20,9 @@ from config import (
 )
 from config.settings import Environment
 
+OUTPUT_FORMAT_HELP = "Output format"
+OUTPUT_FILE_HELP = "Output file path"
+
 
 def main():
     """Main CLI entry point."""
@@ -35,33 +38,33 @@ def main():
     load_parser.add_argument("--config", "-c", help="Configuration file path")
     load_parser.add_argument("--env-prefix", default="", help="Environment variable prefix")
     load_parser.add_argument("--validate", action="store_true", help="Validate configuration")
-    load_parser.add_argument("--format", choices=["json", "yaml"], default="yaml", help="Output format")
-    load_parser.add_argument("--output", "-o", help="Output file path")
+    load_parser.add_argument("--format", choices=["json", "yaml"], default="yaml", help=OUTPUT_FORMAT_HELP)
+    load_parser.add_argument("--output", "-o", help=OUTPUT_FILE_HELP)
     
     # Generate command
     generate_parser = subparsers.add_parser("generate", help="Generate configuration from template")
     generate_parser.add_argument("--template", "-t", required=True, help="Template name")
     generate_parser.add_argument("--env", "-e", required=True, help="Target environment")
-    generate_parser.add_argument("--output", "-o", required=True, help="Output file path")
+    generate_parser.add_argument("--output", "-o", required=True, help=OUTPUT_FILE_HELP)
     generate_parser.add_argument("--variables", help="Template variables (JSON string)")
     
     # Validate command
     validate_parser = subparsers.add_parser("validate", help="Validate configuration")
     validate_parser.add_argument("--config", "-c", required=True, help="Configuration file path")
-    validate_parser.add_argument("--format", choices=["text", "json", "yaml"], default="text", help="Output format")
+    validate_parser.add_argument("--format", choices=["text", "json", "yaml"], default="text", help=OUTPUT_FORMAT_HELP)
     
     # Diff command
     diff_parser = subparsers.add_parser("diff", help="Compare two configurations")
     diff_parser.add_argument("config1", help="First configuration file")
     diff_parser.add_argument("config2", help="Second configuration file")
-    diff_parser.add_argument("--format", choices=["text", "json", "yaml"], default="text", help="Output format")
-    diff_parser.add_argument("--output", "-o", help="Output file path")
+    diff_parser.add_argument("--format", choices=["text", "json", "yaml"], default="text", help=OUTPUT_FORMAT_HELP)
+    diff_parser.add_argument("--output", "-o", help=OUTPUT_FILE_HELP)
     
     # Schema command
     schema_parser = subparsers.add_parser("schema", help="Generate configuration schema")
     schema_parser.add_argument("--format", choices=["json", "yaml", "markdown", "html", "rst"], 
-                              default="markdown", help="Output format")
-    schema_parser.add_argument("--output", "-o", help="Output file path")
+                              default="markdown", help=OUTPUT_FORMAT_HELP)
+    schema_parser.add_argument("--output", "-o", help=OUTPUT_FILE_HELP)
     
     args = parser.parse_args()
     

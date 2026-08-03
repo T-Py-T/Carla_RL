@@ -18,6 +18,8 @@ from contextvars import ContextVar
 import threading
 from enum import Enum
 
+MODEL_VERSION_TAG = "model.version"
+
 
 class SpanStatus(Enum):
     """Span execution status."""
@@ -260,7 +262,7 @@ class TracingMiddleware:
     ) -> Span:
         """Start an inference tracing span."""
         tags = {
-            "model.version": model_version,
+            MODEL_VERSION_TAG: model_version,
             "model.device": device,
             "inference.batch_size": batch_size,
             "inference.deterministic": deterministic,
@@ -278,7 +280,7 @@ class TracingMiddleware:
     ) -> Span:
         """Start a model loading tracing span."""
         tags = {
-            "model.version": model_version,
+            MODEL_VERSION_TAG: model_version,
             "model.device": device,
             "operation": "model_loading",
         }
@@ -294,7 +296,7 @@ class TracingMiddleware:
     ) -> Span:
         """Start a model warmup tracing span."""
         tags = {
-            "model.version": model_version,
+            MODEL_VERSION_TAG: model_version,
             "operation": "model_warmup",
         }
         
@@ -363,7 +365,7 @@ class TracingMiddleware:
             traces = [self.get_trace_summary(trace_id) for trace_id in trace_ids]
         else:
             # Export all traces
-            all_trace_ids = list(set(span.trace_id for span in self.spans.values()))
+            all_trace_ids = list({span.trace_id for span in self.spans.values()})
             traces = [self.get_trace_summary(trace_id) for trace_id in all_trace_ids]
         
         return traces

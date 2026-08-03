@@ -5,7 +5,6 @@ This module provides the main benchmarking infrastructure with configurable
 test scenarios for validating performance requirements.
 """
 
-import asyncio
 import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -143,15 +142,16 @@ class BenchmarkEngine:
         """Initialize benchmark engine with configuration."""
         self.config = config or BenchmarkConfig()
         self.results: List[BenchmarkResult] = []
+        self._rng = np.random.default_rng()
 
     def create_test_observations(self, batch_size: int) -> List[Dict[str, Any]]:
         """Create test observations for benchmarking."""
         observations = []
         for _ in range(batch_size):
             obs = {
-                "speed": np.random.uniform(0.0, 200.0),
-                "steering": np.random.uniform(-1.0, 1.0),
-                "sensors": np.random.uniform(-10.0, 10.0, 3).tolist(),
+                "speed": self._rng.uniform(0.0, 200.0),
+                "steering": self._rng.uniform(-1.0, 1.0),
+                "sensors": self._rng.uniform(-10.0, 10.0, 3).tolist(),
             }
             observations.append(obs)
         return observations
@@ -325,7 +325,6 @@ class BenchmarkEngine:
 
         successful_requests = 0
         failed_requests = 0
-        request_times = []
         error_details = []
 
         # Warmup phase
@@ -340,12 +339,9 @@ class BenchmarkEngine:
         # Main measurement phase
         measurement_start = time.perf_counter()
         while time.perf_counter() < end_time:
-            request_start = time.perf_counter()
             try:
                 inference_func(observations, self.config.deterministic_mode)
-                request_end = time.perf_counter()
                 successful_requests += 1
-                request_times.append(request_end - request_start)
             except Exception as e:
                 failed_requests += 1
                 error_details.append(str(e))
@@ -354,13 +350,6 @@ class BenchmarkEngine:
         total_requests = successful_requests + failed_requests
         requests_per_second = total_requests / total_duration if total_duration > 0 else 0.0
         error_rate = failed_requests / total_requests if total_requests > 0 else 0.0
-
-        # Calculate additional throughput metrics
-        if request_times:
-            # Request time statistics available but not currently used
-            pass
-        else:
-            pass  # No request times available
 
         return ThroughputStats(
             requests_per_second=requests_per_second,
@@ -452,7 +441,7 @@ class BenchmarkEngine:
         # Track garbage collection
         initial_gc_count = sum(gc.get_count())
 
-        for i in range(iterations):
+        for _ in range(iterations):
             # Force garbage collection before each measurement
             gc.collect()
 
@@ -491,7 +480,6 @@ class BenchmarkEngine:
 
         # Generate memory optimization recommendations
         recommendations = self._generate_memory_recommendations(
-            baseline_memory,
             peak_memory,
             memory_growth,
             memory_efficiency,
@@ -538,7 +526,6 @@ class BenchmarkEngine:
 
     def _generate_memory_recommendations(
         self,
-        baseline_memory: float,
         peak_memory: float,
         memory_growth: float,
         memory_efficiency: float,
@@ -629,7 +616,7 @@ class BenchmarkEngine:
             ),
         }
 
-    async def run_benchmark(self, inference_func: Callable, batch_size: int = 1) -> BenchmarkResult:
+    def run_benchmark(self, inference_func: Callable, batch_size: int = 1) -> BenchmarkResult:
         """Run complete benchmark test for given batch size."""
         print(f"Running benchmark for batch size: {batch_size}")
 
@@ -708,7 +695,7 @@ class BenchmarkEngine:
         results = []
         for batch_size in self.config.batch_sizes:
             print(f"\nTesting batch size: {batch_size}")
-            result = asyncio.run(self.run_benchmark(inference_func, batch_size))
+            result = self.run_benchmark(inference_func, batch_size)
             results.append(result)
 
             # Print quick summary
@@ -735,14 +722,14 @@ class BenchmarkEngine:
             batch_size = self.config.batch_sizes[i] if i < len(self.config.batch_sizes) else 1
 
             # Calculate composite score
-            score = self._calculate_batch_size_score(result, batch_size)
+            score = self._calculate_batch_size_score(result)
             scores.append((batch_size, score))
 
         # Return batch size with highest score
         optimal_batch_size, _ = max(scores, key=lambda x: x[1])
         return optimal_batch_size
 
-    def _calculate_batch_size_score(self, result: BenchmarkResult, batch_size: int) -> float:
+    def _calculate_batch_size_score(self, result: BenchmarkResult) -> float:
         """Calculate composite score for batch size optimization."""
         # Normalize metrics (lower is better for latency, higher is better for throughput)
         latency_score = max(0, 1.0 - (result.latency_stats.p50_ms / self.config.p50_threshold_ms))
@@ -790,7 +777,7 @@ class BenchmarkEngine:
             print(f"Testing dynamic batch size: {batch_size}")
 
             try:
-                result = asyncio.run(self.run_benchmark(inference_func, batch_size))
+                result = self.run_benchmark(inference_func, batch_size)
 
                 # Check constraints
                 if (
@@ -801,7 +788,7 @@ class BenchmarkEngine:
                     break
 
                 # Calculate score
-                score = self._calculate_batch_size_score(result, batch_size)
+                score = self._calculate_batch_size_score(result)
 
                 if score > best_score:
                     best_score = score
@@ -832,7 +819,7 @@ class BenchmarkEngine:
         hardware_info = self.get_hardware_info()
 
         # Run comprehensive benchmark
-        result = asyncio.run(self.run_benchmark(inference_func, batch_size=1))
+        result = self.run_benchmark(inference_func, batch_size=1)
 
         # Create baseline data
         baseline = {
@@ -1000,48 +987,44 @@ class BenchmarkEngine:
         if not self.results:
             return "No benchmark results available."
 
-        report = []
-        report.append("=" * 80)
-        report.append("POLICY-AS-A-SERVICE BENCHMARK REPORT")
-        report.append("=" * 80)
-        report.append("")
-
-        # Summary
+        report = [
+            "=" * 80,
+            "POLICY-AS-A-SERVICE BENCHMARK REPORT",
+            "=" * 80,
+            "",
+        ]
         total_tests = len(self.results)
-        successful_tests = sum(1 for r in self.results if r.overall_success)
-        success_rate = (successful_tests / total_tests) * 100 if total_tests > 0 else 0
+        successful_tests = sum(result.overall_success for result in self.results)
+        success_rate = successful_tests / total_tests * 100
+        report.extend([
+            "SUMMARY:",
+            f"  Total Tests: {total_tests}",
+            f"  Successful: {successful_tests}",
+            f"  Success Rate: {success_rate:.1f}%",
+            "",
+        ])
 
-        report.append("SUMMARY:")
-        report.append(f"  Total Tests: {total_tests}")
-        report.append(f"  Successful: {successful_tests}")
-        report.append(f"  Success Rate: {success_rate:.1f}%")
-        report.append("")
-
-        # Detailed results
-        for i, result in enumerate(self.results, 1):
-            batch_size = (
-                result.config.batch_sizes[i - 1]
-                if i <= len(result.config.batch_sizes)
-                else "Unknown"
-            )
-            report.append(f"TEST {i} - Batch Size: {batch_size}")
-            report.append("-" * 40)
-            report.append(
-                f"  Latency (P50): {result.latency_stats.p50_ms:.2f}ms {'✓' if result.p50_requirement_met else '✗'}"
-            )
-            report.append(
-                f"  Latency (P95): {result.latency_stats.p95_ms:.2f}ms {'✓' if result.p95_requirement_met else '✗'}"
-            )
-            report.append(
-                f"  Latency (P99): {result.latency_stats.p99_ms:.2f}ms {'✓' if result.p99_requirement_met else '✗'}"
-            )
-            report.append(
-                f"  Throughput: {result.throughput_stats.requests_per_second:.1f} RPS {'✓' if result.throughput_requirement_met else '✗'}"
-            )
-            report.append(
-                f"  Memory: {result.memory_stats.peak_memory_mb:.1f} MB {'✓' if result.memory_requirement_met else '✗'}"
-            )
-            report.append(f"  Overall: {'PASS' if result.overall_success else 'FAIL'}")
-            report.append("")
+        for index, result in enumerate(self.results, 1):
+            report.extend(self._format_result_report(index, result))
 
         return "\n".join(report)
+
+    def _format_result_report(self, index: int, result: BenchmarkResult) -> List[str]:
+        """Format one detailed benchmark result."""
+        batch_size = "Unknown"
+        if index <= len(result.config.batch_sizes):
+            batch_size = result.config.batch_sizes[index - 1]
+        status = lambda passed: "✓" if passed else "✗"
+        return [
+            f"TEST {index} - Batch Size: {batch_size}",
+            "-" * 40,
+            f"  Latency (P50): {result.latency_stats.p50_ms:.2f}ms {status(result.p50_requirement_met)}",
+            f"  Latency (P95): {result.latency_stats.p95_ms:.2f}ms {status(result.p95_requirement_met)}",
+            f"  Latency (P99): {result.latency_stats.p99_ms:.2f}ms {status(result.p99_requirement_met)}",
+            f"  Throughput: {result.throughput_stats.requests_per_second:.1f} RPS "
+            f"{status(result.throughput_requirement_met)}",
+            f"  Memory: {result.memory_stats.peak_memory_mb:.1f} MB "
+            f"{status(result.memory_requirement_met)}",
+            f"  Overall: {'PASS' if result.overall_success else 'FAIL'}",
+            "",
+        ]

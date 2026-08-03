@@ -26,6 +26,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+MIGRATION_PLAN_ID_HELP = "Migration plan ID"
 
 
 def setup_migration_manager(artifacts_dir: str) -> MigrationManager:
@@ -328,7 +329,7 @@ Examples:
     execute_parser.add_argument(
         "--plan-id",
         required=True,
-        help="Migration plan ID"
+        help=MIGRATION_PLAN_ID_HELP
     )
     execute_parser.add_argument(
         "--no-backup",
@@ -354,7 +355,7 @@ Examples:
     validate_parser.add_argument(
         "--plan-id",
         required=True,
-        help="Migration plan ID"
+        help=MIGRATION_PLAN_ID_HELP
     )
     
     # Get plan command
@@ -362,7 +363,7 @@ Examples:
     get_plan_parser.add_argument(
         "--plan-id",
         required=True,
-        help="Migration plan ID"
+        help=MIGRATION_PLAN_ID_HELP
     )
     
     # Get result command

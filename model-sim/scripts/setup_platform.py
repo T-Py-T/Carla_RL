@@ -8,6 +8,24 @@ import platform
 import subprocess
 import sys
 
+
+def _detect_discrete_gpus(system_info, gpu_info):
+    """Populate discrete GPU flags for supported desktop platforms."""
+    try:
+        result = subprocess.run(['nvidia-smi'], capture_output=True, text=True)
+        gpu_info['nvidia'] = result.returncode == 0
+    except FileNotFoundError:
+        pass
+
+    if not system_info['is_linux']:
+        return
+
+    try:
+        result = subprocess.run(['lspci'], capture_output=True, text=True)
+        gpu_info['amd'] = 'AMD' in result.stdout or 'Radeon' in result.stdout
+    except FileNotFoundError:
+        pass
+
 def get_platform_info():
     """Get detailed platform information"""
     return {
@@ -36,22 +54,7 @@ def detect_gpu_support():
         gpu_info['apple_metal'] = True
         
     elif system_info['is_linux'] or system_info['is_windows']:
-        # Check for NVIDIA GPU
-        try:
-            result = subprocess.run(['nvidia-smi'], capture_output=True, text=True)
-            if result.returncode == 0:
-                gpu_info['nvidia'] = True
-        except FileNotFoundError:
-            pass
-            
-        # Check for AMD GPU (basic detection)
-        if system_info['is_linux']:
-            try:
-                result = subprocess.run(['lspci'], capture_output=True, text=True)
-                if 'AMD' in result.stdout or 'Radeon' in result.stdout:
-                    gpu_info['amd'] = True
-            except FileNotFoundError:
-                pass
+        _detect_discrete_gpus(system_info, gpu_info)
     
     return gpu_info
 
@@ -116,7 +119,7 @@ def detect_carla_support():
                 carla_info['docker_available'] = True
                 if not carla_info['native_support']:
                     carla_info['recommended_setup'] = 'docker'
-        except:
+        except (OSError, subprocess.SubprocessError):
             pass
     
     return carla_info

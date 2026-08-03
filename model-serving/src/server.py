@@ -48,7 +48,7 @@ app_state: dict[str, Any] = {
 }
 
 
-async def get_inference_engine():
+def get_inference_engine():
     """Dependency to get the inference engine with validation."""
     if not app_state["model_loaded"] or app_state["inference_engine"] is None:
         raise ServiceUnavailableError(
@@ -102,7 +102,7 @@ async def lifespan(app: FastAPI):
             )
             
             if selected_version is None:
-                raise Exception("No suitable model version found")
+                raise RuntimeError("No suitable model version found")
             
             artifact_dir = artifacts_root / str(selected_version)
             

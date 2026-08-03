@@ -135,8 +135,7 @@ def run_environment_aware_performance_test(
           f"P95<{env_thresholds['p95_latency_ms']}ms, "
           f"Throughput>{env_thresholds['throughput_rps']} RPS")
     
-    import asyncio
-    result = asyncio.run(engine.run_benchmark(inference_func, batch_size=1))
+    result = engine.run_benchmark(inference_func, batch_size=1)
     
     # Create test result
     test_result = {

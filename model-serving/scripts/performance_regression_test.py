@@ -58,8 +58,7 @@ def run_performance_regression_test(
     
     # Run benchmark
     print("Running performance regression test...")
-    import asyncio
-    result = asyncio.run(engine.run_benchmark(inference_func, batch_size=1))
+    result = engine.run_benchmark(inference_func, batch_size=1)
     
     # Load baseline if provided
     baseline = None

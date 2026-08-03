@@ -214,7 +214,7 @@ class TestGPUOptimizer:
 
     def test_enable_cuda_optimizations(self, optimizer, hardware_info_with_gpu):
         """Test CUDA optimization enabling."""
-        optimizations = optimizer._enable_cuda_optimizations(hardware_info_with_gpu.gpu)
+        optimizations = optimizer._enable_cuda_optimizations()
         
         assert "device" in optimizations
         assert "cudnn_enabled" in optimizations
@@ -225,7 +225,7 @@ class TestGPUOptimizer:
         with patch('importlib.util.find_spec') as mock_find_spec:
             mock_find_spec.return_value = Mock()  # Mock TensorRT availability
             
-            optimizations = optimizer._enable_tensorrt_optimizations(hardware_info_with_gpu.gpu)
+            optimizations = optimizer._enable_tensorrt_optimizations()
             
             assert "tensorrt_available" in optimizations
 
@@ -234,7 +234,7 @@ class TestGPUOptimizer:
         with patch('importlib.util.find_spec') as mock_find_spec:
             mock_find_spec.return_value = None  # Mock TensorRT not available
             
-            optimizations = optimizer._enable_tensorrt_optimizations(hardware_info_with_gpu.gpu)
+            optimizations = optimizer._enable_tensorrt_optimizations()
             
             assert optimizations["tensorrt_available"] is False
             assert "error" in optimizations
@@ -253,7 +253,7 @@ class TestGPUOptimizer:
 
     def test_enable_memory_optimizations(self, optimizer, hardware_info_with_gpu):
         """Test memory optimization enabling."""
-        optimizations = optimizer._enable_memory_optimizations(hardware_info_with_gpu.gpu)
+        optimizations = optimizer._enable_memory_optimizations()
 
         assert optimizations["memory_fraction"] == 0.8
         # ``memory_cleared`` mirrors ``torch.cuda.is_available()``: we only

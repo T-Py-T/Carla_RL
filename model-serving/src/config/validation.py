@@ -57,7 +57,7 @@ class ValidationResult:
     warnings: List[ValidationIssue]
     errors: List[ValidationIssue]
     summary: Dict[str, int]
-    
+
     def __post_init__(self):
         """Categorize issues by severity."""
         self.warnings = [i for i in self.issues if i.severity == ValidationSeverity.WARNING]
@@ -77,7 +77,7 @@ class ValidationResult:
 
 class ConfigValidator:
     """Configuration validator with comprehensive validation rules."""
-    
+
     def __init__(self):
         """Initialize configuration validator."""
         self._validators: Dict[str, List[Callable]] = {}
@@ -93,62 +93,86 @@ class ConfigValidator:
         Returns:
             Validation result with issues and summary
         """
-        issues = []
-        
-        # Pydantic validation
-        try:
-            config.model_validate(config.model_dump())
-        except PydanticValidationError as e:
-            for error in e.errors():
-                field = ".".join(str(x) for x in error["loc"])
-                issues.append(ValidationIssue(
-                    field=field,
-                    message=error["msg"],
-                    severity=ValidationSeverity.ERROR,
-                    value=error.get("input"),
-                    expected=error.get("ctx", {}).get("expected")
-                ))
-        
-        # Custom validators
-        for field_name, validators in self._validators.items():
-            field_value = self._get_nested_value(config.model_dump(), field_name)
-            for validator_func in validators:
-                try:
-                    result = validator_func(field_value, config)
-                    if isinstance(result, ValidationIssue):
-                        issues.append(result)
-                    elif isinstance(result, list):
-                        issues.extend(result)
-                except Exception as e:
-                    issues.append(ValidationIssue(
-                        field=field_name,
-                        message=f"Validation error: {str(e)}",
-                        severity=ValidationSeverity.ERROR,
-                        value=field_value
-                    ))
-        
-        # Global custom rules
-        for rule in self._custom_rules:
-            try:
-                result = rule(config)
-                if isinstance(result, ValidationIssue):
-                    issues.append(result)
-                elif isinstance(result, list):
-                    issues.extend(result)
-            except Exception as e:
-                issues.append(ValidationIssue(
-                    field="global",
-                    message=f"Global validation error: {str(e)}",
-                    severity=ValidationSeverity.ERROR
-                ))
-        
+        config_data = config.model_dump()
+        issues = self._pydantic_issues(config, config_data)
+        issues.extend(self._field_validation_issues(config, config_data))
+        issues.extend(self._global_validation_issues(config))
+
         return ValidationResult(
-            is_valid=len([i for i in issues if i.severity == ValidationSeverity.ERROR]) == 0,
+            is_valid=not any(
+                issue.severity == ValidationSeverity.ERROR for issue in issues
+            ),
             issues=issues,
             warnings=[],
             errors=[],
-            summary={}
+            summary={},
         )
+
+    @staticmethod
+    def _pydantic_issues(
+        config: BaseConfig, config_data: Dict[str, Any]
+    ) -> List[ValidationIssue]:
+        """Return issues emitted by Pydantic's model validation."""
+        try:
+            config.model_validate(config_data)
+            return []
+        except PydanticValidationError as exc:
+            return [
+                ValidationIssue(
+                    field=".".join(str(part) for part in error["loc"]),
+                    message=error["msg"],
+                    severity=ValidationSeverity.ERROR,
+                    value=error.get("input"),
+                    expected=error.get("ctx", {}).get("expected"),
+                )
+                for error in exc.errors()
+            ]
+
+    def _field_validation_issues(
+        self, config: BaseConfig, config_data: Dict[str, Any]
+    ) -> List[ValidationIssue]:
+        """Run registered field validators."""
+        issues: List[ValidationIssue] = []
+        for field_name, validators in self._validators.items():
+            field_value = self._get_nested_value(config_data, field_name)
+            for validator_func in validators:
+                try:
+                    self._append_result(
+                        issues, validator_func(field_value, config)
+                    )
+                except Exception as exc:
+                    issues.append(
+                        ValidationIssue(
+                            field=field_name,
+                            message=f"Validation error: {exc}",
+                            severity=ValidationSeverity.ERROR,
+                            value=field_value,
+                        )
+                    )
+        return issues
+
+    def _global_validation_issues(self, config: BaseConfig) -> List[ValidationIssue]:
+        """Run registered whole-configuration rules."""
+        issues: List[ValidationIssue] = []
+        for rule in self._custom_rules:
+            try:
+                self._append_result(issues, rule(config))
+            except Exception as exc:
+                issues.append(
+                    ValidationIssue(
+                        field="global",
+                        message=f"Global validation error: {exc}",
+                        severity=ValidationSeverity.ERROR,
+                    )
+                )
+        return issues
+
+    @staticmethod
+    def _append_result(issues: List[ValidationIssue], result: Any) -> None:
+        if isinstance(result, ValidationIssue):
+            issues.append(result)
+        elif isinstance(result, list):
+            issues.extend(result)
     
     def add_field_validator(self, field_name: str, validator_func: Callable) -> None:
         """
@@ -395,14 +419,13 @@ def validate_cache_config(config: AppConfig) -> List[ValidationIssue]:
     # Handle both enum objects and strings
     backend = cache_config.backend.value if hasattr(cache_config.backend, 'value') else str(cache_config.backend)
     
-    if backend in ["redis", "memcached"]:
-        if not cache_config.host:
-            issues.append(ValidationIssue(
-                field="cache.host",
-                message=f"Host required for {backend}",
-                severity=ValidationSeverity.ERROR,
-                suggestion="Provide cache host address"
-            ))
+    if backend in ["redis", "memcached"] and not cache_config.host:
+        issues.append(ValidationIssue(
+            field="cache.host",
+            message=f"Host required for {backend}",
+            severity=ValidationSeverity.ERROR,
+            suggestion="Provide cache host address"
+        ))
     
     return issues
 
@@ -502,23 +525,34 @@ def format_validation_result(result: ValidationResult) -> str:
     lines.append(f"Warnings: {result.summary['warnings']}")
     lines.append(f"Info: {result.summary['info']}")
     lines.append("")
-    
-    # Issues by severity
+
     for severity in [ValidationSeverity.ERROR, ValidationSeverity.WARNING, ValidationSeverity.INFO]:
-        issues = [i for i in result.issues if i.severity == severity]
-        if issues:
-            lines.append(f"{severity.value.upper()}S:")
-            lines.append("-" * 20)
-            
-            for issue in issues:
-                lines.append(f"Field: {issue.field}")
-                lines.append(f"Message: {issue.message}")
-                if issue.value is not None:
-                    lines.append(f"Value: {issue.value}")
-                if issue.expected is not None:
-                    lines.append(f"Expected: {issue.expected}")
-                if issue.suggestion:
-                    lines.append(f"Suggestion: {issue.suggestion}")
-                lines.append("")
-    
+        lines.extend(_format_severity_issues(result.issues, severity))
+
     return "\n".join(lines)
+
+
+def _format_severity_issues(
+    all_issues: List[ValidationIssue], severity: ValidationSeverity
+) -> List[str]:
+    """Format all issues for one severity group."""
+    issues = [issue for issue in all_issues if issue.severity == severity]
+    if not issues:
+        return []
+    lines = [f"{severity.value.upper()}S:", "-" * 20]
+    for issue in issues:
+        lines.extend(_format_issue(issue))
+    return lines
+
+
+def _format_issue(issue: ValidationIssue) -> List[str]:
+    """Format one validation issue."""
+    lines = [f"Field: {issue.field}", f"Message: {issue.message}"]
+    optional_values = (
+        ("Value", issue.value),
+        ("Expected", issue.expected),
+        ("Suggestion", issue.suggestion),
+    )
+    lines.extend(f"{label}: {value}" for label, value in optional_values if value is not None)
+    lines.append("")
+    return lines

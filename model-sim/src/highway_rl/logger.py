@@ -75,7 +75,7 @@ class WandBLogger:
         try:
             gpus = tf.config.list_physical_devices('GPU')
             return len(gpus) > 0
-        except:
+        except (RuntimeError, ValueError):
             return False
     
     def log_episode(
@@ -215,7 +215,7 @@ class WandBLogger:
                     # For Apple Silicon, we can't get detailed GPU metrics easily
                     # but we can log that GPU is being used
                     metrics["system/gpu_available"] = len(gpus)
-            except:
+            except (RuntimeError, ValueError):
                 pass
                 
             return metrics

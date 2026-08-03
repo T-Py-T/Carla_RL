@@ -12,7 +12,6 @@ import sys
 import time
 from pathlib import Path
 from typing import Dict, Any, List
-import asyncio
 
 # Add model-serving to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -49,7 +48,7 @@ class PerformanceOptimizer:
             
             # Return mock actions
             actions = []
-            for obs in observations:
+            for _ in observations:
                 action = {
                     "throttle": random.uniform(0.0, 1.0),
                     "brake": random.uniform(0.0, 1.0),
@@ -159,7 +158,7 @@ class PerformanceOptimizer:
             
             # Run benchmark
             engine = BenchmarkEngine(baseline_config)
-            result = asyncio.run(engine.run_benchmark(inference_func, batch_size=1))
+            result = engine.run_benchmark(inference_func, batch_size=1)
             
             results[level] = {
                 "throughput_rps": result.throughput_stats.requests_per_second,
@@ -192,7 +191,7 @@ class PerformanceOptimizer:
             
             # Run benchmark
             engine = BenchmarkEngine(baseline_config)
-            result = asyncio.run(engine.run_benchmark(inference_func, batch_size=batch_size))
+            result = engine.run_benchmark(inference_func, batch_size=batch_size)
             
             results[batch_size] = {
                 "throughput_rps": result.throughput_stats.requests_per_second,
@@ -301,7 +300,7 @@ def main():
         print("1. Running baseline performance analysis...")
         baseline_inference = optimizer.create_optimized_inference_function("conservative")
         baseline_engine = BenchmarkEngine(baseline_config)
-        baseline_result = asyncio.run(baseline_engine.run_benchmark(baseline_inference, batch_size=1))
+        baseline_result = baseline_engine.run_benchmark(baseline_inference, batch_size=1)
         
         baseline_metrics = {
             "throughput_rps": baseline_result.throughput_stats.requests_per_second,

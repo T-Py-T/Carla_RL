@@ -23,7 +23,7 @@ class ConfigTemplate:
     environment: Optional[Environment] = None
     template_content: str = ""
     variables: Dict[str, Any] = None
-    dependencies: List[str] = None
+    dependencies: Optional[List[str]] = None
     
     def __post_init__(self):
         """Initialize default values."""

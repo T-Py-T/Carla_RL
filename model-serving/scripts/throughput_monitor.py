@@ -15,6 +15,8 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 import queue
 
+TIMESTAMP_FORMAT = "%Y-%m-%d %H:%M:%S UTC"
+
 # Add model-serving to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -71,7 +73,7 @@ class ThroughputMonitor:
             
             # Return mock actions
             actions = []
-            for obs in observations:
+            for _ in observations:
                 action = {
                     "throttle": random.uniform(0.0, 1.0),
                     "brake": random.uniform(0.0, 1.0),
@@ -89,10 +91,10 @@ class ThroughputMonitor:
             inference_func = self.create_monitoring_inference_function()
             
             # Quick throughput measurement
-            result = asyncio.run(self.engine.run_benchmark(inference_func, batch_size=1))
+            result = self.engine.run_benchmark(inference_func, batch_size=1)
             
             measurement = {
-                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+                "timestamp": time.strftime(TIMESTAMP_FORMAT, time.gmtime()),
                 "throughput_rps": result.throughput_stats.requests_per_second,
                 "p50_latency_ms": result.latency_stats.p50_ms,
                 "p95_latency_ms": result.latency_stats.p95_ms,
@@ -105,7 +107,7 @@ class ThroughputMonitor:
         except Exception as e:
             print(f"Error measuring throughput: {e}")
             return {
-                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
+                "timestamp": time.strftime(TIMESTAMP_FORMAT, time.gmtime()),
                 "throughput_rps": 0.0,
                 "error": str(e),
                 "success": False
@@ -152,13 +154,13 @@ class ThroughputMonitor:
         # Clean up throughput history
         self.throughput_history = [
             m for m in self.throughput_history
-            if time.mktime(time.strptime(m["timestamp"], "%Y-%m-%d %H:%M:%S UTC")) > cutoff_time
+            if time.mktime(time.strptime(m["timestamp"], TIMESTAMP_FORMAT)) > cutoff_time
         ]
         
         # Clean up alerts
         self.alerts = [
             a for a in self.alerts
-            if time.mktime(time.strptime(a.timestamp, "%Y-%m-%d %H:%M:%S UTC")) > cutoff_time
+            if time.mktime(time.strptime(a.timestamp, TIMESTAMP_FORMAT)) > cutoff_time
         ]
     
     def monitor_loop(self):
@@ -218,7 +220,12 @@ class ThroughputMonitor:
         # Calculate efficiency
         efficiency = (throughput / self.threshold_rps) * 100
         
-        status_icon = "✅" if efficiency >= 100 else "⚠️" if efficiency >= 80 else "❌"
+        if efficiency >= 100:
+            status_icon = "✅"
+        elif efficiency >= 80:
+            status_icon = "⚠️"
+        else:
+            status_icon = "❌"
         
         print(f"{status_icon} {measurement['timestamp']} | "
               f"Throughput: {throughput:.1f} RPS ({efficiency:.1f}%) | "
@@ -360,5 +367,4 @@ def main():
 
 
 if __name__ == "__main__":
-    import asyncio
     main()

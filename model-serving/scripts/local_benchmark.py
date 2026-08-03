@@ -15,6 +15,8 @@ from typing import Dict, Any
 import platform
 import psutil
 
+MODEL_NOT_AVAILABLE = "Model not available"
+
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -94,7 +96,7 @@ def get_system_info() -> Dict[str, Any]:
                     info["cpu"]["avx2_support"] = True
                 if "sse" in cpuinfo.lower():
                     info["cpu"]["sse_support"] = True
-    except (FileNotFoundError, OSError):
+    except OSError:
         pass
     
     # Try to get GPU info
@@ -147,7 +149,7 @@ def create_test_model(input_size: int = 10, hidden_size: int = 50, output_size: 
 def benchmark_latency(model: Any, input_tensor: Any, num_runs: int = 100) -> Dict[str, float]:
     """Benchmark model latency."""
     if model is None:
-        return {"error": "Model not available"}
+        return {"error": MODEL_NOT_AVAILABLE}
     
     try:
         import torch
@@ -185,7 +187,7 @@ def benchmark_latency(model: Any, input_tensor: Any, num_runs: int = 100) -> Dic
 def benchmark_throughput(model: Any, input_tensor: Any, duration_seconds: float = 10.0) -> Dict[str, float]:
     """Benchmark model throughput."""
     if model is None:
-        return {"error": "Model not available"}
+        return {"error": MODEL_NOT_AVAILABLE}
     
     try:
         import torch
@@ -213,7 +215,7 @@ def benchmark_throughput(model: Any, input_tensor: Any, duration_seconds: float 
 def benchmark_memory_usage(model: Any, input_tensor: Any) -> Dict[str, float]:
     """Benchmark memory usage."""
     if model is None:
-        return {"error": "Model not available"}
+        return {"error": MODEL_NOT_AVAILABLE}
     
     try:
         import torch
@@ -422,90 +424,110 @@ def run_hardware_specific_benchmarks() -> Dict[str, Any]:
     except Exception as e:
         return {"error": f"Hardware benchmark error: {e}"}
 
-def main():
-    """Main benchmarking function."""
+def create_parser():
+    """Create the benchmark command-line parser."""
     parser = argparse.ArgumentParser(description="Local hardware benchmarking for Policy-as-a-Service")
     parser.add_argument("--output", "-o", help="Output file for benchmark results (JSON)")
     parser.add_argument("--quick", action="store_true", help="Run quick benchmarks (fewer iterations)")
     parser.add_argument("--comprehensive", action="store_true", help="Run comprehensive benchmarks")
     parser.add_argument("--system-info-only", action="store_true", help="Only collect system information")
-    
-    args = parser.parse_args()
-    
+    return parser
+
+
+def collect_benchmarks(args, system_info):
+    """Run the benchmark groups requested by the user."""
+    benchmark_results = {
+        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "system_info": system_info,
+        "benchmarks": {},
+    }
+
+    if args.quick or args.comprehensive:
+        print("\nRunning optimization benchmarks...")
+        benchmark_results["benchmarks"]["optimization"] = run_optimization_benchmarks()
+
+    if args.comprehensive:
+        print("\nRunning batch size benchmarks...")
+        benchmark_results["benchmarks"]["batch_sizes"] = run_batch_size_benchmarks()
+        print("\nRunning hardware-specific benchmarks...")
+        benchmark_results["benchmarks"]["hardware_profiles"] = run_hardware_specific_benchmarks()
+
+    return benchmark_results
+
+
+def print_optimization_results(benchmarks):
+    """Print the optimization benchmark summary when available."""
+    optimization = benchmarks.get("optimization")
+    if not optimization:
+        return
+    if "error" in optimization:
+        print(f"Optimization benchmark error: {optimization['error']}")
+        return
+
+    baseline = optimization["no_optimization"]["latency"].get("median_ms")
+    optimized = optimization["with_optimization"]["latency"].get("median_ms")
+    baseline_text = f"{baseline:.2f}ms" if baseline is not None else "N/A"
+    optimized_text = f"{optimized:.2f}ms" if optimized is not None else "N/A"
+    print(f"Latency (no optimization): {baseline_text}")
+    print(f"Latency (with optimization): {optimized_text}")
+
+    improvement = optimization.get("performance_improvement")
+    if improvement:
+        print(f"Latency improvement: {improvement['latency_improvement_percent']:.1f}%")
+        print(f"Speedup: {improvement['latency_speedup']:.2f}x")
+
+
+def validate_performance(benchmarks):
+    """Print validation results for optimized latency."""
+    print("\nPerformance Validation:")
+    print("-" * 30)
+    optimization = benchmarks.get("optimization", {})
+    optimized = optimization.get("with_optimization", {})
+    median_ms = optimized.get("latency", {}).get("median_ms")
+    if median_ms is None or "error" in optimization:
+        return
+
+    if median_ms < 10.0:
+        print("✓ P50 latency requirement met (< 10ms)")
+    else:
+        print(f"✗ P50 latency requirement not met: {median_ms:.2f}ms > 10ms")
+
+    if median_ms < 5.0:
+        print("✓ Excellent latency performance (< 5ms)")
+    elif median_ms < 10.0:
+        print("✓ Good latency performance (< 10ms)")
+    else:
+        print("⚠ Latency performance needs improvement")
+
+
+def save_results(path, benchmark_results):
+    """Save benchmark results when an output path was supplied."""
+    if not path:
+        return
+    with open(path, "w") as output_file:
+        json.dump(benchmark_results, output_file, indent=2)
+    print(f"\nResults saved to {path}")
+
+
+def main():
+    """Main benchmarking function."""
+    args = create_parser().parse_args()
     print("Policy-as-a-Service Local Benchmarking")
     print("=" * 50)
-    
-    # Collect system information
     print("Collecting system information...")
     system_info = get_system_info()
-    
+
     if args.system_info_only:
         print("\nSystem Information:")
         print(json.dumps(system_info, indent=2))
         return
-    
-    # Run benchmarks
-    benchmark_results = {
-        "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-        "system_info": system_info,
-        "benchmarks": {}
-    }
-    
-    if args.quick or args.comprehensive:
-        print("\nRunning optimization benchmarks...")
-        benchmark_results["benchmarks"]["optimization"] = run_optimization_benchmarks()
-    
-    if args.comprehensive:
-        print("\nRunning batch size benchmarks...")
-        benchmark_results["benchmarks"]["batch_sizes"] = run_batch_size_benchmarks()
-        
-        print("\nRunning hardware-specific benchmarks...")
-        benchmark_results["benchmarks"]["hardware_profiles"] = run_hardware_specific_benchmarks()
-    
-    # Print results
+
+    benchmark_results = collect_benchmarks(args, system_info)
     print("\nBenchmark Results:")
     print("=" * 50)
-    
-    if "optimization" in benchmark_results["benchmarks"]:
-        opt_results = benchmark_results["benchmarks"]["optimization"]
-        if "error" not in opt_results:
-            print(f"Latency (no optimization): {opt_results['no_optimization']['latency'].get('median_ms', 'N/A'):.2f}ms")
-            print(f"Latency (with optimization): {opt_results['with_optimization']['latency'].get('median_ms', 'N/A'):.2f}ms")
-            
-            if "performance_improvement" in opt_results:
-                improvement = opt_results["performance_improvement"]
-                print(f"Latency improvement: {improvement['latency_improvement_percent']:.1f}%")
-                print(f"Speedup: {improvement['latency_speedup']:.2f}x")
-        else:
-            print(f"Optimization benchmark error: {opt_results['error']}")
-    
-    # Save results
-    if args.output:
-        with open(args.output, 'w') as f:
-            json.dump(benchmark_results, f, indent=2)
-        print(f"\nResults saved to {args.output}")
-    
-    # Performance validation
-    print("\nPerformance Validation:")
-    print("-" * 30)
-    
-    if "optimization" in benchmark_results["benchmarks"]:
-        opt_results = benchmark_results["benchmarks"]["optimization"]
-        if "error" not in opt_results and "with_optimization" in opt_results:
-            latency = opt_results["with_optimization"]["latency"]
-            if "median_ms" in latency:
-                if latency["median_ms"] < 10.0:
-                    print("✓ P50 latency requirement met (< 10ms)")
-                else:
-                    print(f"✗ P50 latency requirement not met: {latency['median_ms']:.2f}ms > 10ms")
-                
-                if latency["median_ms"] < 5.0:
-                    print("✓ Excellent latency performance (< 5ms)")
-                elif latency["median_ms"] < 10.0:
-                    print("✓ Good latency performance (< 10ms)")
-                else:
-                    print("⚠ Latency performance needs improvement")
-    
+    print_optimization_results(benchmark_results["benchmarks"])
+    save_results(args.output, benchmark_results)
+    validate_performance(benchmark_results["benchmarks"])
     print("\nBenchmarking complete!")
 
 if __name__ == "__main__":

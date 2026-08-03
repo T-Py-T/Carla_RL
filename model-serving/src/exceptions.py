@@ -159,7 +159,7 @@ def create_error_response(error: Exception, request_id: str | None = None) -> di
         }
 
 
-async def carla_rl_exception_handler(
+def carla_rl_exception_handler(
     request: Request, exc: CarlaRLServingException
 ) -> JSONResponse:
     """
@@ -190,7 +190,7 @@ async def carla_rl_exception_handler(
     return JSONResponse(status_code=exc.status_code, content=error_response)
 
 
-async def validation_exception_handler(
+def validation_exception_handler(
     request: Request, exc: PydanticValidationError
 ) -> JSONResponse:
     """
@@ -220,7 +220,7 @@ async def validation_exception_handler(
     return JSONResponse(status_code=422, content=error_response)
 
 
-async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
     """
     FastAPI exception handler for HTTP exceptions.
 
@@ -250,7 +250,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> JSONRe
     return JSONResponse(status_code=exc.status_code, content=error_response)
 
 
-async def request_validation_exception_handler(
+def request_validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
     """FastAPI exception handler for request body/query validation errors.
@@ -292,7 +292,7 @@ async def request_validation_exception_handler(
     return JSONResponse(status_code=422, content=error_response)
 
 
-async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """
     FastAPI exception handler for unexpected exceptions.
 

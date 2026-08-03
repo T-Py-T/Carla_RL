@@ -6,7 +6,7 @@ hardware capabilities and performance requirements.
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 import torch.nn as nn
@@ -29,7 +29,7 @@ class OptimizationProfile:
     target_latency_ms: float
     target_throughput_rps: int
     memory_limit_gb: float
-    hardware_requirements: Dict[str, any]
+    hardware_requirements: Dict[str, Any]
 
 
 class OptimizationManager:
@@ -420,29 +420,29 @@ class OptimizationManager:
         if self._hardware_info.memory.total_gb < profile.memory_limit_gb:
             return False
         
-        # Check CPU requirements
-        cpu_req = profile.hardware_requirements
-        if "cpu_cores" in cpu_req and self._hardware_info.cpu.cores < cpu_req["cpu_cores"]:
+        requirements = profile.hardware_requirements
+        return self._meets_cpu_requirements(requirements) and self._meets_gpu_requirements(
+            requirements
+        )
+
+    def _meets_cpu_requirements(self, requirements: Dict[str, Any]) -> bool:
+        """Return whether the detected CPU satisfies a profile."""
+        cpu = self._hardware_info.cpu
+        if cpu.cores < requirements.get("cpu_cores", 0):
             return False
-        
-        if "cpu_avx" in cpu_req and cpu_req["cpu_avx"] and not self._hardware_info.cpu.avx_support:
+        if requirements.get("cpu_avx") and not cpu.avx_support:
             return False
-        
-        if "cpu_mkl" in cpu_req and cpu_req["cpu_mkl"] and not self._hardware_info.cpu.intel_mkl_available:
-            return False
-        
-        # Check GPU requirements
-        if "gpu_memory_gb" in cpu_req:
-            if not self._hardware_info.gpu or self._hardware_info.gpu.memory_gb < cpu_req["gpu_memory_gb"]:
+        return not requirements.get("cpu_mkl") or cpu.intel_mkl_available
+
+    def _meets_gpu_requirements(self, requirements: Dict[str, Any]) -> bool:
+        """Return whether the detected GPU satisfies a profile."""
+        gpu = self._hardware_info.gpu
+        if "gpu_memory_gb" in requirements:
+            if not gpu or gpu.memory_gb < requirements["gpu_memory_gb"]:
                 return False
-        
-        if "gpu_cuda" in cpu_req and cpu_req["gpu_cuda"] and not self._hardware_info.gpu:
+        if requirements.get("gpu_cuda") and not gpu:
             return False
-        
-        if "gpu_tensorrt" in cpu_req and cpu_req["gpu_tensorrt"] and not self._hardware_info.gpu.tensorrt_available:
-            return False
-        
-        return True
+        return not requirements.get("gpu_tensorrt") or bool(gpu and gpu.tensorrt_available)
 
     def _calculate_profile_score(
         self, 

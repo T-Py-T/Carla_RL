@@ -25,11 +25,11 @@ class TestConfigLoader:
         """Test ConfigLoader initialization."""
         loader = ConfigLoader()
         assert loader.config_dir.exists()
-        assert ".json" in loader.supported_formats
-        assert ".yaml" in loader.supported_formats
-        assert ".yml" in loader.supported_formats
-        assert ".toml" in loader.supported_formats
-        assert ".env" in loader.supported_formats
+        assert ".json" in loader.supported_extensions
+        assert ".yaml" in loader.supported_extensions
+        assert ".yml" in loader.supported_extensions
+        assert ".toml" in loader.supported_extensions
+        assert ".env" in loader.supported_extensions
     
     def test_custom_config_dir(self):
         """Test ConfigLoader with custom config directory."""

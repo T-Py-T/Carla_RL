@@ -29,7 +29,7 @@ def create_mock_inference_function():
         
         # Return mock actions
         actions = []
-        for obs in observations:
+        for _ in observations:
             action = {
                 "throttle": random.uniform(0.0, 1.0),
                 "brake": random.uniform(0.0, 1.0),
@@ -42,8 +42,8 @@ def create_mock_inference_function():
     return mock_inference
 
 
-def main():
-    """Main CLI entry point."""
+def create_parser():
+    """Create the command-line parser."""
     parser = argparse.ArgumentParser(
         description="Run performance benchmarks for Policy-as-a-Service",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -153,51 +153,51 @@ Examples:
         action="store_true",
         help="Only validate against requirements, don't run full benchmark"
     )
-    
-    args = parser.parse_args()
-    
-    # Parse batch sizes
+
+    return parser
+
+
+def parse_batch_sizes(value):
+    """Parse a comma-separated batch-size list."""
     try:
-        batch_sizes = [int(x.strip()) for x in args.batch_sizes.split(",")]
-    except ValueError:
-        print("Error: Invalid batch sizes format. Use comma-separated integers.")
-        sys.exit(1)
-    
-    # Show hardware information if requested
-    if args.detect_hardware:
-        detector = HardwareDetector()
-        hardware_info = detector.get_hardware_info()
-        
-        print("Hardware Information:")
-        print("=" * 50)
-        print(f"CPU: {hardware_info.cpu.model}")
-        print(f"  Cores: {hardware_info.cpu.cores}")
-        print(f"  Threads: {hardware_info.cpu.threads}")
-        print(f"  Frequency: {hardware_info.cpu.frequency_mhz:.0f} MHz")
-        print(f"  AVX Support: {hardware_info.cpu.avx_support}")
-        print(f"  Intel MKL: {hardware_info.cpu.intel_mkl_available}")
-        
-        if hardware_info.gpu:
-            print(f"GPU: {hardware_info.gpu.model}")
-            print(f"  Memory: {hardware_info.gpu.memory_gb:.1f} GB")
-            print(f"  Compute Capability: {hardware_info.gpu.compute_capability}")
-            print(f"  TensorRT: {hardware_info.gpu.tensorrt_available}")
-        else:
-            print("GPU: Not available")
-        
-        print(f"Memory: {hardware_info.memory.total_gb:.1f} GB")
-        print(f"Platform: {hardware_info.platform}")
-        print(f"Python: {hardware_info.python_version}")
-        print(f"PyTorch: {hardware_info.torch_version}")
-        
-        print("\nOptimization Recommendations:")
-        for i, rec in enumerate(hardware_info.optimization_recommendations, 1):
-            print(f"  {i}. {rec}")
-        
-        return
-    
-    # Create benchmark configuration
-    config = BenchmarkConfig(
+        return [int(item.strip()) for item in value.split(",")]
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            "Invalid batch sizes format. Use comma-separated integers."
+        ) from exc
+
+
+def print_hardware_info(hardware_info):
+    """Print detected hardware and optimization recommendations."""
+    print("Hardware Information:")
+    print("=" * 50)
+    print(f"CPU: {hardware_info.cpu.model}")
+    print(f"  Cores: {hardware_info.cpu.cores}")
+    print(f"  Threads: {hardware_info.cpu.threads}")
+    print(f"  Frequency: {hardware_info.cpu.frequency_mhz:.0f} MHz")
+    print(f"  AVX Support: {hardware_info.cpu.avx_support}")
+    print(f"  Intel MKL: {hardware_info.cpu.intel_mkl_available}")
+
+    if hardware_info.gpu:
+        print(f"GPU: {hardware_info.gpu.model}")
+        print(f"  Memory: {hardware_info.gpu.memory_gb:.1f} GB")
+        print(f"  Compute Capability: {hardware_info.gpu.compute_capability}")
+        print(f"  TensorRT: {hardware_info.gpu.tensorrt_available}")
+    else:
+        print("GPU: Not available")
+
+    print(f"Memory: {hardware_info.memory.total_gb:.1f} GB")
+    print(f"Platform: {hardware_info.platform}")
+    print(f"Python: {hardware_info.python_version}")
+    print(f"PyTorch: {hardware_info.torch_version}")
+    print("\nOptimization Recommendations:")
+    for index, recommendation in enumerate(hardware_info.optimization_recommendations, 1):
+        print(f"  {index}. {recommendation}")
+
+
+def create_config(args, batch_sizes):
+    """Build a benchmark configuration from parsed arguments."""
+    return BenchmarkConfig(
         warmup_iterations=args.warmup_iterations,
         measurement_iterations=args.iterations,
         batch_sizes=batch_sizes,
@@ -207,13 +207,10 @@ Examples:
         throughput_threshold_rps=args.throughput_threshold,
         max_memory_usage_mb=args.memory_threshold
     )
-    
-    # Create benchmark engine
-    engine = BenchmarkEngine(config)
-    
-    # Create mock inference function
-    inference_func = create_mock_inference_function()
-    
+
+
+def print_benchmark_config(config):
+    """Print the benchmark configuration."""
     print("Starting Performance Benchmark")
     print("=" * 50)
     print("Configuration:")
@@ -226,72 +223,103 @@ Examples:
     print(f"  Throughput threshold: {config.throughput_threshold_rps} RPS")
     print(f"  Memory threshold: {config.max_memory_usage_mb} MB")
     print("")
-    
+
+
+def validate_results(results, verbose):
+    """Validate benchmark results and optionally print details."""
+    validator = PerformanceValidator()
+    validation_results = []
+
+    for result in results:
+        validation_result = validator.validate_requirements(result)
+        validation_results.append(validation_result)
+
+        if verbose:
+            batch_size = result.config.batch_sizes[0] if result.config.batch_sizes else "Unknown"
+            print(f"\nValidation for batch size {batch_size}:")
+            print(f"  Grade: {validation_result.performance_grade}")
+            print(f"  Success: {validation_result.overall_success}")
+            if validation_result.recommendations:
+                print("  Recommendations:")
+                for recommendation in validation_result.recommendations:
+                    print(f"    - {recommendation}")
+
+    return validator, validation_results
+
+
+def save_json_results(path, config, results, validation_results):
+    """Save detailed benchmark results as JSON."""
+    if not path:
+        return
+
+    output_data = {
+        "config": config.__dict__,
+        "results": [result.__dict__ for result in results],
+        "validation_results": [result.__dict__ for result in validation_results],
+    }
+    with open(path, "w") as output_file:
+        json.dump(output_data, output_file, indent=2, default=str)
+    print(f"\nDetailed results saved to: {path}")
+
+
+def save_text_report(path, report, validator, validation_results):
+    """Save a human-readable benchmark report."""
+    if not path:
+        return
+
+    with open(path, "w") as output_file:
+        output_file.write(report)
+        output_file.write("\n\n")
+        for index, validation_result in enumerate(validation_results, 1):
+            output_file.write(f"VALIDATION {index}:\n")
+            output_file.write("-" * 30 + "\n")
+            output_file.write(validator.generate_validation_report(validation_result))
+            output_file.write("\n\n")
+    print(f"Human-readable report saved to: {path}")
+
+
+def print_summary(results):
+    """Print the result summary and return the desired exit code."""
+    successful_tests = sum(1 for result in results if result.overall_success)
+    total_tests = len(results)
+    print(f"\nSummary: {successful_tests}/{total_tests} tests passed")
+    if successful_tests == total_tests:
+        print("All performance requirements met!")
+        return 0
+
+    print("Some performance requirements not met. Check recommendations above.")
+    return 1
+
+
+def run_benchmarks(args, config):
+    """Run, validate, and persist a benchmark session."""
+    engine = BenchmarkEngine(config)
+    print_benchmark_config(config)
+    results = engine.run_batch_size_optimization(create_mock_inference_function())
+    report = engine.generate_report()
+    print(report)
+    validator, validation_results = validate_results(results, args.verbose)
+    save_json_results(args.output, config, results, validation_results)
+    save_text_report(args.report, report, validator, validation_results)
+    return print_summary(results)
+
+
+def main():
+    """Main CLI entry point."""
+    parser = create_parser()
+    args = parser.parse_args()
     try:
-        # Run benchmarks
-        results = engine.run_batch_size_optimization(inference_func)
-        
-        # Generate report
-        report = engine.generate_report()
-        print(report)
-        
-        # Validate results
-        validator = PerformanceValidator()
-        validation_results = []
-        
-        for result in results:
-            validation_result = validator.validate_requirements(result)
-            validation_results.append(validation_result)
-            
-            if args.verbose:
-                print(f"\nValidation for batch size {result.config.batch_sizes[0] if result.config.batch_sizes else 'Unknown'}:")
-                print(f"  Grade: {validation_result.performance_grade}")
-                print(f"  Success: {validation_result.overall_success}")
-                if validation_result.recommendations:
-                    print("  Recommendations:")
-                    for rec in validation_result.recommendations:
-                        print(f"    - {rec}")
-        
-        # Save results to file
-        if args.output:
-            output_data = {
-                "config": config.__dict__,
-                "results": [result.__dict__ for result in results],
-                "validation_results": [vr.__dict__ for vr in validation_results]
-            }
-            
-            with open(args.output, "w") as f:
-                json.dump(output_data, f, indent=2, default=str)
-            
-            print(f"\nDetailed results saved to: {args.output}")
-        
-        # Generate human-readable report
-        if args.report:
-            with open(args.report, "w") as f:
-                f.write(report)
-                f.write("\n\n")
-                
-                for i, validation_result in enumerate(validation_results, 1):
-                    f.write(f"VALIDATION {i}:\n")
-                    f.write("-" * 30 + "\n")
-                    f.write(validator.generate_validation_report(validation_result))
-                    f.write("\n\n")
-            
-            print(f"Human-readable report saved to: {args.report}")
-        
-        # Summary
-        successful_tests = sum(1 for r in results if r.overall_success)
-        total_tests = len(results)
-        
-        print(f"\nSummary: {successful_tests}/{total_tests} tests passed")
-        
-        if successful_tests == total_tests:
-            print("All performance requirements met!")
-            sys.exit(0)
-        else:
-            print("Some performance requirements not met. Check recommendations above.")
-            sys.exit(1)
-    
+        batch_sizes = parse_batch_sizes(args.batch_sizes)
+    except argparse.ArgumentTypeError as exc:
+        parser.error(str(exc))
+
+    if args.detect_hardware:
+        print_hardware_info(HardwareDetector().get_hardware_info())
+        return
+
+    config = create_config(args, batch_sizes)
+    try:
+        sys.exit(run_benchmarks(args, config))
     except KeyboardInterrupt:
         print("\nBenchmark interrupted by user.")
         sys.exit(1)

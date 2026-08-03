@@ -12,6 +12,12 @@ from dataclasses import dataclass, field
 
 from .settings import AppConfig, Environment
 
+SERVER_RELOAD = "server.reload"
+SERVER_WORKERS = "server.workers"
+LOGGING_LEVEL = "logging.level"
+MONITORING_ENABLED = "monitoring.enabled"
+SECURITY_ENABLED = "security.enabled"
+
 
 class ProfileType(str, Enum):
     """Configuration profile types."""
@@ -140,32 +146,32 @@ class EnvironmentProfile(ConfigProfile):
         if self.environment == Environment.DEVELOPMENT:
             self.settings.update({
                 "debug": True,
-                "server.reload": True,
-                "server.workers": 1,
-                "logging.level": "DEBUG",
-                "monitoring.enabled": False,
-                "security.enabled": False
+                SERVER_RELOAD: True,
+                SERVER_WORKERS: 1,
+                LOGGING_LEVEL: "DEBUG",
+                MONITORING_ENABLED: False,
+                SECURITY_ENABLED: False
             })
         
         elif self.environment == Environment.STAGING:
             self.settings.update({
                 "debug": False,
-                "server.reload": False,
-                "server.workers": 2,
-                "logging.level": "INFO",
-                "monitoring.enabled": True,
-                "security.enabled": True,
+                SERVER_RELOAD: False,
+                SERVER_WORKERS: 2,
+                LOGGING_LEVEL: "INFO",
+                MONITORING_ENABLED: True,
+                SECURITY_ENABLED: True,
                 "security.api_key_required": True
             })
         
         elif self.environment == Environment.PRODUCTION:
             self.settings.update({
                 "debug": False,
-                "server.reload": False,
-                "server.workers": 4,
-                "logging.level": "WARNING",
-                "monitoring.enabled": True,
-                "security.enabled": True,
+                SERVER_RELOAD: False,
+                SERVER_WORKERS: 4,
+                LOGGING_LEVEL: "WARNING",
+                MONITORING_ENABLED: True,
+                SECURITY_ENABLED: True,
                 "security.api_key_required": True,
                 "security.rate_limit_enabled": True,
                 "server.timeout": 60.0
@@ -174,11 +180,11 @@ class EnvironmentProfile(ConfigProfile):
         elif self.environment == Environment.TESTING:
             self.settings.update({
                 "debug": True,
-                "server.reload": False,
-                "server.workers": 1,
-                "logging.level": "DEBUG",
-                "monitoring.enabled": False,
-                "security.enabled": False,
+                SERVER_RELOAD: False,
+                SERVER_WORKERS: 1,
+                LOGGING_LEVEL: "DEBUG",
+                MONITORING_ENABLED: False,
+                SECURITY_ENABLED: False,
                 "database.backend": "sqlite",
                 "database.name": "test_model_serving",
                 "cache.backend": "memory"

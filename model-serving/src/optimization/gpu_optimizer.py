@@ -6,6 +6,7 @@ mixed precision, and memory management for maximum inference performance.
 """
 
 import os
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
 
@@ -69,11 +70,11 @@ class GPUOptimizer:
         
         # Set CUDA device
         if self.config.enable_cuda and hardware_info.gpu.cuda_available:
-            optimizations["cuda"] = self._enable_cuda_optimizations(hardware_info.gpu)
+            optimizations["cuda"] = self._enable_cuda_optimizations()
         
         # Apply TensorRT optimizations
         if self.config.enable_tensorrt and hardware_info.gpu.tensorrt_available:
-            optimizations["tensorrt"] = self._enable_tensorrt_optimizations(hardware_info.gpu)
+            optimizations["tensorrt"] = self._enable_tensorrt_optimizations()
         
         # Apply mixed precision optimizations
         if self.config.enable_mixed_precision and self._supports_mixed_precision(hardware_info.gpu):
@@ -81,7 +82,7 @@ class GPUOptimizer:
         
         # Apply memory optimizations
         if self.config.enable_memory_optimization:
-            optimizations["memory"] = self._enable_memory_optimizations(hardware_info.gpu)
+            optimizations["memory"] = self._enable_memory_optimizations()
         
         # Apply cuDNN optimizations
         if self.config.enable_cudnn_benchmark:
@@ -158,35 +159,26 @@ class GPUOptimizer:
         if batch_size is None and self.config.enable_dynamic_batching:
             batch_size = self._get_optimal_batch_size(inputs.shape[0])
         
-        # Use torch.no_grad() for inference
-        with torch.no_grad():
-            if self.config.enable_mixed_precision and self._scaler is not None:
-                # Use mixed precision inference
-                with autocast():
-                    if batch_size and batch_size < inputs.shape[0]:
-                        # Process in optimized batches
-                        results = []
-                        for i in range(0, inputs.shape[0], batch_size):
-                            batch = inputs[i:i + batch_size]
-                            batch_result = model(batch)
-                            results.append(batch_result)
-                        return torch.cat(results, dim=0)
-                    else:
-                        return model(inputs)
-            else:
-                # Standard precision inference
-                if batch_size and batch_size < inputs.shape[0]:
-                    # Process in optimized batches
-                    results = []
-                    for i in range(0, inputs.shape[0], batch_size):
-                        batch = inputs[i:i + batch_size]
-                        batch_result = model(batch)
-                        results.append(batch_result)
-                    return torch.cat(results, dim=0)
-                else:
-                    return model(inputs)
+        use_mixed_precision = self.config.enable_mixed_precision and self._scaler is not None
+        precision_context = autocast() if use_mixed_precision else nullcontext()
+        with torch.no_grad(), precision_context:
+            return self._run_in_batches(model, inputs, batch_size)
 
-    def _enable_cuda_optimizations(self, gpu_info: GPUInfo) -> Dict[str, any]:
+    @staticmethod
+    def _run_in_batches(
+        model: nn.Module, inputs: torch.Tensor, batch_size: Optional[int]
+    ) -> torch.Tensor:
+        """Run a model once or concatenate size-limited batches."""
+        if not batch_size or batch_size >= inputs.shape[0]:
+            return model(inputs)
+
+        results = [
+            model(inputs[start:start + batch_size])
+            for start in range(0, inputs.shape[0], batch_size)
+        ]
+        return torch.cat(results, dim=0)
+
+    def _enable_cuda_optimizations(self) -> Dict[str, any]:
         """Enable CUDA optimizations for GPU inference."""
         optimizations = {}
 
@@ -216,7 +208,7 @@ class GPUOptimizer:
 
         return optimizations
 
-    def _enable_tensorrt_optimizations(self, gpu_info: GPUInfo) -> Dict[str, any]:
+    def _enable_tensorrt_optimizations(self) -> Dict[str, any]:
         """Enable TensorRT optimizations."""
         optimizations = {}
         
@@ -257,7 +249,7 @@ class GPUOptimizer:
 
         return optimizations
 
-    def _enable_memory_optimizations(self, gpu_info: GPUInfo) -> Dict[str, any]:
+    def _enable_memory_optimizations(self) -> Dict[str, any]:
         """Enable GPU memory optimizations."""
         optimizations = {}
 

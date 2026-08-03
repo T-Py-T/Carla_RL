@@ -41,8 +41,6 @@ def setup_artifact_manager(artifacts_dir: str) -> ArtifactManager:
 
 def generate_integrity_report(artifact_manager: ArtifactManager, 
                             version: Optional[str] = None,
-                            output_format: str = "text",
-                            output_file: Optional[str] = None,
                             include_metadata: bool = True,
                             include_artifacts: bool = True) -> Dict[str, Any]:
     """Generate comprehensive integrity report."""
@@ -173,73 +171,96 @@ def generate_summary_report(reports: Dict[str, Dict[str, Any]]) -> Dict[str, Any
     }
 
 
+def format_metadata(metadata: Dict[str, Any]) -> list[str]:
+    """Format the metadata portion of a text report."""
+    lines = [
+        "METADATA:",
+        f"  Created: {metadata.get('created_at', 'Unknown')}",
+        f"  Model Type: {metadata.get('model_type', 'Unknown')}",
+        f"  Description: {metadata.get('description', 'No description')}",
+    ]
+    if metadata.get("dependencies"):
+        lines.append(f"  Dependencies: {', '.join(metadata['dependencies'])}")
+    lines.append("")
+    return lines
+
+
+def format_artifact_details(details_by_path: Dict[str, Any]) -> list[str]:
+    """Format artifact validation details."""
+    lines = ["ARTIFACT DETAILS:"]
+    for artifact_path, details in details_by_path.items():
+        status = "✓" if details["valid"] else "✗"
+        size = details.get("size", "Unknown")
+        if isinstance(size, int):
+            size = f"{size:,} bytes"
+        lines.append(f"  {status} {artifact_path} ({size})")
+    lines.append("")
+    return lines
+
+
+def format_single_version(report_data: Dict[str, Any]) -> list[str]:
+    """Format one version's integrity data."""
+    report = report_data["report"]
+    lines = [
+        f"VERSION: {report_data['version']}",
+        "-" * 40,
+        f"Status: {report['status'].upper()}",
+        f"Integrity Score: {report.get('integrity_score', 0):.1f}%",
+        f"Total Artifacts: {report.get('total_artifacts', 0)}",
+        f"Valid Artifacts: {report.get('valid_artifacts', 0)}",
+        f"Invalid Artifacts: {report.get('invalid_artifacts', 0)}",
+        "",
+    ]
+    if "metadata" in report:
+        lines.extend(format_metadata(report["metadata"]))
+    if "artifact_details" in report:
+        lines.extend(format_artifact_details(report["artifact_details"]))
+    return lines
+
+
+def format_all_versions(report_data: Dict[str, Any]) -> list[str]:
+    """Format the all-versions report summary."""
+    summary = report_data["summary"]
+    lines = [
+        "SUMMARY:",
+        f"  Total Versions: {summary['total_versions']}",
+        f"  Valid Versions: {summary['valid_versions']}",
+        f"  Invalid Versions: {summary['invalid_versions']}",
+        f"  Total Artifacts: {summary['total_artifacts']}",
+        f"  Valid Artifacts: {summary['valid_artifacts']}",
+        f"  Overall Integrity: {summary['overall_integrity_percentage']}%",
+        "",
+    ]
+    if summary["problematic_versions"]:
+        lines.append("PROBLEMATIC VERSIONS:")
+        for version_info in summary["problematic_versions"]:
+            lines.append(
+                f"  {version_info['version']}: {version_info['status']} "
+                f"({version_info['issues']} issues)"
+            )
+        lines.append("")
+
+    lines.append("VERSION STATUS:")
+    for version, report in report_data["reports"].items():
+        status = report.get("status", "unknown").upper()
+        integrity_score = report.get("integrity_score", 0)
+        lines.append(f"  {version}: {status} ({integrity_score:.1f}%)")
+    return lines
+
+
 def format_text_report(report_data: Dict[str, Any]) -> str:
     """Format report data as human-readable text."""
-    
-    output = []
-    output.append("=" * 80)
-    output.append("ARTIFACT INTEGRITY REPORT")
-    output.append("=" * 80)
-    output.append(f"Generated: {report_data['generated_at']}")
-    output.append("")
-    
+    output = [
+        "=" * 80,
+        "ARTIFACT INTEGRITY REPORT",
+        "=" * 80,
+        f"Generated: {report_data['generated_at']}",
+        "",
+    ]
     if report_data["report_type"] == "single_version":
-        version = report_data["version"]
-        report = report_data["report"]
-        
-        output.append(f"VERSION: {version}")
-        output.append("-" * 40)
-        output.append(f"Status: {report['status'].upper()}")
-        output.append(f"Integrity Score: {report.get('integrity_score', 0):.1f}%")
-        output.append(f"Total Artifacts: {report.get('total_artifacts', 0)}")
-        output.append(f"Valid Artifacts: {report.get('valid_artifacts', 0)}")
-        output.append(f"Invalid Artifacts: {report.get('invalid_artifacts', 0)}")
-        output.append("")
-        
-        if "metadata" in report:
-            metadata = report["metadata"]
-            output.append("METADATA:")
-            output.append(f"  Created: {metadata.get('created_at', 'Unknown')}")
-            output.append(f"  Model Type: {metadata.get('model_type', 'Unknown')}")
-            output.append(f"  Description: {metadata.get('description', 'No description')}")
-            if metadata.get('dependencies'):
-                output.append(f"  Dependencies: {', '.join(metadata['dependencies'])}")
-            output.append("")
-        
-        if "artifact_details" in report:
-            output.append("ARTIFACT DETAILS:")
-            for artifact_path, details in report["artifact_details"].items():
-                status = "✓" if details["valid"] else "✗"
-                size = details.get("size", "Unknown")
-                if isinstance(size, int):
-                    size = f"{size:,} bytes"
-                output.append(f"  {status} {artifact_path} ({size})")
-            output.append("")
-    
-    else:  # all_versions
-        summary = report_data["summary"]
-        output.append("SUMMARY:")
-        output.append(f"  Total Versions: {summary['total_versions']}")
-        output.append(f"  Valid Versions: {summary['valid_versions']}")
-        output.append(f"  Invalid Versions: {summary['invalid_versions']}")
-        output.append(f"  Total Artifacts: {summary['total_artifacts']}")
-        output.append(f"  Valid Artifacts: {summary['valid_artifacts']}")
-        output.append(f"  Overall Integrity: {summary['overall_integrity_percentage']}%")
-        output.append("")
-        
-        if summary["problematic_versions"]:
-            output.append("PROBLEMATIC VERSIONS:")
-            for version_info in summary["problematic_versions"]:
-                output.append(f"  {version_info['version']}: {version_info['status']} ({version_info['issues']} issues)")
-            output.append("")
-        
-        # List all versions with their status
-        output.append("VERSION STATUS:")
-        for version, report in report_data["reports"].items():
-            status = report.get("status", "unknown").upper()
-            integrity_score = report.get("integrity_score", 0)
-            output.append(f"  {version}: {status} ({integrity_score:.1f}%)")
-    
+        output.extend(format_single_version(report_data))
+    else:
+        output.extend(format_all_versions(report_data))
     output.append("=" * 80)
     return "\n".join(output)
 
@@ -362,8 +383,6 @@ Examples:
         report_data = generate_integrity_report(
             artifact_manager,
             args.version,
-            args.format,
-            args.output,
             not args.no_metadata,
             not args.no_artifacts
         )

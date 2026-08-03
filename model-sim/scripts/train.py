@@ -2,6 +2,7 @@ import os
 import time
 from collections import deque
 from multiprocessing import Process, Value, Array, Queue
+from queue import Empty
 from threading import Thread
 
 import settings
@@ -137,7 +138,7 @@ if __name__ == '__main__':
         if stop.value in[STOP.running, STOP.carla_simulator_error, STOP.restarting_carla_simulator, STOP.carla_simulator_restarted]:
 
             # ...and all agents return an error
-            if any([state[0] == AGENT_STATE.error for state in agent_stats]):
+            if any(state[0] == AGENT_STATE.error for state in agent_stats):
 
                 # If it's a running state, set it to carla error
                 if stop.value == STOP.running:
@@ -151,12 +152,12 @@ if __name__ == '__main__':
                 carla_check = None
 
         # Append new frametimes from carla for stats
-        if not stop.value == STOP.carla_simulator_error:
+        if stop.value != STOP.carla_simulator_error:
             for process_no in range(settings.CARLA_HOSTS_NO):
                 for _ in range(carla_frametimes_list[process_no].qsize()):
                     try:
                         carla_fps_counters[process_no].append(carla_frametimes_list[process_no].get(True, 0.1))
-                    except:
+                    except Empty:
                         break
                 carla_fps[process_no].value = len(carla_fps_counters[process_no]) / sum(carla_fps_counters[process_no]) if sum(carla_fps_counters[process_no]) > 0 else 0
 
@@ -180,7 +181,7 @@ if __name__ == '__main__':
                     carla_fps_counters[process_no].clear()
                     carla_fps[process_no].value = 0
                 for process_no in range(settings.CARLA_HOSTS_NO):
-                    while not carla_settings_threads[process_no][1].state == CARLA_SETTINGS_STATE.restarting:
+                    while carla_settings_threads[process_no][1].state != CARLA_SETTINGS_STATE.restarting:
                         time.sleep(0.1)
                 restart_carla()
                 for process_no in range(settings.CARLA_HOSTS_NO):

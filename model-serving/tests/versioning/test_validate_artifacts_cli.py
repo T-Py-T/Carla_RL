@@ -239,7 +239,7 @@ class TestValidateArtifactsCLI:
         args.verbose = False
 
         # Run comparison
-        compare_versions(artifact_manager, integrity_validator, "v1.1.0", "v1.2.0", args)
+        compare_versions(artifact_manager, "v1.1.0", "v1.2.0", args)
 
         # Check that output file was created
         output_file = Path(args.output)
@@ -266,7 +266,7 @@ class TestValidateArtifactsCLI:
 
         # This should raise SystemExit
         with pytest.raises(SystemExit) as exc_info:
-            compare_versions(artifact_manager, integrity_validator, "v1.1.0", "v999.999.999", args)
+            compare_versions(artifact_manager, "v1.1.0", "v999.999.999", args)
 
         assert exc_info.value.code == 1
 
@@ -408,7 +408,7 @@ class TestValidateArtifactsCLI:
         args.verbose = True
 
         # Run comparison
-        compare_versions(artifact_manager, integrity_validator, "v1.1.0", "v1.2.0", args)
+        compare_versions(artifact_manager, "v1.1.0", "v1.2.0", args)
 
         # Check that verbose output was produced
         captured = capsys.readouterr()

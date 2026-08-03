@@ -166,11 +166,10 @@ class PerformanceValidator:
             throughput_requirement_met,
             memory_requirement_met,
             p50_vs_baseline,
-            throughput_vs_baseline,
         )
 
         # Generate recommendations
-        recommendations = self._generate_recommendations(benchmark_result, baseline, requirements)
+        recommendations = self._generate_recommendations(benchmark_result, baseline)
 
         # Current metrics
         current_metrics = {
@@ -285,7 +284,6 @@ class PerformanceValidator:
         throughput_met: bool,
         memory_met: bool,
         p50_vs_baseline: float,
-        throughput_vs_baseline: float,
     ) -> str:
         """Calculate performance grade based on requirements and baseline comparison."""
 
@@ -326,7 +324,6 @@ class PerformanceValidator:
         self,
         benchmark_result: BenchmarkResult,
         baseline: Optional[PerformanceBaseline],
-        requirements: Dict[str, float],
     ) -> List[str]:
         """Generate optimization recommendations based on validation results."""
         recommendations = []

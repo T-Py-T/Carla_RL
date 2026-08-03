@@ -26,6 +26,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+CONTENT_HASH_HELP = "Content hash"
 
 
 def setup_content_storage(storage_dir: str) -> ContentAddressableStorage:
@@ -270,37 +271,49 @@ def verify_integrity(storage: ContentAddressableStorage,
     """Verify integrity of all content."""
     try:
         results = storage.verify_integrity()
-        
-        total_objects = len(results)
-        valid_objects = sum(results.values())
-        invalid_objects = total_objects - valid_objects
-        
+        summary = build_integrity_summary(results)
         if json_output:
-            output = {
-                "total_objects": total_objects,
-                "valid_objects": valid_objects,
-                "invalid_objects": invalid_objects,
-                "integrity_percentage": (valid_objects / total_objects * 100) if total_objects > 0 else 0,
-                "results": results
-            }
-            print(json.dumps(output, indent=2))
+            print(json.dumps({**summary, "results": results}, indent=2))
         else:
-            print("Integrity Verification Results:")
-            print("-" * 40)
-            print(f"Total Objects: {total_objects:,}")
-            print(f"Valid Objects: {valid_objects:,}")
-            print(f"Invalid Objects: {invalid_objects:,}")
-            print(f"Integrity: {(valid_objects / total_objects * 100):.1f}%" if total_objects > 0 else "N/A")
-            
-            if invalid_objects > 0:
-                print("\nInvalid Objects:")
-                for content_hash, is_valid in results.items():
-                    if not is_valid:
-                        print(f"  {content_hash}")
+            print_integrity_summary(summary, results)
     
     except Exception as e:
         logger.error(f"Integrity verification failed: {e}")
         sys.exit(1)
+
+
+def build_integrity_summary(results: dict[str, bool]) -> dict[str, float | int]:
+    """Calculate aggregate integrity figures."""
+    total_objects = len(results)
+    valid_objects = sum(results.values())
+    integrity_percentage = 0
+    if total_objects:
+        integrity_percentage = valid_objects / total_objects * 100
+    return {
+        "total_objects": total_objects,
+        "valid_objects": valid_objects,
+        "invalid_objects": total_objects - valid_objects,
+        "integrity_percentage": integrity_percentage,
+    }
+
+
+def print_integrity_summary(summary: dict[str, float | int], results: dict[str, bool]) -> None:
+    """Print aggregate and per-object integrity results."""
+    print("Integrity Verification Results:")
+    print("-" * 40)
+    print(f"Total Objects: {summary['total_objects']:,}")
+    print(f"Valid Objects: {summary['valid_objects']:,}")
+    print(f"Invalid Objects: {summary['invalid_objects']:,}")
+    integrity = "N/A"
+    if summary["total_objects"]:
+        integrity = f"{summary['integrity_percentage']:.1f}%"
+    print(f"Integrity: {integrity}")
+
+    if summary["invalid_objects"]:
+        print("\nInvalid Objects:")
+        for content_hash, is_valid in results.items():
+            if not is_valid:
+                print(f"  {content_hash}")
 
 
 def main():
@@ -364,7 +377,7 @@ Examples:
     retrieve_parser.add_argument(
         "--hash",
         required=True,
-        help="Content hash"
+        help=CONTENT_HASH_HELP
     )
     retrieve_parser.add_argument(
         "--output",
@@ -376,7 +389,7 @@ Examples:
     check_parser.add_argument(
         "--hash",
         required=True,
-        help="Content hash"
+        help=CONTENT_HASH_HELP
     )
     
     # Info command
@@ -384,7 +397,7 @@ Examples:
     info_parser.add_argument(
         "--hash",
         required=True,
-        help="Content hash"
+        help=CONTENT_HASH_HELP
     )
     
     # List command
@@ -400,7 +413,7 @@ Examples:
     delete_parser.add_argument(
         "--hash",
         required=True,
-        help="Content hash"
+        help=CONTENT_HASH_HELP
     )
     
     # Stats command

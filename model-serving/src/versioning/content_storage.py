@@ -374,7 +374,7 @@ class ContentAddressableStorage:
 
             total_objects = len(references)
             total_size = sum(ref.size for ref in references)
-            unique_hashes = len(set(ref.content_hash for ref in references))
+            unique_hashes = len({ref.content_hash for ref in references})
             duplicate_objects = total_objects - unique_hashes
 
             # Calculate storage efficiency

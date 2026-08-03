@@ -159,7 +159,7 @@ class TestModelManagementQA:
 
             # Should pass validation
             result = validate_artifact_integrity(temp_path, model_card)
-            assert result is True
+            assert result is None
 
             # Test hash mismatch detection
             model_card["artifact_hashes"]["model.pt"] = "wrong_hash"

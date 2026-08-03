@@ -61,10 +61,9 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
-
-# Create non-root user for security
-RUN groupadd -r modelserving && useradd -r -g modelserving -s /bin/false modelserving
+    && apt-get clean \
+    && groupadd -r modelserving \
+    && useradd -r -g modelserving -s /bin/false modelserving
 
 # Copy virtual environment from dependencies stage
 COPY --from=dependencies /opt/venv /opt/venv

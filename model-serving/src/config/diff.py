@@ -156,7 +156,7 @@ class ConfigDiff:
             old_value = changes.get("old_value")
             new_value = changes.get("new_value")
             
-            severity = self._get_change_severity(path, old_value, new_value)
+            severity = self._get_change_severity(path)
             
             items.append(DiffItem(
                 path=path,
@@ -206,7 +206,7 @@ class ConfigDiff:
             return path.split(".")[0]
         return "general"
     
-    def _get_change_severity(self, path: str, old_value: Any, new_value: Any) -> str:
+    def _get_change_severity(self, path: str) -> str:
         """Determine severity of configuration change."""
         # Critical paths that should be errors
         critical_paths = [
@@ -296,20 +296,20 @@ def compare_config_files(
     return compare_configs(config1, config2)
 
 
-def _load_config_from_file(file_path: Union[str, Path], format: str = "auto") -> Dict[str, Any]:
+def _load_config_from_file(file_path: Union[str, Path], file_format: str = "auto") -> Dict[str, Any]:
     """Load configuration from file."""
     file_path = Path(file_path)
     
-    if format == "auto":
-        format = file_path.suffix.lower().lstrip(".")
+    if file_format == "auto":
+        file_format = file_path.suffix.lower().lstrip(".")
     
     with open(file_path, "r", encoding="utf-8") as f:
-        if format in ["json"]:
+        if file_format == "json":
             return json.load(f)
-        elif format in ["yaml", "yml"]:
+        elif file_format in ["yaml", "yml"]:
             return yaml.safe_load(f) or {}
         else:
-            raise ValueError(f"Unsupported format: {format}")
+            raise ValueError(f"Unsupported format: {file_format}")
 
 
 def format_diff_result(result: DiffResult, format: str = "text") -> str:
@@ -354,29 +354,37 @@ def _format_diff_text(result: DiffResult) -> str:
     
     # Changes by category
     for category, items in result.categories.items():
-        if items:
-            lines.append(f"{category.title()} Changes:")
-            lines.append("-" * 30)
-            
-            for item in items:
-                severity_icon = {
-                    "error": "❌",
-                    "warning": "⚠️",
-                    "info": "ℹ️"
-                }.get(item.severity, "ℹ️")
-                
-                lines.append(f"  {severity_icon} {item.path}")
-                lines.append(f"    Type: {item.diff_type.value}")
-                lines.append(f"    Description: {item.change_description}")
-                
-                if item.old_value is not None:
-                    lines.append(f"    Old Value: {item.old_value}")
-                if item.new_value is not None:
-                    lines.append(f"    New Value: {item.new_value}")
-                
-                lines.append("")
+        lines.extend(_format_diff_category(category, items))
     
     return "\n".join(lines)
+
+
+def _format_diff_category(category: str, items: List[DiffItem]) -> List[str]:
+    """Format one non-empty diff category."""
+    if not items:
+        return []
+    lines = [f"{category.title()} Changes:", "-" * 30]
+    for item in items:
+        lines.extend(_format_diff_item(item))
+    return lines
+
+
+def _format_diff_item(item: DiffItem) -> List[str]:
+    """Format one configuration change."""
+    severity_icon = {"error": "❌", "warning": "⚠️", "info": "ℹ️"}.get(
+        item.severity, "ℹ️"
+    )
+    lines = [
+        f"  {severity_icon} {item.path}",
+        f"    Type: {item.diff_type.value}",
+        f"    Description: {item.change_description}",
+    ]
+    if item.old_value is not None:
+        lines.append(f"    Old Value: {item.old_value}")
+    if item.new_value is not None:
+        lines.append(f"    New Value: {item.new_value}")
+    lines.append("")
+    return lines
 
 
 def _diff_result_to_dict(result: DiffResult) -> Dict[str, Any]:

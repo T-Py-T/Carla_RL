@@ -164,12 +164,11 @@ class TestExceptionHandlers:
         request.method = "POST"
         return request
 
-    @pytest.mark.asyncio
-    async def test_carla_rl_exception_handler(self, mock_request):
+    def test_carla_rl_exception_handler(self, mock_request):
         """Test CarlaRLServingException handler."""
         exc = InferenceError("Test inference error", {"batch_size": 5})
 
-        response = await carla_rl_exception_handler(mock_request, exc)
+        response = carla_rl_exception_handler(mock_request, exc)
 
         assert isinstance(response, JSONResponse)
         assert response.status_code == 500
@@ -179,8 +178,7 @@ class TestExceptionHandlers:
         assert "INFERENCE_ERROR" in content
         assert "Test inference error" in content
 
-    @pytest.mark.asyncio
-    async def test_validation_exception_handler(self, mock_request):
+    def test_validation_exception_handler(self, mock_request):
         """Test PydanticValidationError handler."""
         try:
             from pydantic import BaseModel, Field
@@ -190,27 +188,25 @@ class TestExceptionHandlers:
 
             TestModel(value=-1)
         except PydanticValidationError as exc:
-            response = await validation_exception_handler(mock_request, exc)
+            response = validation_exception_handler(mock_request, exc)
 
             assert isinstance(response, JSONResponse)
             assert response.status_code == 422
 
-    @pytest.mark.asyncio
-    async def test_http_exception_handler(self, mock_request):
+    def test_http_exception_handler(self, mock_request):
         """Test HTTPException handler."""
         exc = HTTPException(status_code=404, detail="Resource not found")
 
-        response = await http_exception_handler(mock_request, exc)
+        response = http_exception_handler(mock_request, exc)
 
         assert isinstance(response, JSONResponse)
         assert response.status_code == 404
 
-    @pytest.mark.asyncio
-    async def test_generic_exception_handler(self, mock_request):
+    def test_generic_exception_handler(self, mock_request):
         """Test generic Exception handler."""
         exc = RuntimeError("Unexpected error")
 
-        response = await generic_exception_handler(mock_request, exc)
+        response = generic_exception_handler(mock_request, exc)
 
         assert isinstance(response, JSONResponse)
         assert response.status_code == 500

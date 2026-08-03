@@ -65,6 +65,7 @@ class HighwayDQNAgent:
         self.target_update_freq = target_update_freq
         self.double_dqn = double_dqn
         self.dueling_dqn = dueling_dqn
+        self.rng = np.random.default_rng()
         
         # Mixed precision for Apple Silicon optimization
         if use_mixed_precision:
@@ -204,7 +205,7 @@ class HighwayDQNAgent:
     
     def act(self, state: np.ndarray, training: bool = True) -> int:
         """Choose action using epsilon-greedy policy."""
-        if training and np.random.random() <= self.epsilon:
+        if training and self.rng.random() <= self.epsilon:
             return random.randrange(self.action_size)
         
         # Ensure state has batch dimension

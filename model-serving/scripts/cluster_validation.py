@@ -15,6 +15,14 @@ from typing import Any
 
 import requests
 
+SERVICE_HEALTH_CHECK = "Service Health Check"
+MODEL_METADATA = "Model Metadata"
+JSON_CONTENT_TYPE = "application/json"
+SINGLE_PREDICTION = "Single Prediction"
+MODEL_WARMUP = "Model Warmup"
+ERROR_HANDLING = "Error Handling"
+METRICS_ENDPOINT = "Metrics Endpoint"
+
 
 @dataclass
 class TestResult:
@@ -61,15 +69,15 @@ class ClusterValidator:
                     "device": data.get("device"),
                     "response_time_ms": duration_ms
                 }
-                return TestResult("Service Health Check", True, duration_ms, details)
+                return TestResult(SERVICE_HEALTH_CHECK, True, duration_ms, details)
             else:
-                return TestResult("Service Health Check", False, duration_ms,
+                return TestResult(SERVICE_HEALTH_CHECK, False, duration_ms,
                                 {"status_code": response.status_code},
                                 f"HTTP {response.status_code}")
 
         except Exception as e:
             duration_ms = (time.perf_counter() - start_time) * 1000
-            return TestResult("Service Health Check", False, duration_ms, {}, str(e))
+            return TestResult(SERVICE_HEALTH_CHECK, False, duration_ms, {}, str(e))
 
     def test_model_metadata(self) -> TestResult:
         """Test model metadata endpoint."""
@@ -91,19 +99,19 @@ class ClusterValidator:
                         "input_shape": data.get("inputShape"),
                         "action_space_keys": list(data.get("actionSpace", {}).keys())
                     }
-                    return TestResult("Model Metadata", True, duration_ms, details)
+                    return TestResult(MODEL_METADATA, True, duration_ms, details)
                 else:
-                    return TestResult("Model Metadata", False, duration_ms,
+                    return TestResult(MODEL_METADATA, False, duration_ms,
                                     {"missing_fields": missing_fields},
                                     f"Missing fields: {missing_fields}")
             else:
-                return TestResult("Model Metadata", False, duration_ms,
+                return TestResult(MODEL_METADATA, False, duration_ms,
                                 {"status_code": response.status_code},
                                 f"HTTP {response.status_code}")
 
         except Exception as e:
             duration_ms = (time.perf_counter() - start_time) * 1000
-            return TestResult("Model Metadata", False, duration_ms, {}, str(e))
+            return TestResult(MODEL_METADATA, False, duration_ms, {}, str(e))
 
     def test_single_prediction(self) -> TestResult:
         """Test single observation prediction."""
@@ -122,7 +130,7 @@ class ClusterValidator:
             response = requests.post(
                 f"{self.base_url}/predict",
                 json=request_data,
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": JSON_CONTENT_TYPE},
                 timeout=30
             )
             duration_ms = (time.perf_counter() - start_time) * 1000
@@ -147,20 +155,20 @@ class ClusterValidator:
                         "model_version": data.get("version")
                     }
 
-                    return TestResult("Single Prediction", valid_action, duration_ms, details,
+                    return TestResult(SINGLE_PREDICTION, valid_action, duration_ms, details,
                                     "" if valid_action else "Invalid action values")
                 else:
-                    return TestResult("Single Prediction", False, duration_ms,
+                    return TestResult(SINGLE_PREDICTION, False, duration_ms,
                                     {"action_count": len(actions)},
                                     f"Expected 1 action, got {len(actions)}")
             else:
-                return TestResult("Single Prediction", False, duration_ms,
+                return TestResult(SINGLE_PREDICTION, False, duration_ms,
                                 {"status_code": response.status_code},
                                 f"HTTP {response.status_code}")
 
         except Exception as e:
             duration_ms = (time.perf_counter() - start_time) * 1000
-            return TestResult("Single Prediction", False, duration_ms, {}, str(e))
+            return TestResult(SINGLE_PREDICTION, False, duration_ms, {}, str(e))
 
     def test_batch_prediction(self, batch_size: int = 10) -> TestResult:
         """Test batch prediction with multiple observations."""
@@ -182,7 +190,7 @@ class ClusterValidator:
             response = requests.post(
                 f"{self.base_url}/predict",
                 json=request_data,
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": JSON_CONTENT_TYPE},
                 timeout=60
             )
             duration_ms = (time.perf_counter() - start_time) * 1000
@@ -240,15 +248,15 @@ class ClusterValidator:
                     "total_time_ms": duration_ms,
                     "device": data.get("device")
                 }
-                return TestResult("Model Warmup", True, duration_ms, details)
+                return TestResult(MODEL_WARMUP, True, duration_ms, details)
             else:
-                return TestResult("Model Warmup", False, duration_ms,
+                return TestResult(MODEL_WARMUP, False, duration_ms,
                                 {"status_code": response.status_code},
                                 f"HTTP {response.status_code}")
 
         except Exception as e:
             duration_ms = (time.perf_counter() - start_time) * 1000
-            return TestResult("Model Warmup", False, duration_ms, {}, str(e))
+            return TestResult(MODEL_WARMUP, False, duration_ms, {}, str(e))
 
     def test_latency_consistency(self, iterations: int = 20) -> TestResult:
         """Test latency consistency over multiple requests."""
@@ -272,7 +280,7 @@ class ClusterValidator:
                 response = requests.post(
                     f"{self.base_url}/predict",
                     json=request_data,
-                    headers={"Content-Type": "application/json"},
+                    headers={"Content-Type": JSON_CONTENT_TYPE},
                     timeout=10
                 )
                 req_duration = (time.perf_counter() - req_start) * 1000
@@ -329,7 +337,7 @@ class ClusterValidator:
                     response = requests.post(
                         f"{self.base_url}/predict",
                         json=request_data,
-                        headers={"Content-Type": "application/json"},
+                        headers={"Content-Type": JSON_CONTENT_TYPE},
                         timeout=30
                     )
                     req_duration = (time.perf_counter() - req_start) * 1000
@@ -396,7 +404,7 @@ class ClusterValidator:
             response = requests.post(
                 f"{self.base_url}/predict",
                 json=invalid_request,
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": JSON_CONTENT_TYPE},
                 timeout=10
             )
             duration_ms = (time.perf_counter() - start_time) * 1000
@@ -412,16 +420,16 @@ class ClusterValidator:
                     "has_proper_structure": has_error_structure
                 }
 
-                return TestResult("Error Handling", has_error_structure, duration_ms, details,
+                return TestResult(ERROR_HANDLING, has_error_structure, duration_ms, details,
                                 "" if has_error_structure else "Missing error structure")
             else:
-                return TestResult("Error Handling", False, duration_ms,
+                return TestResult(ERROR_HANDLING, False, duration_ms,
                                 {"expected_status": 422, "actual_status": response.status_code},
                                 f"Expected 422, got {response.status_code}")
 
         except Exception as e:
             duration_ms = (time.perf_counter() - start_time) * 1000
-            return TestResult("Error Handling", False, duration_ms, {}, str(e))
+            return TestResult(ERROR_HANDLING, False, duration_ms, {}, str(e))
 
     def test_metrics_endpoint(self) -> TestResult:
         """Test metrics endpoint availability."""
@@ -445,16 +453,16 @@ class ClusterValidator:
                     "sample_metrics": content[:200] + "..." if len(content) > 200 else content
                 }
 
-                return TestResult("Metrics Endpoint", has_prometheus_format, duration_ms, details,
+                return TestResult(METRICS_ENDPOINT, has_prometheus_format, duration_ms, details,
                                 "" if has_prometheus_format else "Invalid Prometheus format")
             else:
-                return TestResult("Metrics Endpoint", False, duration_ms,
+                return TestResult(METRICS_ENDPOINT, False, duration_ms,
                                 {"status_code": response.status_code},
                                 f"HTTP {response.status_code}")
 
         except Exception as e:
             duration_ms = (time.perf_counter() - start_time) * 1000
-            return TestResult("Metrics Endpoint", False, duration_ms, {}, str(e))
+            return TestResult(METRICS_ENDPOINT, False, duration_ms, {}, str(e))
 
     def run_all_tests(self) -> dict[str, Any]:
         """Run all validation tests."""

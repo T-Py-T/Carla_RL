@@ -141,37 +141,30 @@ class SchemaGenerator:
     
     def _get_field_type(self, field_info: Any) -> str:
         """Get field type as string."""
-        if hasattr(field_info, "annotation"):
-            annotation = field_info.annotation
-            
-            # Handle Union types
-            if hasattr(annotation, "__origin__") and annotation.__origin__ is Union:
-                types = annotation.__args__
-                if len(types) == 2 and type(None) in types:
-                    # Optional type
-                    non_none_type = next(t for t in types if t is not type(None))
-                    return self._map_type(non_none_type)
-                else:
-                    return "union"
-            
-            # Handle generic types
-            if hasattr(annotation, "__origin__"):
-                origin = annotation.__origin__
-                if origin is list:
-                    return "array"
-                elif origin is dict:
-                    return "object"
-                else:
-                    return self._map_type(origin)
-            
-            # Handle enum types
-            if hasattr(annotation, "__members__"):
-                return "enum"
-            
-            # Handle basic types
-            return self._map_type(annotation)
-        
-        return "unknown"
+        annotation = getattr(field_info, "annotation", None)
+        if annotation is None:
+            return "unknown"
+        origin = getattr(annotation, "__origin__", None)
+        if origin is Union:
+            return self._map_union_type(annotation)
+        if origin is not None:
+            return self._map_generic_type(origin)
+        if hasattr(annotation, "__members__"):
+            return "enum"
+        return self._map_type(annotation)
+
+    def _map_union_type(self, annotation: Any) -> str:
+        """Map a union, preserving the simpler type for Optional values."""
+        union_types = annotation.__args__
+        if len(union_types) == 2 and type(None) in union_types:
+            concrete = next(item for item in union_types if item is not type(None))
+            return self._map_type(concrete)
+        return "union"
+
+    def _map_generic_type(self, origin: type) -> str:
+        """Map the origin of a generic annotation."""
+        generic_types = {list: "array", dict: "object"}
+        return generic_types.get(origin, self._map_type(origin))
     
     def _map_type(self, type_class: type) -> str:
         """Map Python type to schema type."""
@@ -363,76 +356,82 @@ class SchemaGenerator:
     
     def _export_markdown(self, schema_info: SchemaInfo) -> str:
         """Export schema as Markdown."""
-        lines = []
-        
-        # Header
-        lines.append(f"# {schema_info.title}")
-        lines.append("")
-        lines.append(schema_info.description)
-        lines.append("")
-        lines.append(f"**Version:** {schema_info.version}")
-        lines.append("")
-        
-        # Table of contents
-        lines.append("## Table of Contents")
-        lines.append("")
-        for section in schema_info.sections.keys():
-            lines.append(f"- [{section.title()}](#{section.lower()})")
-        lines.append("- [Examples](#examples)")
-        lines.append("")
-        
-        # Sections
+        lines = [
+            f"# {schema_info.title}",
+            "",
+            schema_info.description,
+            "",
+            f"**Version:** {schema_info.version}",
+            "",
+            "## Table of Contents",
+            "",
+        ]
+        lines.extend(
+            f"- [{section.title()}](#{section.lower()})"
+            for section in schema_info.sections
+        )
+        lines.extend(["- [Examples](#examples)", ""])
         for section, fields in schema_info.sections.items():
-            lines.append(f"## {section.title()}")
-            lines.append("")
-            
-            if fields:
-                lines.append("| Field | Type | Required | Default | Description |")
-                lines.append("|-------|------|----------|---------|-------------|")
-                
-                for field in fields:
-                    required_str = "Yes" if field.required else "No"
-                    default_str = str(field.default) if field.default is not None else "-"
-                    description_str = field.description or "-"
-                    
-                    lines.append(f"| `{field.name}` | {field.type} | {required_str} | {default_str} | {description_str} |")
-                
-                lines.append("")
-                
-                # Field details
-                for field in fields:
-                    if field.description or field.enum_values or field.examples:
-                        lines.append(f"### {field.name}")
-                        lines.append("")
-                        
-                        if field.description:
-                            lines.append(f"**Description:** {field.description}")
-                            lines.append("")
-                        
-                        if field.enum_values:
-                            lines.append(f"**Valid Values:** {', '.join(f'`{v}`' for v in field.enum_values)}")
-                            lines.append("")
-                        
-                        if field.examples:
-                            lines.append("**Examples:**")
-                            for example in field.examples:
-                                lines.append(f"- `{example}`")
-                            lines.append("")
-        
-        # Examples
-        lines.append("## Examples")
-        lines.append("")
-        
+            lines.extend(self._markdown_section(section, fields))
+        lines.extend(["## Examples", ""])
         for example_name, example_config in schema_info.examples.items():
-            lines.append(f"### {example_name.replace('_', ' ').title()}")
-            lines.append("")
-            lines.append("```yaml")
-            import yaml
-            lines.append(yaml.dump(example_config, default_flow_style=False, indent=2))
-            lines.append("```")
-            lines.append("")
-        
+            lines.extend(self._markdown_example(example_name, example_config))
         return "\n".join(lines)
+
+    def _markdown_section(self, section: str, fields: List[FieldInfo]) -> List[str]:
+        """Render one Markdown field section."""
+        lines = [f"## {section.title()}", ""]
+        if not fields:
+            return lines
+        lines.extend(
+            [
+                "| Field | Type | Required | Default | Description |",
+                "|-------|------|----------|---------|-------------|",
+            ]
+        )
+        lines.extend(self._markdown_field_row(field_info) for field_info in fields)
+        lines.append("")
+        for field_info in fields:
+            lines.extend(self._markdown_field_details(field_info))
+        return lines
+
+    @staticmethod
+    def _markdown_field_row(field: FieldInfo) -> str:
+        required = "Yes" if field.required else "No"
+        default = str(field.default) if field.default is not None else "-"
+        return (
+            f"| `{field.name}` | {field.type} | {required} | {default} | "
+            f"{field.description or '-'} |"
+        )
+
+    @staticmethod
+    def _markdown_field_details(field: FieldInfo) -> List[str]:
+        if not (field.description or field.enum_values or field.examples):
+            return []
+        lines = [f"### {field.name}", ""]
+        if field.description:
+            lines.extend([f"**Description:** {field.description}", ""])
+        if field.enum_values:
+            values = ", ".join(f"`{value}`" for value in field.enum_values)
+            lines.extend([f"**Valid Values:** {values}", ""])
+        if field.examples:
+            lines.append("**Examples:**")
+            lines.extend(f"- `{example}`" for example in field.examples)
+            lines.append("")
+        return lines
+
+    @staticmethod
+    def _markdown_example(name: str, config: Dict[str, Any]) -> List[str]:
+        import yaml
+
+        return [
+            f"### {name.replace('_', ' ').title()}",
+            "",
+            "```yaml",
+            yaml.dump(config, default_flow_style=False, indent=2),
+            "```",
+            "",
+        ]
     
     def _export_html(self, schema_info: SchemaInfo) -> str:
         """Export schema as HTML."""
@@ -464,28 +463,8 @@ class SchemaGenerator:
         lines.append(f"<p>{schema_info.description}</p>")
         lines.append(f"<p><strong>Version:</strong> {schema_info.version}</p>")
         
-        # Sections
         for section, fields in schema_info.sections.items():
-            lines.append(f"<h2>{section.title()}</h2>")
-            
-            if fields:
-                lines.append("<table>")
-                lines.append("<tr><th>Field</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>")
-                
-                for field in fields:
-                    required_class = "required" if field.required else "optional"
-                    required_text = "Yes" if field.required else "No"
-                    default_text = str(field.default) if field.default is not None else "-"
-                    
-                    lines.append("<tr>")
-                    lines.append(f"<td><code>{field.name}</code></td>")
-                    lines.append(f"<td>{field.type}</td>")
-                    lines.append(f"<td class='{required_class}'>{required_text}</td>")
-                    lines.append(f"<td>{default_text}</td>")
-                    lines.append(f"<td>{field.description or '-'}</td>")
-                    lines.append("</tr>")
-                
-                lines.append("</table>")
+            lines.extend(self._html_section(section, fields))
         
         # Examples
         lines.append("<h2>Examples</h2>")
@@ -500,6 +479,37 @@ class SchemaGenerator:
         lines.append("</html>")
         
         return "\n".join(lines)
+
+    def _html_section(self, section: str, fields: List[FieldInfo]) -> List[str]:
+        """Render one HTML field section."""
+        lines = [f"<h2>{section.title()}</h2>"]
+        if not fields:
+            return lines
+        lines.extend(
+            [
+                "<table>",
+                "<tr><th>Field</th><th>Type</th><th>Required</th><th>Default</th><th>Description</th></tr>",
+            ]
+        )
+        for field_info in fields:
+            lines.extend(self._html_field_row(field_info))
+        lines.append("</table>")
+        return lines
+
+    @staticmethod
+    def _html_field_row(field: FieldInfo) -> List[str]:
+        required_class = "required" if field.required else "optional"
+        required_text = "Yes" if field.required else "No"
+        default_text = str(field.default) if field.default is not None else "-"
+        return [
+            "<tr>",
+            f"<td><code>{field.name}</code></td>",
+            f"<td>{field.type}</td>",
+            f"<td class='{required_class}'>{required_text}</td>",
+            f"<td>{default_text}</td>",
+            f"<td>{field.description or '-'}</td>",
+            "</tr>",
+        ]
     
     def _export_rst(self, schema_info: SchemaInfo) -> str:
         """Export schema as reStructuredText."""

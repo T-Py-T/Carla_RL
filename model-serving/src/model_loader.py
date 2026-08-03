@@ -121,7 +121,7 @@ def compute_file_hash(file_path: Path) -> str:
         raise ArtifactValidationError(f"Failed to compute hash for {file_path}: {str(e)}")
 
 
-def validate_artifact_integrity(artifact_dir: Path, model_card: dict[str, Any]) -> bool:
+def validate_artifact_integrity(artifact_dir: Path, model_card: dict[str, Any]) -> None:
     """
     Validate artifact integrity using hashes from model card.
 
@@ -130,7 +130,7 @@ def validate_artifact_integrity(artifact_dir: Path, model_card: dict[str, Any]) 
         model_card: Model card metadata with expected hashes
 
     Returns:
-        True if all artifacts are valid
+        None. Invalid artifacts raise ``ArtifactValidationError``.
 
     Raises:
         ArtifactValidationError: If validation fails
@@ -140,7 +140,7 @@ def validate_artifact_integrity(artifact_dir: Path, model_card: dict[str, Any]) 
         # No hashes recorded in the model card - skip validation. This is the
         # expected path for freshly generated artifacts before
         # create_example_artifacts.py has populated the hash map.
-        return True
+        return
 
     for filename, expected_hash in expected_hashes.items():
         file_path = artifact_dir / filename
@@ -162,7 +162,6 @@ def validate_artifact_integrity(artifact_dir: Path, model_card: dict[str, Any]) 
                 },
             )
 
-    return True
 
 
 def load_model_card(artifact_dir: Path) -> dict[str, Any]:

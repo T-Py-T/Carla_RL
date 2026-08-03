@@ -6,6 +6,7 @@ This script validates that all optimization modules can be imported
 and basic functionality works without requiring external dependencies.
 """
 
+import math
 import sys
 from pathlib import Path
 
@@ -62,7 +63,7 @@ def validate_configurations():
         gpu_config = GPUOptimizationConfig()
         assert gpu_config.enable_cuda is True
         assert gpu_config.enable_tensorrt is True
-        assert gpu_config.memory_fraction == 0.8
+        assert math.isclose(gpu_config.memory_fraction, 0.8)
         print("✓ GPU configuration validation successful")
         
         # Test Memory config

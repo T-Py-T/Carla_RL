@@ -10,6 +10,14 @@ import psutil
 import sys
 import os
 
+GPU_DEVICE = '/GPU:0'
+CPU_DEVICE = '/CPU:0'
+
+
+def get_compute_device():
+    """Return the preferred TensorFlow device for benchmarks."""
+    return GPU_DEVICE if tf.config.list_physical_devices('GPU') else CPU_DEVICE
+
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src'))
 
@@ -42,7 +50,7 @@ def benchmark_matrix_operations():
     print("-" * 30)
     
     sizes = [500, 1000, 2000]
-    device = '/GPU:0' if tf.config.list_physical_devices('GPU') else '/CPU:0'
+    device = get_compute_device()
     
     print(f"Device: {device}")
     
@@ -59,7 +67,7 @@ def benchmark_matrix_operations():
             start_time = time.time()
             for _ in range(3):  # Multiple runs for average
                 c = tf.matmul(a, b)
-                _ = tf.reduce_sum(c).numpy()  # Force computation
+                _ = tf.reduce_sum(c, axis=None).numpy()  # Force computation
             elapsed = (time.time() - start_time) / 3
             
             # Calculate GFLOPS (approximate)
@@ -74,7 +82,7 @@ def benchmark_cnn_operations():
     print("🧠 CNN Operations Benchmark")
     print("-" * 30)
     
-    device = '/GPU:0' if tf.config.list_physical_devices('GPU') else '/CPU:0'
+    device = get_compute_device()
     print(f"Device: {device}")
     
     # Test different image sizes
@@ -137,7 +145,7 @@ def benchmark_rl_specific():
     print("RL-Specific Operations Benchmark")
     print("-" * 30)
     
-    device = '/GPU:0' if tf.config.list_physical_devices('GPU') else '/CPU:0'
+    device = get_compute_device()
     print(f"Device: {device}")
     
     try:
@@ -195,7 +203,7 @@ def benchmark_memory_usage():
     print(f"Memory before test: {memory_before.used / (1024**3):.1f} GB used")
     
     # Create large tensors to test memory
-    device = '/GPU:0' if tf.config.list_physical_devices('GPU') else '/CPU:0'
+    device = get_compute_device()
     
     try:
         with tf.device(device):

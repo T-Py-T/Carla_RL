@@ -7,7 +7,6 @@ and provides detailed analysis of performance characteristics.
 """
 
 import argparse
-import asyncio
 import json
 import sys
 from pathlib import Path
@@ -31,7 +30,7 @@ def create_mock_inference_function():
         
         # Return mock actions
         actions = []
-        for obs in observations:
+        for _ in observations:
             action = {
                 "throttle": random.uniform(0.0, 1.0),
                 "brake": random.uniform(0.0, 1.0),
@@ -44,7 +43,7 @@ def create_mock_inference_function():
     return mock_inference
 
 
-async def validate_latency_requirements(
+def validate_latency_requirements(
     config: BenchmarkConfig,
     target_p50_ms: float = 10.0,
     iterations: int = 1000
@@ -61,7 +60,7 @@ async def validate_latency_requirements(
     inference_func = create_mock_inference_function()
     
     # Run comprehensive benchmark
-    result = await engine.run_benchmark(inference_func, batch_size=1)
+    result = engine.run_benchmark(inference_func, batch_size=1)
     
     # Analyze latency distribution
     latency_analysis = analyze_latency_distribution(result.latency_stats)
@@ -253,9 +252,9 @@ def main():
     
     # Run validation
     try:
-        result = asyncio.run(validate_latency_requirements(
+        result = validate_latency_requirements(
             config, args.target_p50, args.iterations
-        ))
+        )
         
         # Print results
         print("\n" + "="*70)

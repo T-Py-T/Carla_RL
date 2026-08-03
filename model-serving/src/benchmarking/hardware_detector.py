@@ -103,7 +103,7 @@ class HardwareDetector:
                         if line.startswith("model name"):
                             cpu_model = line.split(":")[1].strip()
                             break
-        except (FileNotFoundError, OSError):
+        except OSError:
             cpu_model = "Unknown"
 
         # Detect CPU features
@@ -239,7 +239,7 @@ class HardwareDetector:
                         features.append("sse4")
                     if "fma" in content.lower():
                         features.append("fma")
-        except (FileNotFoundError, OSError):
+        except OSError:
             pass
 
         # Fallback: basic feature detection
@@ -288,7 +288,7 @@ class HardwareDetector:
                         return "DDR5"
                     elif "DDR4" in content:
                         return "DDR4"
-        except (FileNotFoundError, OSError):
+        except OSError:
             pass
 
         # Fallback

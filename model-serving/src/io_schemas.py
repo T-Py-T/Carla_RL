@@ -10,6 +10,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+EXAMPLE_MODEL_VERSION = "v0.1.0"
+
 
 class Observation(BaseModel):
     """
@@ -112,7 +114,7 @@ class PredictResponse(BaseModel):
         json_schema_extra={
             "example": {
                 "actions": [{"throttle": 0.7, "brake": 0.0, "steer": 0.1}],
-                "version": "v0.1.0",
+                "version": EXAMPLE_MODEL_VERSION,
                 "timingMs": 8.5,
                 "deterministic": True,
             }
@@ -134,7 +136,7 @@ class HealthResponse(BaseModel):
         json_schema_extra={
             "example": {
                 "status": "ok",
-                "version": "v0.1.0",
+                "version": EXAMPLE_MODEL_VERSION,
                 "git": "abc123ef",
                 "device": "cpu",
                 "timestamp": 1695825600.0,
@@ -156,7 +158,7 @@ class MetadataResponse(BaseModel):
         json_schema_extra={
             "example": {
                 "modelName": "carla-ppo",
-                "version": "v0.1.0",
+                "version": EXAMPLE_MODEL_VERSION,
                 "device": "cpu",
                 "inputShape": [5],
                 "actionSpace": {"throttle": [0.0, 1.0], "brake": [0.0, 1.0], "steer": [-1.0, 1.0]},

@@ -35,7 +35,7 @@ class ConfigLoader:
         self.sources: List[tuple] = []
         # Expose the supported file extensions so callers can inspect which
         # formats the loader can parse without reaching into the class body.
-        self.supported_formats = set(self.SUPPORTED_FORMATS)
+        self.supported_extensions = set(self.SUPPORTED_FORMATS)
     
     def add_file_source(self, file_path: Union[str, Path], required: bool = False) -> "ConfigLoader":
         """
@@ -243,10 +243,7 @@ class ConfigLoader:
         current = data
         
         for k in keys[:-1]:
-            if k not in current:
-                current[k] = {}
-            elif not isinstance(current[k], dict):
-                # If the value is not a dict, convert it to one
+            if k not in current or not isinstance(current[k], dict):
                 current[k] = {}
             current = current[k]
         

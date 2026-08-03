@@ -403,9 +403,7 @@ class RollbackManager:
 
         logger.info(f"Executing rollback from {operation.from_version} to {operation.to_version}")
 
-        # For now, we'll just log the operation
-        # In a real implementation, this would perform the actual rollback
-        pass
+        # For now, logging is the operation; a concrete backend can override it.
 
     def _create_backup(self, version: str) -> str:
         """Create backup of current state."""

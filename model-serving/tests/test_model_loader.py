@@ -229,7 +229,7 @@ class TestArtifactValidation:
 
             # Should pass validation
             result = validate_artifact_integrity(temp_path, model_card)
-            assert result is True
+            assert result is None
 
     def test_validate_artifact_integrity_hash_mismatch(self):
         """Test artifact validation with hash mismatch."""
@@ -271,7 +271,7 @@ class TestArtifactValidation:
 
             # Should pass (no validation needed)
             result = validate_artifact_integrity(temp_path, model_card)
-            assert result is True
+            assert result is None
 
 
 class TestModelLoading:

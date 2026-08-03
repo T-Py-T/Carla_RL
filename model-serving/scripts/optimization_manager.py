@@ -87,43 +87,98 @@ def print_performance_metrics(metrics: Dict) -> None:
     if metrics.get("hardware_info"):
         print("Hardware detected and optimized.")
     
-    # CPU optimizations
     if "cpu_optimizations" in metrics:
-        cpu_metrics = metrics["cpu_optimizations"]
-        print("\nCPU Optimizations:")
-        print(f"  Thread Count: {cpu_metrics.get('thread_count', 'N/A')}")
-        print(f"  MKL-DNN Enabled: {'Yes' if cpu_metrics.get('mkldnn_enabled') else 'No'}")
-        print(f"  MKL Enabled: {'Yes' if cpu_metrics.get('mkl_enabled') else 'No'}")
-        print(f"  JIT Compiled Models: {cpu_metrics.get('jit_compiled_models', 0)}")
-        print(f"  Thread Pool Available: {'Yes' if cpu_metrics.get('thread_pool_available') else 'No'}")
-    
-    # GPU optimizations
+        print_cpu_metrics(metrics["cpu_optimizations"])
+
     if "gpu_optimizations" in metrics:
-        gpu_metrics = metrics["gpu_optimizations"]
-        print("\nGPU Optimizations:")
-        print(f"  Device: {gpu_metrics.get('device', 'N/A')}")
-        print(f"  cuDNN Enabled: {'Yes' if gpu_metrics.get('cudnn_enabled') else 'No'}")
-        print(f"  cuDNN Benchmark: {'Yes' if gpu_metrics.get('cudnn_benchmark') else 'No'}")
-        print(f"  JIT Compiled Models: {gpu_metrics.get('jit_compiled_models', 0)}")
-        print(f"  TensorRT Engines: {gpu_metrics.get('tensorrt_engines', 0)}")
-        print(f"  Mixed Precision: {'Yes' if gpu_metrics.get('mixed_precision_enabled') else 'No'}")
-        
-        if gpu_metrics.get('gpu_memory_allocated'):
-            print(f"  GPU Memory Allocated: {gpu_metrics['gpu_memory_allocated'] / 1024**2:.1f} MB")
-        if gpu_metrics.get('gpu_memory_reserved'):
-            print(f"  GPU Memory Reserved: {gpu_metrics['gpu_memory_reserved'] / 1024**2:.1f} MB")
-    
-    # Memory optimizations
+        print_gpu_metrics(metrics["gpu_optimizations"])
+
     if "memory_optimizations" in metrics:
-        memory_metrics = metrics["memory_optimizations"]
-        print("\nMemory Optimizations:")
-        print(f"  Memory Pooling: {'Yes' if memory_metrics.get('memory_pooling_enabled') else 'No'}")
-        if memory_metrics.get('total_tensors'):
-            print(f"  Pooled Tensors: {memory_metrics['total_tensors']}")
-        if memory_metrics.get('total_memory_bytes'):
-            print(f"  Pooled Memory: {memory_metrics['total_memory_bytes'] / 1024**2:.1f} MB")
-        if memory_metrics.get('python_memory_rss'):
-            print(f"  Python RSS Memory: {memory_metrics['python_memory_rss'] / 1024**2:.1f} MB")
+        print_memory_metrics(metrics["memory_optimizations"])
+
+
+def yes_no(value) -> str:
+    """Format a truthy value for CLI output."""
+    return "Yes" if value else "No"
+
+
+def print_cpu_metrics(metrics: Dict) -> None:
+    """Print CPU optimization metrics."""
+    print("\nCPU Optimizations:")
+    print(f"  Thread Count: {metrics.get('thread_count', 'N/A')}")
+    print(f"  MKL-DNN Enabled: {yes_no(metrics.get('mkldnn_enabled'))}")
+    print(f"  MKL Enabled: {yes_no(metrics.get('mkl_enabled'))}")
+    print(f"  JIT Compiled Models: {metrics.get('jit_compiled_models', 0)}")
+    print(f"  Thread Pool Available: {yes_no(metrics.get('thread_pool_available'))}")
+
+
+def print_gpu_metrics(metrics: Dict) -> None:
+    """Print GPU optimization metrics."""
+    print("\nGPU Optimizations:")
+    print(f"  Device: {metrics.get('device', 'N/A')}")
+    print(f"  cuDNN Enabled: {yes_no(metrics.get('cudnn_enabled'))}")
+    print(f"  cuDNN Benchmark: {yes_no(metrics.get('cudnn_benchmark'))}")
+    print(f"  JIT Compiled Models: {metrics.get('jit_compiled_models', 0)}")
+    print(f"  TensorRT Engines: {metrics.get('tensorrt_engines', 0)}")
+    print(f"  Mixed Precision: {yes_no(metrics.get('mixed_precision_enabled'))}")
+    if metrics.get("gpu_memory_allocated"):
+        print(f"  GPU Memory Allocated: {metrics['gpu_memory_allocated'] / 1024**2:.1f} MB")
+    if metrics.get("gpu_memory_reserved"):
+        print(f"  GPU Memory Reserved: {metrics['gpu_memory_reserved'] / 1024**2:.1f} MB")
+
+
+def print_memory_metrics(metrics: Dict) -> None:
+    """Print memory optimization metrics."""
+    print("\nMemory Optimizations:")
+    print(f"  Memory Pooling: {yes_no(metrics.get('memory_pooling_enabled'))}")
+    if metrics.get("total_tensors"):
+        print(f"  Pooled Tensors: {metrics['total_tensors']}")
+    if metrics.get("total_memory_bytes"):
+        print(f"  Pooled Memory: {metrics['total_memory_bytes'] / 1024**2:.1f} MB")
+    if metrics.get("python_memory_rss"):
+        print(f"  Python RSS Memory: {metrics['python_memory_rss'] / 1024**2:.1f} MB")
+
+
+def hardware_output(hardware_info) -> Dict:
+    """Serialize hardware information for JSON output."""
+    gpu_data = None
+    if hardware_info.gpu:
+        gpu_data = {
+            "model": hardware_info.gpu.model,
+            "memory_gb": hardware_info.gpu.memory_gb,
+            "compute_capability": hardware_info.gpu.compute_capability,
+            "cuda_available": hardware_info.gpu.cuda_available,
+            "tensorrt_available": hardware_info.gpu.tensorrt_available,
+            "driver_version": hardware_info.gpu.driver_version,
+            "cuda_version": hardware_info.gpu.cuda_version,
+        }
+
+    return {
+        "cpu": {
+            "model": hardware_info.cpu.model,
+            "cores": hardware_info.cpu.cores,
+            "threads": hardware_info.cpu.threads,
+            "frequency_mhz": hardware_info.cpu.frequency_mhz,
+            "architecture": hardware_info.cpu.architecture,
+            "features": hardware_info.cpu.features,
+            "cache_size_mb": hardware_info.cpu.cache_size_mb,
+            "avx_support": hardware_info.cpu.avx_support,
+            "sse_support": hardware_info.cpu.sse_support,
+            "intel_mkl_available": hardware_info.cpu.intel_mkl_available,
+        },
+        "gpu": gpu_data,
+        "memory": {
+            "total_gb": hardware_info.memory.total_gb,
+            "available_gb": hardware_info.memory.available_gb,
+            "swap_gb": hardware_info.memory.swap_gb,
+            "memory_type": hardware_info.memory.memory_type,
+        },
+        "system": {
+            "platform": hardware_info.platform,
+            "python_version": hardware_info.python_version,
+            "torch_version": hardware_info.torch_version,
+        },
+    }
 
 
 def detect_hardware(args) -> None:
@@ -136,43 +191,8 @@ def detect_hardware(args) -> None:
     print_hardware_info(hardware_info)
     
     if args.output:
-        output_data = {
-            "cpu": {
-                "model": hardware_info.cpu.model,
-                "cores": hardware_info.cpu.cores,
-                "threads": hardware_info.cpu.threads,
-                "frequency_mhz": hardware_info.cpu.frequency_mhz,
-                "architecture": hardware_info.cpu.architecture,
-                "features": hardware_info.cpu.features,
-                "cache_size_mb": hardware_info.cpu.cache_size_mb,
-                "avx_support": hardware_info.cpu.avx_support,
-                "sse_support": hardware_info.cpu.sse_support,
-                "intel_mkl_available": hardware_info.cpu.intel_mkl_available,
-            },
-            "gpu": {
-                "model": hardware_info.gpu.model if hardware_info.gpu else None,
-                "memory_gb": hardware_info.gpu.memory_gb if hardware_info.gpu else None,
-                "compute_capability": hardware_info.gpu.compute_capability if hardware_info.gpu else None,
-                "cuda_available": hardware_info.gpu.cuda_available if hardware_info.gpu else False,
-                "tensorrt_available": hardware_info.gpu.tensorrt_available if hardware_info.gpu else False,
-                "driver_version": hardware_info.gpu.driver_version if hardware_info.gpu else None,
-                "cuda_version": hardware_info.gpu.cuda_version if hardware_info.gpu else None,
-            } if hardware_info.gpu else None,
-            "memory": {
-                "total_gb": hardware_info.memory.total_gb,
-                "available_gb": hardware_info.memory.available_gb,
-                "swap_gb": hardware_info.memory.swap_gb,
-                "memory_type": hardware_info.memory.memory_type,
-            },
-            "system": {
-                "platform": hardware_info.platform,
-                "python_version": hardware_info.python_version,
-                "torch_version": hardware_info.torch_version,
-            }
-        }
-        
-        with open(args.output, 'w') as f:
-            json.dump(output_data, f, indent=2)
+        with open(args.output, "w") as output_file:
+            json.dump(hardware_output(hardware_info), output_file, indent=2)
         print(f"\nHardware information saved to {args.output}")
 
 
@@ -217,7 +237,7 @@ def optimize_hardware(args) -> None:
     manager.cleanup()
 
 
-def benchmark_optimizations(args) -> None:
+def benchmark_optimizations() -> None:
     """Benchmark optimization performance."""
     print("Benchmarking optimization performance...")
     
@@ -300,7 +320,7 @@ Examples:
         elif args.command == 'optimize':
             optimize_hardware(args)
         elif args.command == 'benchmark':
-            benchmark_optimizations(args)
+            benchmark_optimizations()
         else:
             print(f"Unknown command: {args.command}")
             parser.print_help()

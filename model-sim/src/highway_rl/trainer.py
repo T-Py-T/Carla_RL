@@ -80,39 +80,13 @@ class HighwayTrainer:
         
         self.training_start_time = time.time()
         patience_counter = 0
+        episodes_trained = 0
         
         for episode in range(episodes):
-            episode_start_time = time.time()
-            
-            # Reset environment
-            state, _ = self.environment.reset()
-            total_reward = 0
-            steps = 0
-            
-            for step in range(max_steps_per_episode):
-                # Choose action
-                action = self.agent.act(state, training=True)
-                
-                # Execute action
-                next_state, reward, terminated, truncated, info = self.environment.step(action)
-                done = terminated or truncated
-                
-                # Store experience
-                self.agent.remember(state, action, reward, next_state, done)
-                
-                # Train agent
-                training_metrics = self.agent.replay()
-                
-                # Update state
-                state = next_state
-                total_reward += reward
-                steps += 1
-                
-                if done:
-                    break
-            
-            # Episode completed
-            episode_time = time.time() - episode_start_time
+            total_reward, steps, training_metrics, episode_time = self._train_episode(
+                max_steps_per_episode
+            )
+            episodes_trained = episode + 1
             self.episode_rewards.append(total_reward)
             self.episode_lengths.append(steps)
             
@@ -123,80 +97,35 @@ class HighwayTrainer:
                 'steps_per_second': steps / episode_time if episode_time > 0 else 0
             })
             
-            # Log episode
-            if self.logger:
-                self.logger.log_episode(
-                    episode_metrics=episode_metrics,
-                    agent_metrics=training_metrics,
-                    model_metrics=self.agent.get_training_metrics()
-                )
-            
-            # Print progress
-            if episode % 10 == 0:
-                recent_rewards = self.episode_rewards[-10:]
-                mean_reward = np.mean(recent_rewards)
-                print(f"Episode {episode:4d} | "
-                      f"Reward: {total_reward:7.2f} | "
-                      f"Mean(10): {mean_reward:7.2f} | "
-                      f"Steps: {steps:3d} | "
-                      f"Epsilon: {self.agent.epsilon:.3f} | "
-                      f"Collisions: {episode_metrics['collisions']}")
-            
-            # Evaluation
-            if episode % eval_frequency == 0 and episode > 0:
-                eval_results = self.evaluate()
-                
-                if self.logger:
-                    self.logger.log_evaluation(eval_results)
-                
-                # Check for improvement
-                current_mean_reward = eval_results['mean_reward']
-                if current_mean_reward > self.best_mean_reward:
-                    self.best_mean_reward = current_mean_reward
-                    patience_counter = 0
-                    
-                    # Save best model
-                    self.save_model(f"best_model_episode_{episode}")
-                    print(f"New best model! Mean reward: {current_mean_reward:.2f}")
-                else:
-                    patience_counter += 1
-                
-                print(f"Evaluation | Mean: {current_mean_reward:.2f} | "
-                      f"Std: {eval_results['std_reward']:.2f} | "
-                      f"Success Rate: {eval_results['success_rate']:.2f}")
+            self._log_episode(episode, total_reward, steps, episode_metrics, training_metrics)
+
+            if episode > 0 and episode % eval_frequency == 0:
+                patience_counter = self._evaluate_progress(episode, patience_counter)
             
             # Save model periodically
             if episode % self.save_frequency == 0 and episode > 0:
                 self.save_model(f"checkpoint_episode_{episode}")
             
             # Early stopping
-            if target_reward and len(self.episode_rewards) >= 100:
-                recent_mean = np.mean(self.episode_rewards[-100:])
-                if recent_mean >= target_reward:
-                    print(f"Target reward {target_reward} reached! Stopping training.")
-                    break
+            if self._target_reached(target_reward):
+                print(f"Target reward {target_reward} reached! Stopping training.")
+                break
             
             if patience_counter >= early_stopping_patience:
                 print(f"Early stopping: No improvement for {early_stopping_patience} evaluations.")
                 break
         
-        # Training completed
         training_time = time.time() - self.training_start_time
-        
-        # Final evaluation
         final_eval = self.evaluate()
-        
-        # Save final model
         self.save_model("final_model")
-        
-        # Training summary
+
         summary = {
-            'episodes_trained': episode + 1,
+            'episodes_trained': episodes_trained,
             'total_training_time': training_time,
             'best_mean_reward': self.best_mean_reward,
             'final_evaluation': final_eval,
-            'episodes_per_hour': (episode + 1) / (training_time / 3600),
-            'mean_episode_length': np.mean(self.episode_lengths),
+            'episodes_per_hour': episodes_trained / (training_time / 3600),
+            'mean_episode_length': np.mean(self.episode_lengths) if self.episode_lengths else 0,
             'total_steps': sum(self.episode_lengths)
         }
         
@@ -207,6 +136,76 @@ class HighwayTrainer:
         print(f"Episodes/Hour: {summary['episodes_per_hour']:.1f}")
         
         return summary
+
+    def _train_episode(self, max_steps: int):
+        """Run one training episode and return its aggregate measurements."""
+        episode_start_time = time.time()
+        state, _ = self.environment.reset()
+        total_reward = 0
+        steps = 0
+        training_metrics = {}
+
+        for _ in range(max_steps):
+            action = self.agent.act(state, training=True)
+            next_state, reward, terminated, truncated, _ = self.environment.step(action)
+            done = terminated or truncated
+            self.agent.remember(state, action, reward, next_state, done)
+            training_metrics = self.agent.replay()
+            state = next_state
+            total_reward += reward
+            steps += 1
+            if done:
+                break
+
+        return total_reward, steps, training_metrics, time.time() - episode_start_time
+
+    def _log_episode(self, episode, total_reward, steps, episode_metrics, training_metrics):
+        """Record an episode and periodically print a concise progress line."""
+        if self.logger:
+            self.logger.log_episode(
+                episode_metrics=episode_metrics,
+                agent_metrics=training_metrics,
+                model_metrics=self.agent.get_training_metrics(),
+            )
+
+        if episode % 10 != 0:
+            return
+
+        mean_reward = np.mean(self.episode_rewards[-10:])
+        print(
+            f"Episode {episode:4d} | Reward: {total_reward:7.2f} | "
+            f"Mean(10): {mean_reward:7.2f} | Steps: {steps:3d} | "
+            f"Epsilon: {self.agent.epsilon:.3f} | "
+            f"Collisions: {episode_metrics['collisions']}"
+        )
+
+    def _evaluate_progress(self, episode: int, patience_counter: int) -> int:
+        """Evaluate a checkpoint and update early-stopping state."""
+        eval_results = self.evaluate()
+        if self.logger:
+            self.logger.log_evaluation(eval_results)
+
+        current_mean_reward = eval_results['mean_reward']
+        if current_mean_reward > self.best_mean_reward:
+            self.best_mean_reward = current_mean_reward
+            patience_counter = 0
+            self.save_model(f"best_model_episode_{episode}")
+            print(f"New best model! Mean reward: {current_mean_reward:.2f}")
+        else:
+            patience_counter += 1
+
+        print(
+            f"Evaluation | Mean: {current_mean_reward:.2f} | "
+            f"Std: {eval_results['std_reward']:.2f} | "
+            f"Success Rate: {eval_results['success_rate']:.2f}"
+        )
+        return patience_counter
+
+    def _target_reached(self, target_reward: Optional[float]) -> bool:
+        """Return whether the rolling reward has reached the configured target."""
+        if target_reward is None or len(self.episode_rewards) < 100:
+            return False
+        return np.mean(self.episode_rewards[-100:]) >= target_reward
     
     def evaluate(self, episodes: Optional[int] = None) -> Dict[str, Any]:
         """
@@ -228,33 +227,9 @@ class HighwayTrainer:
         collisions = []
         success_count = 0
         
-        for episode in range(episodes):
-            state, _ = self.environment.reset()
-            total_reward = 0
-            steps = 0
-            episode_collisions = 0
-            
-            for _ in range(1000):  # Max steps for evaluation
-                # Use greedy policy (no exploration)
-                action = self.agent.act(state, training=False)
-                
-                next_state, reward, terminated, truncated, info = self.environment.step(action)
-                done = terminated or truncated
-                
-                state = next_state
-                total_reward += reward
-                steps += 1
-                
-                # Track collisions
-                if 'crashed' in info and info['crashed']:
-                    episode_collisions += 1
-                
-                if done:
-                    # Check success criteria (scenario-dependent)
-                    if self._is_successful_episode(total_reward, steps, episode_collisions):
-                        success_count += 1
-                    break
-            
+        for _ in range(episodes):
+            total_reward, steps, episode_collisions, succeeded = self._evaluate_episode()
+            success_count += int(succeeded)
             rewards.append(total_reward)
             episode_lengths.append(steps)
             collisions.append(episode_collisions)
@@ -274,6 +249,28 @@ class HighwayTrainer:
             'episodes': episodes,
             'individual_rewards': rewards
         }
+
+    def _evaluate_episode(self):
+        """Run one greedy evaluation episode."""
+        state, _ = self.environment.reset()
+        total_reward = 0
+        steps = 0
+        episode_collisions = 0
+        succeeded = False
+
+        for _ in range(1000):
+            action = self.agent.act(state, training=False)
+            state, reward, terminated, truncated, info = self.environment.step(action)
+            total_reward += reward
+            steps += 1
+            episode_collisions += int(bool(info.get('crashed')))
+            if terminated or truncated:
+                succeeded = self._is_successful_episode(
+                    total_reward, steps, episode_collisions
+                )
+                break
+
+        return total_reward, steps, episode_collisions, succeeded
     
     def _is_successful_episode(self, reward: float, steps: int, collisions: int) -> bool:
         """

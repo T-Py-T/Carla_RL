@@ -84,7 +84,7 @@ class LogAggregator:
             
             return entry
             
-        except (json.JSONDecodeError, ValueError, KeyError):
+        except (ValueError, KeyError):
             # Fallback to simple text parsing
             return self._parse_text_log(line)
     
@@ -240,7 +240,7 @@ class LogAggregator:
                 'count': len(entries),
                 'first_occurrence': min(entry.timestamp for entry in entries),
                 'last_occurrence': max(entry.timestamp for entry in entries),
-                'endpoints': list(set(entry.fields.get('endpoint', 'unknown') for entry in entries)),
+                'endpoints': list({entry.fields.get('endpoint', 'unknown') for entry in entries}),
                 'sample_messages': [entry.message for entry in entries[:3]]
             }
         
@@ -255,28 +255,30 @@ class LogAggregator:
         correlation_stats = {}
         
         for correlation_id, entries in self.correlation_map.items():
-            if len(entries) > 1:  # Only analyze multi-step traces
-                durations = []
-                event_types = []
-                
-                for entry in entries:
-                    if 'duration_ms' in entry.fields:
-                        durations.append(entry.fields['duration_ms'])
-                    if entry.event_type:
-                        event_types.append(entry.event_type)
-                
-                correlation_stats[correlation_id] = {
-                    'entry_count': len(entries),
-                    'total_duration_ms': sum(durations) if durations else 0,
-                    'event_types': event_types,
-                    'start_time': min(entry.timestamp for entry in entries),
-                    'end_time': max(entry.timestamp for entry in entries)
-                }
+            if len(entries) > 1:
+                correlation_stats[correlation_id] = self._summarize_correlation(entries)
         
         return {
             'total_correlations': len(self.correlation_map),
             'multi_step_correlations': len(correlation_stats),
             'correlation_stats': correlation_stats
+        }
+
+    @staticmethod
+    def _summarize_correlation(entries: List[LogEntry]) -> Dict[str, Any]:
+        """Summarize the timing and event sequence for one correlation ID."""
+        durations = [
+            entry.fields['duration_ms']
+            for entry in entries
+            if 'duration_ms' in entry.fields
+        ]
+        event_types = [entry.event_type for entry in entries if entry.event_type]
+        return {
+            'entry_count': len(entries),
+            'total_duration_ms': sum(durations),
+            'event_types': event_types,
+            'start_time': min(entry.timestamp for entry in entries),
+            'end_time': max(entry.timestamp for entry in entries),
         }
     
     def export_to_json(self, file_path: str):

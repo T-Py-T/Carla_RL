@@ -412,13 +412,13 @@ class HealthChecker:
         """Run all health checks asynchronously."""
         tasks = []
         
-        for name, check_func in self.checks:
-            async def run_check(check_name: str, check_func: Callable[[], HealthCheckResult]):
+        for _, check_func in self.checks:
+            async def run_check(check_func: Callable[[], HealthCheckResult]):
                 # Run CPU-bound check in thread pool
                 loop = asyncio.get_event_loop()
                 return await loop.run_in_executor(None, check_func)
             
-            tasks.append(run_check(name, check_func))
+            tasks.append(run_check(check_func))
         
         results = await asyncio.gather(*tasks, return_exceptions=True)
         

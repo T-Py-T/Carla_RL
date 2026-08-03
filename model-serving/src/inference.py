@@ -374,7 +374,7 @@ class InferenceEngine:
             if self.cache and use_cache:
                 cached_result = self.cache.get(observations, deterministic)
                 if cached_result is not None:
-                    actions, cached_time = cached_result
+                    actions, _ = cached_result
                     # Return cached result with minimal timing overhead
                     total_time_ms = (time.perf_counter() - total_start_time) * 1000.0
                     return actions, total_time_ms

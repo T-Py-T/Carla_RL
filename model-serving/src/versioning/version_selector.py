@@ -149,27 +149,28 @@ class VersionSelector:
             self._last_scan_time = time.time()
             return
 
-        seen: Dict[SemanticVersion, ModelVersionInfo] = {}
+        seen = self._load_manager_versions()
+        for item in self.artifacts_root.iterdir():
+            self._add_directory_version(item, seen)
 
-        # Prefer the ArtifactManager view when it knows about versions, but
-        # always fall back to directory scanning so plain artifact folders
-        # without a manifest still show up.
+        self.version_cache = seen
+        self._last_scan_time = time.time()
+
+    def _load_manager_versions(self) -> Dict[SemanticVersion, ModelVersionInfo]:
+        """Load the versions and integrity data known to the artifact manager."""
         try:
             manager_versions = self.artifact_manager.list_versions()
         except Exception:
             manager_versions = []
 
+        seen: Dict[SemanticVersion, ModelVersionInfo] = {}
         for version in manager_versions:
-            manifest = None
-            integrity: Dict[str, bool] = {}
-            try:
-                manifest = self.artifact_manager.get_manifest(version)
-            except Exception:
-                manifest = None
-            try:
-                integrity = self.artifact_manager.verify_integrity(version)
-            except Exception:
-                integrity = {}
+            manifest = self._read_manager_value(
+                lambda version=version: self.artifact_manager.get_manifest(version), None
+            )
+            integrity = self._read_manager_value(
+                lambda version=version: self.artifact_manager.verify_integrity(version), {}
+            )
             is_available = all(integrity.values()) if integrity else True
             seen[version] = ModelVersionInfo(
                 version=version,
@@ -177,40 +178,63 @@ class VersionSelector:
                 is_available=is_available,
                 integrity_status=integrity,
             )
+        return seen
 
-        for item in self.artifacts_root.iterdir():
-            if not item.is_dir():
-                continue
-            try:
-                version = parse_version(item.name)
-            except Exception:
-                continue
-            info = seen.get(version) or ModelVersionInfo(version=version)
-            model_card_path = item / "model_card.yaml"
-            if model_card_path.exists():
-                try:
-                    with open(model_card_path) as f:
-                        model_card = yaml.safe_load(f) or {}
-                    info.model_card = model_card
-                    perf = model_card.get("performance_metrics")
-                    if isinstance(perf, dict):
-                        # Flatten nested metric groups so callers can read
-                        # `latency_p50_ms` or similar without walking sub-dicts.
-                        flat: Dict[str, float] = {}
-                        for key, value in perf.items():
-                            if isinstance(value, dict):
-                                for sub_key, sub_value in value.items():
-                                    if isinstance(sub_value, (int, float)):
-                                        flat[f"{key}_{sub_key}"] = float(sub_value)
-                            elif isinstance(value, (int, float)):
-                                flat[key] = float(value)
-                        info.performance_metrics = flat
-                except Exception:
-                    pass
-            seen[version] = info
+    @staticmethod
+    def _read_manager_value(reader: Callable[[], Any], default: Any) -> Any:
+        try:
+            return reader()
+        except Exception:
+            return default
 
-        self.version_cache = seen
-        self._last_scan_time = time.time()
+    def _add_directory_version(
+        self, item: Path, seen: Dict[SemanticVersion, ModelVersionInfo]
+    ) -> None:
+        """Add one version directory to the discovery cache when valid."""
+        if not item.is_dir():
+            return
+        try:
+            version = parse_version(item.name)
+        except Exception:
+            return
+
+        info = seen.get(version) or ModelVersionInfo(version=version)
+        model_card = self._read_model_card(item / "model_card.yaml")
+        if model_card is not None:
+            info.model_card = model_card
+            info.performance_metrics = self._flatten_performance_metrics(
+                model_card.get("performance_metrics")
+            )
+        seen[version] = info
+
+    @staticmethod
+    def _read_model_card(path: Path) -> Optional[Dict[str, Any]]:
+        if not path.exists():
+            return None
+        try:
+            with open(path) as model_card_file:
+                return yaml.safe_load(model_card_file) or {}
+        except (OSError, yaml.YAMLError):
+            return None
+
+    @staticmethod
+    def _flatten_performance_metrics(performance: Any) -> Dict[str, float]:
+        """Flatten numeric model-card metrics into a one-level mapping."""
+        if not isinstance(performance, dict):
+            return {}
+        flat: Dict[str, float] = {}
+        for key, value in performance.items():
+            if isinstance(value, dict):
+                flat.update(
+                    {
+                        f"{key}_{sub_key}": float(sub_value)
+                        for sub_key, sub_value in value.items()
+                        if isinstance(sub_value, (int, float))
+                    }
+                )
+            elif isinstance(value, (int, float)):
+                flat[key] = float(value)
+        return flat
 
     def discover_versions(self, force_rescan: bool = False) -> List[SemanticVersion]:
         """Return all discovered versions, sorted newest first."""
@@ -312,26 +336,18 @@ class VersionSelector:
                 performance_threshold=performance_threshold,
             )
         except VersionSelectionError as primary_error:
-            logger.warning("Primary selection strategy failed: %s", primary_error)
-            for fallback in fallback_strategies:
-                if fallback == strategy:
-                    continue
-                try:
-                    fb_result = self._select_with_strategy(
-                        spec,
-                        fallback,
-                        constraints=constraints,
-                        minimum_version=minimum_version,
-                        exclude_prereleases=exclude_prereleases,
-                        performance_weight=performance_weight,
-                        performance_threshold=performance_threshold,
-                    )
-                except VersionSelectionError:
-                    continue
-                fb_result.fallback_used = True
-                fb_result.fallback_reason = (
-                    f"Primary strategy '{strategy.name}' failed: {primary_error}"
-                )
+            fb_result = self._try_fallback_strategies(
+                spec,
+                strategy,
+                primary_error,
+                fallback_strategies,
+                constraints,
+                minimum_version,
+                exclude_prereleases,
+                performance_weight,
+                performance_threshold,
+            )
+            if fb_result is not None:
                 self.selection_history.append(fb_result)
                 return fb_result
             raise VersionSelectionError(
@@ -342,6 +358,42 @@ class VersionSelector:
 
         self.selection_history.append(result)
         return result
+
+    def _try_fallback_strategies(
+        self,
+        spec,
+        primary_strategy,
+        primary_error,
+        fallback_strategies,
+        constraints,
+        minimum_version,
+        exclude_prereleases,
+        performance_weight,
+        performance_threshold,
+    ) -> Optional[VersionSelectionResult]:
+        """Return the first successful fallback selection, if any."""
+        logger.warning("Primary selection strategy failed: %s", primary_error)
+        for fallback in fallback_strategies:
+            if fallback == primary_strategy:
+                continue
+            try:
+                result = self._select_with_strategy(
+                    spec,
+                    fallback,
+                    constraints=constraints,
+                    minimum_version=minimum_version,
+                    exclude_prereleases=exclude_prereleases,
+                    performance_weight=performance_weight,
+                    performance_threshold=performance_threshold,
+                )
+            except VersionSelectionError:
+                continue
+            result.fallback_used = True
+            result.fallback_reason = (
+                f"Primary strategy '{primary_strategy.name}' failed: {primary_error}"
+            )
+            return result
+        return None
 
     def _select_with_strategy(
         self,
@@ -354,84 +406,12 @@ class VersionSelector:
         performance_weight: float,
         performance_threshold: Optional[Dict[str, float]],
     ) -> VersionSelectionResult:
-        available = self.list_available_versions()
-
-        if minimum_version:
-            try:
-                min_parsed = parse_version(minimum_version)
-            except Exception as exc:
-                raise VersionSelectionError(
-                    f"Invalid minimum version: {minimum_version}"
-                ) from exc
-            available = [v for v in available if v >= min_parsed]
-
-        if exclude_prereleases:
-            available = [v for v in available if v.is_stable()]
-
-        if constraints:
-            available = [
-                v for v in available if self.check_version_compatibility(v, constraints)
-            ]
-            stable_only = [v for v in available if v.is_stable()]
-            if stable_only:
-                available = stable_only
-
-        if not available:
-            raise VersionSelectionError("No versions satisfy the given constraints")
-
-        if strategy == VersionSelectionStrategy.LATEST:
-            selected = max(available)
-        elif strategy in (
-            VersionSelectionStrategy.STABLE,
-            VersionSelectionStrategy.LATEST_STABLE,
-        ):
-            stable = [v for v in available if v.is_stable()]
-            if not stable:
-                raise VersionSelectionError("No stable versions available")
-            selected = max(stable)
-        elif strategy in (
-            VersionSelectionStrategy.SPECIFIC,
-            VersionSelectionStrategy.EXACT,
-        ):
-            if not spec:
-                raise VersionSelectionError("Specific version required but not provided")
-            target = parse_version(spec)
-            if target not in available:
-                raise VersionSelectionError(f"Version {target} not available")
-            selected = target
-        elif strategy == VersionSelectionStrategy.COMPATIBLE:
-            if not spec:
-                raise VersionSelectionError(
-                    "Version specification required for compatible selection"
-                )
-            target = parse_version(spec)
-            compatible = [
-                v for v in available if v.major == target.major and v >= target
-            ]
-            # Compatibility selection should prefer stable releases over
-            # prereleases: a caller asking for "compatible with v1.0.0" wants
-            # a drop-in replacement, not v1.2.0-beta. Only fall back to
-            # prereleases if the caller opted in via `exclude_prereleases=False`
-            # (already filtered above) AND no stable version is available.
-            stable_compatible = [v for v in compatible if v.is_stable()]
-            if stable_compatible:
-                compatible = stable_compatible
-            if not compatible:
-                raise VersionSelectionError(
-                    f"No compatible versions found for {target}"
-                )
-            selected = max(compatible)
-        elif strategy == VersionSelectionStrategy.PERFORMANCE_OPTIMIZED:
-            selected = self._select_performance_optimized(
-                available, performance_threshold
-            )
-            if selected is None:
-                raise VersionSelectionError(
-                    "No versions meet the performance threshold"
-                )
-        else:
-            raise VersionSelectionError(f"Unknown selection strategy: {strategy}")
-
+        available = self._filter_available_versions(
+            minimum_version, exclude_prereleases, constraints
+        )
+        selected = self._select_candidate(
+            available, spec, strategy, performance_threshold
+        )
         if performance_weight > 0.0:
             selected = self._apply_performance_weighting(
                 available, selected, performance_weight
@@ -450,6 +430,130 @@ class VersionSelector:
                 "performance_threshold": performance_threshold,
             },
         )
+
+    def _filter_available_versions(
+        self,
+        minimum_version: Optional[str],
+        exclude_prereleases: bool,
+        constraints: Optional[List[str]],
+    ) -> List[SemanticVersion]:
+        """Apply caller constraints to the discovered version set."""
+        available = self.list_available_versions()
+        if minimum_version:
+            available = self._filter_minimum_version(available, minimum_version)
+
+        if exclude_prereleases:
+            available = [v for v in available if v.is_stable()]
+
+        if constraints:
+            available = self._filter_constraints(available, constraints)
+
+        if not available:
+            raise VersionSelectionError("No versions satisfy the given constraints")
+        return available
+
+    @staticmethod
+    def _filter_minimum_version(
+        available: List[SemanticVersion], minimum_version: str
+    ) -> List[SemanticVersion]:
+        try:
+            minimum = parse_version(minimum_version)
+        except Exception as exc:
+            raise VersionSelectionError(
+                f"Invalid minimum version: {minimum_version}"
+            ) from exc
+        return [version for version in available if version >= minimum]
+
+    def _filter_constraints(
+        self, available: List[SemanticVersion], constraints: List[str]
+    ) -> List[SemanticVersion]:
+        constrained = [
+            version
+            for version in available
+            if self.check_version_compatibility(version, constraints)
+        ]
+        stable = [version for version in constrained if version.is_stable()]
+        return stable or constrained
+
+    def _select_candidate(
+        self,
+        available: List[SemanticVersion],
+        spec: Optional[Union[str, SemanticVersion]],
+        strategy: VersionSelectionStrategy,
+        performance_threshold: Optional[Dict[str, float]],
+    ) -> SemanticVersion:
+        """Select one candidate from an already-filtered version set."""
+        selectors = {
+            VersionSelectionStrategy.LATEST: lambda: max(available),
+            VersionSelectionStrategy.STABLE: lambda: self._select_stable(available),
+            VersionSelectionStrategy.SPECIFIC: lambda: self._select_specific(
+                available, spec
+            ),
+            VersionSelectionStrategy.COMPATIBLE: lambda: self._select_compatible(
+                available, spec
+            ),
+            VersionSelectionStrategy.PERFORMANCE_OPTIMIZED: lambda: self._select_by_performance(
+                available, performance_threshold
+            ),
+        }
+        selector = selectors.get(strategy)
+        if selector is None:
+            raise VersionSelectionError(f"Unknown selection strategy: {strategy}")
+        return selector()
+
+    @staticmethod
+    def _select_stable(available: List[SemanticVersion]) -> SemanticVersion:
+        stable = [version for version in available if version.is_stable()]
+        if not stable:
+            raise VersionSelectionError("No stable versions available")
+        return max(stable)
+
+    @staticmethod
+    def _select_specific(
+        available: List[SemanticVersion], spec: Optional[Union[str, SemanticVersion]]
+    ) -> SemanticVersion:
+        if not spec:
+            raise VersionSelectionError("Specific version required but not provided")
+        target = parse_version(spec)
+        if target not in available:
+            raise VersionSelectionError(f"Version {target} not available")
+        return target
+
+    def _select_by_performance(
+        self,
+        available: List[SemanticVersion],
+        threshold: Optional[Dict[str, float]],
+    ) -> SemanticVersion:
+        selected = self._select_performance_optimized(available, threshold)
+        if selected is None:
+            raise VersionSelectionError("No versions meet the performance threshold")
+        return selected
+
+    @staticmethod
+    def _select_compatible(
+        available: List[SemanticVersion],
+        spec: Optional[Union[str, SemanticVersion]],
+    ) -> SemanticVersion:
+        """Select the newest stable-compatible candidate for a version spec."""
+        if not spec:
+            raise VersionSelectionError(
+                "Version specification required for compatible selection"
+            )
+        target = parse_version(spec)
+        compatible = [
+            v for v in available if v.major == target.major and v >= target
+        ]
+        # Compatibility selection should prefer stable releases over
+        # prereleases: a caller asking for "compatible with v1.0.0" wants
+        # a drop-in replacement, not v1.2.0-beta.
+        stable_compatible = [v for v in compatible if v.is_stable()]
+        if stable_compatible:
+            compatible = stable_compatible
+        if not compatible:
+            raise VersionSelectionError(
+                f"No compatible versions found for {target}"
+            )
+        return max(compatible)
 
     def _apply_performance_weighting(
         self,
@@ -486,27 +590,28 @@ class VersionSelector:
         for version in versions:
             info = self.version_cache.get(version)
             perf = info.performance_metrics if info else {}
-            if threshold:
-                ok = True
-                for metric, bound in threshold.items():
-                    if metric not in perf:
-                        ok = False
-                        break
-                    if "latency" in metric.lower() or metric.lower().endswith("_ms"):
-                        if perf[metric] > bound:
-                            ok = False
-                            break
-                    else:
-                        if perf[metric] < bound:
-                            ok = False
-                            break
-                if not ok:
-                    continue
+            if threshold and not self._meets_performance_threshold(perf, threshold):
+                continue
             scored.append((version, self._performance_score(perf)))
         if not scored:
             return None
         scored.sort(key=lambda item: item[1], reverse=True)
         return scored[0][0]
+
+    @staticmethod
+    def _meets_performance_threshold(
+        performance: Dict[str, float], threshold: Dict[str, float]
+    ) -> bool:
+        """Check upper-bound latency metrics and lower-bound throughput metrics."""
+        for metric, bound in threshold.items():
+            if metric not in performance:
+                return False
+            is_upper_bound = "latency" in metric.lower() or metric.lower().endswith("_ms")
+            if is_upper_bound and performance[metric] > bound:
+                return False
+            if not is_upper_bound and performance[metric] < bound:
+                return False
+        return True
 
     @staticmethod
     def _performance_score(perf: Dict[str, float]) -> float:
@@ -578,7 +683,6 @@ class VersionSelector:
     def get_recommended_version(
         self,
         use_case: str = "general",
-        performance_requirements: Optional[Dict[str, float]] = None,
     ) -> Optional[SemanticVersion]:
         stable = self.list_available_versions(stable_only=True)
         if not stable:
