@@ -57,7 +57,7 @@ class SchemaInfo:
 class SchemaGenerator:
     """Configuration schema generator."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize schema generator."""
         self._field_mappings = {
             "str": "string",
@@ -166,7 +166,7 @@ class SchemaGenerator:
 
     def _map_generic_type(self, origin: type) -> str:
         """Map the origin of a generic annotation."""
-        generic_types = {list: "array", dict: "object"}
+        generic_types: Dict[type, str] = {list: "array", dict: "object"}
         return generic_types.get(origin, self._map_type(origin))
 
     def _map_type(self, type_class: type) -> str:
@@ -200,7 +200,7 @@ class SchemaGenerator:
 
     def _group_fields_by_section(self, fields: List[FieldInfo]) -> Dict[str, List[FieldInfo]]:
         """Group fields by configuration section."""
-        sections = {}
+        sections: Dict[str, List[FieldInfo]] = {}
 
         for field_info in fields:
             # Determine section based on field name
@@ -237,7 +237,10 @@ class SchemaGenerator:
         return examples
 
     def export_schema(
-        self, schema_info: SchemaInfo, format: SchemaFormat, output_file: Optional[Path] = None
+        self,
+        schema_info: SchemaInfo,
+        format: SchemaFormat,
+        output_file: Optional[Path] = None,
     ) -> str:
         """
         Export schema in specified format.
@@ -352,7 +355,7 @@ class SchemaGenerator:
             "examples": schema_info.examples,
         }
 
-        return yaml.dump(schema_dict, default_flow_style=False, indent=2)
+        return str(yaml.dump(schema_dict, default_flow_style=False, indent=2))
 
     def _export_markdown(self, schema_info: SchemaInfo) -> str:
         """Export schema as Markdown."""

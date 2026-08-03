@@ -6,7 +6,7 @@ hardware capabilities and performance requirements.
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import torch
 import torch.nn as nn
@@ -40,7 +40,7 @@ class OptimizationManager:
     capabilities and performance requirements.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize optimization manager."""
         self._hardware_detector = HardwareDetector()
         self._cpu_optimizer: Optional[CPUOptimizer] = None
@@ -144,13 +144,13 @@ class OptimizationManager:
 
         # Fallback to standard inference
         with torch.no_grad():
-            return model(inputs)
+            return cast(torch.Tensor, model(inputs))
 
     def get_performance_metrics(self) -> Dict[str, Any]:
         """Get comprehensive performance metrics."""
         metrics = {
             "optimization_applied": self._optimization_applied,
-            "hardware_info": self._hardware_info.__dict__ if self._hardware_info else None,
+            "hardware_info": (self._hardware_info.__dict__ if self._hardware_info else None),
         }
 
         if self._cpu_optimizer:
@@ -364,7 +364,10 @@ class OptimizationManager:
         return profiles
 
     def _select_optimal_profile(
-        self, target_latency_ms: float, target_throughput_rps: int, memory_limit_gb: Optional[float]
+        self,
+        target_latency_ms: float,
+        target_throughput_rps: int,
+        memory_limit_gb: Optional[float],
     ) -> OptimizationProfile:
         """Select the optimal optimization profile based on hardware and requirements."""
         if not self._hardware_info:
@@ -399,6 +402,9 @@ class OptimizationManager:
         self, profile: OptimizationProfile, memory_limit_gb: Optional[float]
     ) -> bool:
         """Check if a profile is suitable for the current hardware."""
+        if self._hardware_info is None:
+            raise RuntimeError("Hardware information not available")
+
         # Check memory requirements
         if memory_limit_gb and memory_limit_gb < profile.memory_limit_gb:
             return False
@@ -413,6 +419,8 @@ class OptimizationManager:
 
     def _meets_cpu_requirements(self, requirements: Dict[str, Any]) -> bool:
         """Return whether the detected CPU satisfies a profile."""
+        if self._hardware_info is None:
+            raise RuntimeError("Hardware information not available")
         cpu = self._hardware_info.cpu
         if cpu.cores < requirements.get("cpu_cores", 0):
             return False
@@ -422,6 +430,8 @@ class OptimizationManager:
 
     def _meets_gpu_requirements(self, requirements: Dict[str, Any]) -> bool:
         """Return whether the detected GPU satisfies a profile."""
+        if self._hardware_info is None:
+            raise RuntimeError("Hardware information not available")
         gpu = self._hardware_info.gpu
         if "gpu_memory_gb" in requirements:
             if not gpu or gpu.memory_gb < requirements["gpu_memory_gb"]:
@@ -431,12 +441,16 @@ class OptimizationManager:
         return not requirements.get("gpu_tensorrt") or bool(gpu and gpu.tensorrt_available)
 
     def _calculate_profile_score(
-        self, profile: OptimizationProfile, target_latency_ms: float, target_throughput_rps: int
+        self,
+        profile: OptimizationProfile,
+        target_latency_ms: float,
+        target_throughput_rps: int,
     ) -> float:
         """Calculate a score for a profile based on performance requirements."""
         # Latency score (lower is better)
         latency_score = max(
-            0, 1.0 - abs(profile.target_latency_ms - target_latency_ms) / target_latency_ms
+            0,
+            1.0 - abs(profile.target_latency_ms - target_latency_ms) / target_latency_ms,
         )
 
         # Throughput score (higher is better)
@@ -489,7 +503,7 @@ class OptimizationManager:
             and float(self._hardware_info.gpu.compute_capability) >= 6.0
         )
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Cleanup all optimizers and resources."""
         if self._cpu_optimizer:
             self._cpu_optimizer.cleanup()
@@ -505,6 +519,6 @@ class OptimizationManager:
 
         self._optimization_applied = False
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Cleanup on destruction."""
         self.cleanup()

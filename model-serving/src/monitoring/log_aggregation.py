@@ -41,7 +41,7 @@ class LogAggregator:
     - Correlation tracking
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize log aggregator."""
         self.entries: List[LogEntry] = []
         self.correlation_map: Dict[str, List[LogEntry]] = defaultdict(list)
@@ -73,7 +73,14 @@ class LogAggregator:
                 k: v
                 for k, v in log_data.items()
                 if k
-                not in {"timestamp", "level", "message", "correlation_id", "logger", "event_type"}
+                not in {
+                    "timestamp",
+                    "level",
+                    "message",
+                    "correlation_id",
+                    "logger",
+                    "event_type",
+                }
             }
 
             entry = LogEntry(
@@ -131,7 +138,7 @@ class LogAggregator:
 
         return None
 
-    def add_log_line(self, line: str):
+    def add_log_line(self, line: str) -> None:
         """Add a log line to the aggregator."""
         entry = self.parse_log_line(line)
         if entry:
@@ -147,13 +154,13 @@ class LogAggregator:
             if entry.level in ["ERROR", "CRITICAL"]:
                 self.error_counts[entry.message] += 1
 
-    def load_from_file(self, file_path: str):
+    def load_from_file(self, file_path: str) -> None:
         """Load logs from a file."""
         with open(file_path, "r", encoding="utf-8") as f:
             for line in f:
                 self.add_log_line(line)
 
-    def load_from_stdin(self):
+    def load_from_stdin(self) -> None:
         """Load logs from stdin."""
         for line in sys.stdin:
             self.add_log_line(line)
@@ -202,7 +209,7 @@ class LogAggregator:
                 request_durations.append(entry.fields["duration_ms"])
 
         # Calculate statistics
-        def calculate_stats(values):
+        def calculate_stats(values: List[float]) -> Dict[str, float | int]:
             if not values:
                 return {}
             values.sort()
@@ -283,18 +290,22 @@ class LogAggregator:
             "end_time": max(entry.timestamp for entry in entries),
         }
 
-    def export_to_json(self, file_path: str):
+    def export_to_json(self, file_path: str) -> None:
         """Export aggregated logs to JSON file."""
         data = {
             "summary": {
                 "total_entries": len(self.entries),
                 "time_range": {
-                    "start": min(entry.timestamp for entry in self.entries).isoformat()
-                    if self.entries
-                    else None,
-                    "end": max(entry.timestamp for entry in self.entries).isoformat()
-                    if self.entries
-                    else None,
+                    "start": (
+                        min(entry.timestamp for entry in self.entries).isoformat()
+                        if self.entries
+                        else None
+                    ),
+                    "end": (
+                        max(entry.timestamp for entry in self.entries).isoformat()
+                        if self.entries
+                        else None
+                    ),
                 },
                 "performance": self.get_performance_summary(),
                 "errors": self.get_error_analysis(),
@@ -317,7 +328,7 @@ class LogAggregator:
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, default=str)
 
-    def print_summary(self):
+    def print_summary(self) -> None:
         """Print a summary of the aggregated logs."""
         summary = self.get_performance_summary()
         errors = self.get_error_analysis()
@@ -356,7 +367,7 @@ class LogAggregator:
             print(f"  {error}: {count}")
 
 
-def main():
+def main() -> None:
     """Main function for command-line usage."""
     parser = argparse.ArgumentParser(description="CarlaRL Log Aggregator")
     parser.add_argument("--file", "-f", help="Log file to analyze")

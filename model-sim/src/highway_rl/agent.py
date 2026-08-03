@@ -32,7 +32,7 @@ class HighwayDQNAgent:
         double_dqn: bool = True,
         dueling_dqn: bool = True,
         use_mixed_precision: bool = True,
-    ):
+    ) -> None:
         """
         Initialize Highway DQN Agent.
 
@@ -74,7 +74,9 @@ class HighwayDQNAgent:
             keras.mixed_precision.set_global_policy(policy)
 
         # Experience replay buffer
-        self.memory = deque(maxlen=memory_size)
+        self.memory: deque[tuple[np.ndarray, int, float, np.ndarray, bool]] = deque(
+            maxlen=memory_size
+        )
 
         # Neural networks
         self.q_network = self._build_network()
@@ -83,7 +85,7 @@ class HighwayDQNAgent:
 
         # Training metrics
         self.training_step = 0
-        self.loss_history = []
+        self.loss_history: list[float] = []
 
     def _build_network(self) -> keras.Model:
         """Build the neural network architecture."""
@@ -208,7 +210,7 @@ class HighwayDQNAgent:
         reward: float,
         next_state: np.ndarray,
         done: bool,
-    ):
+    ) -> None:
         """Store experience in replay buffer."""
         self.memory.append((state, action, reward, next_state, done))
 
@@ -222,7 +224,7 @@ class HighwayDQNAgent:
             state = np.expand_dims(state, axis=0)
 
         q_values = self.q_network.predict(state, verbose=0)
-        return np.argmax(q_values[0])
+        return int(np.argmax(q_values[0]))
 
     def replay(self) -> Dict[str, float]:
         """Train the agent on a batch of experiences."""
@@ -290,11 +292,11 @@ class HighwayDQNAgent:
             "buffer_size": len(self.memory),
         }
 
-    def update_target_network(self):
+    def update_target_network(self) -> None:
         """Update target network with main network weights."""
         self.target_network.set_weights(self.q_network.get_weights())
 
-    def save(self, filepath: str):
+    def save(self, filepath: str) -> None:
         """Save model weights and configuration."""
         # Create directory if it doesn't exist
         os.makedirs(os.path.dirname(filepath), exist_ok=True)
@@ -325,7 +327,7 @@ class HighwayDQNAgent:
         with open(f"{filepath}_config.json", "w") as f:
             json.dump(config, f, indent=2)
 
-    def load(self, filepath: str):
+    def load(self, filepath: str) -> None:
         """Load model weights and configuration."""
         import json
 

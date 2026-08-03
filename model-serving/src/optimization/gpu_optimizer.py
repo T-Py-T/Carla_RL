@@ -8,7 +8,7 @@ mixed precision, and memory management for maximum inference performance.
 import os
 from contextlib import nullcontext
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, cast
 
 import torch
 import torch.nn as nn
@@ -66,7 +66,7 @@ class GPUOptimizer:
         if not hardware_info.gpu:
             return {"error": "No GPU detected"}
 
-        optimizations = {}
+        optimizations: Dict[str, Any] = {}
 
         # Set CUDA device
         if self.config.enable_cuda and hardware_info.gpu.cuda_available:
@@ -167,7 +167,7 @@ class GPUOptimizer:
     ) -> torch.Tensor:
         """Run a model once or concatenate size-limited batches."""
         if not batch_size or batch_size >= inputs.shape[0]:
-            return model(inputs)
+            return cast(torch.Tensor, model(inputs))
 
         results = [
             model(inputs[start : start + batch_size])
@@ -177,7 +177,7 @@ class GPUOptimizer:
 
     def _enable_cuda_optimizations(self) -> Dict[str, Any]:
         """Enable CUDA optimizations for GPU inference."""
-        optimizations = {}
+        optimizations: Dict[str, Any] = {}
 
         # Only claim a CUDA device if the installed torch build can actually
         # create one. Falling back to CPU here keeps downstream helpers like
@@ -205,7 +205,7 @@ class GPUOptimizer:
 
     def _enable_tensorrt_optimizations(self) -> Dict[str, Any]:
         """Enable TensorRT optimizations."""
-        optimizations = {}
+        optimizations: Dict[str, Any] = {}
 
         try:
             # Check if TensorRT is available
@@ -225,7 +225,7 @@ class GPUOptimizer:
 
     def _enable_mixed_precision(self) -> Dict[str, Any]:
         """Enable mixed precision optimizations."""
-        optimizations = {}
+        optimizations: Dict[str, Any] = {}
 
         # `GradScaler` issues a runtime warning and no-ops when CUDA is not
         # present; instantiate it anyway so the attribute is wired up for
@@ -246,7 +246,7 @@ class GPUOptimizer:
 
     def _enable_memory_optimizations(self) -> Dict[str, Any]:
         """Enable GPU memory optimizations."""
-        optimizations = {}
+        optimizations: Dict[str, Any] = {}
 
         # Guard every cuda-specific call with an is_available() check so the
         # optimizer works on CUDA-less hosts (CI boxes, laptops, ARM dev
@@ -271,7 +271,7 @@ class GPUOptimizer:
 
     def _enable_cudnn_optimizations(self) -> Dict[str, Any]:
         """Enable cuDNN optimizations."""
-        optimizations = {}
+        optimizations: Dict[str, Any] = {}
 
         # Enable cuDNN optimizations
         torch.backends.cudnn.enabled = True
@@ -285,7 +285,7 @@ class GPUOptimizer:
 
     def _enable_tensor_core_usage(self) -> Dict[str, Any]:
         """Enable Tensor Core usage for optimized operations."""
-        optimizations = {}
+        optimizations: Dict[str, Any] = {}
 
         # Enable Tensor Core optimizations
         torch.backends.cudnn.allow_tf32 = True
@@ -298,7 +298,7 @@ class GPUOptimizer:
 
     def _enable_jit_optimizations(self) -> Dict[str, Any]:
         """Enable JIT compilation optimizations."""
-        optimizations = {}
+        optimizations: Dict[str, Any] = {}
 
         # Enable JIT optimizations
         torch.jit.set_fusion_strategy([("DYNAMIC", 20)])
@@ -310,7 +310,7 @@ class GPUOptimizer:
 
     def _enable_quantization(self) -> Dict[str, Any]:
         """Enable model quantization for faster inference."""
-        optimizations = {}
+        optimizations: Dict[str, Any] = {}
 
         # Set quantization configuration
         optimizations["quantization_bits"] = self.config.quantization_bits
@@ -347,8 +347,11 @@ class GPUOptimizer:
             if available:
                 torch.backends.quantized.engine = available[0]
         if self.config.quantization_bits == 8:
-            return torch.quantization.quantize_dynamic(
-                model, {nn.Linear, nn.Conv2d}, dtype=torch.qint8
+            return cast(
+                nn.Module,
+                torch.quantization.quantize_dynamic(
+                    model, {nn.Linear, nn.Conv2d}, dtype=torch.qint8
+                ),
             )
         elif self.config.quantization_bits == 16:
             # Use half precision for GPU
@@ -406,7 +409,7 @@ class GPUOptimizer:
 
         return metrics
 
-    def cleanup(self):
+    def cleanup(self) -> None:
         """Cleanup resources and reset optimizations."""
         if self._scaler:
             del self._scaler
@@ -424,6 +427,6 @@ class GPUOptimizer:
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Cleanup on destruction."""
         self.cleanup()

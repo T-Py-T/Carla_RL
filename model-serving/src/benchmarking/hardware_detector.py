@@ -74,7 +74,7 @@ class HardwareDetector:
     optimization recommendations for the Policy-as-a-Service system.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize hardware detector."""
         self._cpu_info: Optional[CPUInfo] = None
         self._gpu_info: Optional[GPUInfo] = None
@@ -192,7 +192,10 @@ class HardwareDetector:
         memory_type = self._detect_memory_type()
 
         self._memory_info = MemoryInfo(
-            total_gb=total_gb, available_gb=available_gb, swap_gb=swap_gb, memory_type=memory_type
+            total_gb=total_gb,
+            available_gb=available_gb,
+            swap_gb=swap_gb,
+            memory_type=memory_type,
         )
 
         return self._memory_info

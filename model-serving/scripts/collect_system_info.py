@@ -288,7 +288,9 @@ def main():
     parser = argparse.ArgumentParser(description="Collect system information for benchmarking")
     parser.add_argument("--output", "-o", help="Output file for system information (JSON)")
     parser.add_argument(
-        "--analysis", action="store_true", help="Include system analysis and recommendations"
+        "--analysis",
+        action="store_true",
+        help="Include system analysis and recommendations",
     )
 
     args = parser.parse_args()

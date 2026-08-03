@@ -6,9 +6,8 @@ ONNX models, and associated metadata with integrity validation.
 """
 
 import hashlib
-import pickle
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import torch
 import torch.nn as nn
@@ -16,6 +15,7 @@ import yaml
 from torch import jit
 
 from .exceptions import ArtifactValidationError, ModelLoadingError
+from .preprocessing import FeaturePreprocessor
 
 
 class PolicyWrapper(nn.Module):
@@ -49,10 +49,10 @@ class PolicyWrapper(nn.Module):
         """Get the device the model is on."""
         return self._device
 
-    def to(self, device: torch.device) -> "PolicyWrapper":
+    def to(self, *args: Any, **kwargs: Any) -> "PolicyWrapper":
         """Move model to specified device."""
-        self.model = self.model.to(device)
-        self._device = device
+        self.model = self.model.to(*args, **kwargs)
+        self._device = next(iter(self.model.parameters()), torch.empty(0)).device
         return self
 
     @torch.no_grad()
@@ -77,17 +77,18 @@ class PolicyWrapper(nn.Module):
                 act = getattr(self.model, "act", None)
                 if callable(act):
                     try:
-                        return act(x, deterministic)
+                        return cast(torch.Tensor, act(x, deterministic))
                     except (TypeError, RuntimeError):
-                        return act(x)
+                        return cast(torch.Tensor, act(x))
                 try:
-                    return self.model(x, deterministic)
+                    return cast(torch.Tensor, self.model(x, deterministic))
                 except (TypeError, RuntimeError):
-                    return self.model(x)
+                    return cast(torch.Tensor, self.model(x))
 
-            if hasattr(self.model, "act"):
-                return self.model.act(x, deterministic)
-            return self.model(x)
+            act = getattr(self.model, "act", None)
+            if callable(act):
+                return cast(torch.Tensor, act(x, deterministic))
+            return cast(torch.Tensor, self.model(x))
 
         except Exception as e:
             raise ModelLoadingError(
@@ -180,12 +181,19 @@ def load_model_card(artifact_dir: Path) -> dict[str, Any]:
 
     if not model_card_path.exists():
         raise ModelLoadingError(
-            f"Model card not found: {model_card_path}", details={"artifact_dir": str(artifact_dir)}
+            f"Model card not found: {model_card_path}",
+            details={"artifact_dir": str(artifact_dir)},
         )
 
     try:
         with open(model_card_path) as f:
             model_card = yaml.safe_load(f)
+
+        if not isinstance(model_card, dict) or not all(isinstance(key, str) for key in model_card):
+            raise ModelLoadingError(
+                "Model card root must be an object with string keys",
+                details={"model_card_path": str(model_card_path)},
+            )
 
         # Validate required fields
         required_fields = ["model_name", "version", "model_type"]
@@ -197,7 +205,7 @@ def load_model_card(artifact_dir: Path) -> dict[str, Any]:
                 details={"model_card_path": str(model_card_path)},
             )
 
-        return model_card
+        return cast(dict[str, Any], model_card)
 
     except yaml.YAMLError as e:
         raise ModelLoadingError(
@@ -232,27 +240,17 @@ def load_pytorch_model(model_path: Path, device: torch.device) -> PolicyWrapper:
 
     except Exception as torchscript_error:
         try:
-            # Fallback to a regular torch.save(nn.Module) pickle. PyTorch 2.6
-            # changed the default of `weights_only` to True, which refuses to
-            # unpickle full nn.Module instances; serving needs to keep loading
-            # those, so we restore the pre-2.6 behaviour explicitly.
-            model = torch.load(str(model_path), map_location=device, weights_only=False)
-
-            # Handle different save formats
-            if isinstance(model, dict):
-                if "model_state_dict" in model:
-                    # Assume we need to reconstruct the model architecture
-                    raise ModelLoadingError(
-                        "Model state dict found but no architecture provided",
-                        details={"available_keys": list(model.keys())},
-                    )
-                elif "model" in model:
-                    model = model["model"]
-
-            if not isinstance(model, nn.Module):
-                raise ModelLoadingError(f"Loaded object is not a PyTorch model: {type(model)}")
-
-            return PolicyWrapper(model, model_type="pytorch")
+            # Inspect data-only checkpoints without allowing arbitrary Python
+            # object construction. State dictionaries still require an
+            # application-owned architecture registry, which this loader does
+            # not have, so reject them with a useful diagnostic.
+            checkpoint = torch.load(str(model_path), map_location=device, weights_only=True)
+            available_keys = list(checkpoint.keys()) if isinstance(checkpoint, dict) else []
+            raise ModelLoadingError(
+                "Safe PyTorch checkpoint loading requires a registered model architecture; "
+                "export this model as TorchScript",
+                details={"available_keys": available_keys},
+            )
 
         except Exception as pytorch_error:
             raise ModelLoadingError(
@@ -264,12 +262,12 @@ def load_pytorch_model(model_path: Path, device: torch.device) -> PolicyWrapper:
             )
 
 
-def load_preprocessor(preprocessor_path: Path) -> Any | None:
+def load_preprocessor(preprocessor_path: Path) -> FeaturePreprocessor | None:
     """
-    Load preprocessor from pickle file.
+    Load a data-only JSON preprocessor artifact.
 
     Args:
-        preprocessor_path: Path to preprocessor.pkl file
+        preprocessor_path: Path to the serialized preprocessor file
 
     Returns:
         Loaded preprocessor object or None if file doesn't exist
@@ -281,9 +279,7 @@ def load_preprocessor(preprocessor_path: Path) -> Any | None:
         return None
 
     try:
-        with open(preprocessor_path, "rb") as f:
-            preprocessor = pickle.load(f)
-        return preprocessor
+        return FeaturePreprocessor.load(preprocessor_path)
 
     except Exception as e:
         raise ModelLoadingError(
@@ -294,7 +290,7 @@ def load_preprocessor(preprocessor_path: Path) -> Any | None:
 
 def load_artifacts(
     artifact_dir: Path, device: torch.device, validate_integrity: bool = True
-) -> tuple[PolicyWrapper, Any | None]:
+) -> tuple[PolicyWrapper, FeaturePreprocessor | None]:
     """
     Load model artifacts from directory.
 
@@ -330,7 +326,10 @@ def load_artifacts(
     if not model_path.exists():
         raise ModelLoadingError(
             f"Model file not found: {model_path}",
-            details={"artifact_dir": str(artifact_dir), "expected_filename": model_filename},
+            details={
+                "artifact_dir": str(artifact_dir),
+                "expected_filename": model_filename,
+            },
         )
 
     # Load model based on type
@@ -345,8 +344,12 @@ def load_artifacts(
         )
 
     # Load preprocessor if available
-    preprocessor_filename = model_card.get("preprocessor_filename", "preprocessor.pkl")
-    preprocessor_path = artifact_dir / preprocessor_filename
+    preprocessor_filename = model_card.get("preprocessor_filename")
+    if preprocessor_filename:
+        preprocessor_path = artifact_dir / preprocessor_filename
+    else:
+        json_path = artifact_dir / "preprocessor.json"
+        preprocessor_path = json_path if json_path.exists() else artifact_dir / "preprocessor.pkl"
     preprocessor = load_preprocessor(preprocessor_path)
 
     return policy, preprocessor

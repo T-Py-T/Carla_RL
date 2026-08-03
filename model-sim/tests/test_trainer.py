@@ -1,7 +1,7 @@
 """Focused behavioral tests for the refactored Highway trainer loop."""
 
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import numpy as np
 

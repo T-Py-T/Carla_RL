@@ -314,7 +314,7 @@ class RollbackManager:
             "version": version_str,
             "exists": True,
             "manifest": manifest.to_dict(),
-            "integrity_status": "valid" if all(integrity_results.values()) else "invalid",
+            "integrity_status": ("valid" if all(integrity_results.values()) else "invalid"),
             "integrity_results": integrity_results,
             "artifacts_count": len(manifest.artifacts),
             "version_dir": str(version_dir),

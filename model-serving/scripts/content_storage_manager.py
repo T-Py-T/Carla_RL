@@ -13,11 +13,14 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Add the package root to the import path when run as a script.
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from versioning import ContentAddressableArtifactManager
-from versioning.content_storage import ContentAddressableStorage, ContentStorageError
+from src.versioning import ContentAddressableArtifactManager
+from src.versioning.content_storage import (
+    ContentAddressableStorage,
+    ContentStorageError,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -168,7 +171,9 @@ def get_content_info(
 
 
 def list_content(
-    storage: ContentAddressableStorage, limit: Optional[int] = None, json_output: bool = False
+    storage: ContentAddressableStorage,
+    limit: Optional[int] = None,
+    json_output: bool = False,
 ) -> None:
     """List all content in storage."""
     content_list = storage.list_content(limit)
@@ -286,7 +291,7 @@ def build_integrity_summary(results: dict[str, bool]) -> dict[str, float | int]:
     """Calculate aggregate integrity figures."""
     total_objects = len(results)
     valid_objects = sum(results.values())
-    integrity_percentage = 0
+    integrity_percentage = 0.0
     if total_objects:
         integrity_percentage = valid_objects / total_objects * 100
     return {

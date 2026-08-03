@@ -324,7 +324,13 @@ def compare_versions(manager: ArtifactManager, version1: str, version2: str, arg
         )
         if args.verbose:
             _print_comparison_details(
-                version1, version2, manifest1, manifest2, changed_artifacts, only_in_v1, only_in_v2
+                version1,
+                version2,
+                manifest1,
+                manifest2,
+                changed_artifacts,
+                only_in_v1,
+                only_in_v2,
             )
 
         # Save comparison if requested
@@ -429,7 +435,9 @@ Examples:
     )
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output")
     parser.add_argument(
-        "--strict", action="store_true", help="Exit with error code on validation failures"
+        "--strict",
+        action="store_true",
+        help="Exit with error code on validation failures",
     )
     parser.add_argument("--output", "-o", help="Output file for reports (JSON format)")
     parser.add_argument("--required", nargs="*", help="List of required artifact files to validate")
@@ -470,7 +478,11 @@ Examples:
     # Execute command
     if args.command == "validate":
         validate_version_artifacts(
-            artifact_manager, integrity_validator, args.version, args.artifacts_dir, args
+            artifact_manager,
+            integrity_validator,
+            args.version,
+            args.artifacts_dir,
+            args,
         )
     elif args.command == "validate-all":
         validate_all_versions(artifact_manager, integrity_validator, args)

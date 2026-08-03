@@ -282,7 +282,10 @@ def main():
     )
 
     parser.add_argument(
-        "--output", "-o", type=str, help="Output file for optimization report (JSON format)"
+        "--output",
+        "-o",
+        type=str,
+        help="Output file for optimization report (JSON format)",
     )
 
     parser.add_argument(

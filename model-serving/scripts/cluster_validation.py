@@ -94,7 +94,13 @@ class ClusterValidator:
 
             if response.status_code == 200:
                 data = response.json()
-                required_fields = ["modelName", "version", "device", "inputShape", "actionSpace"]
+                required_fields = [
+                    "modelName",
+                    "version",
+                    "device",
+                    "inputShape",
+                    "actionSpace",
+                ]
                 missing_fields = [f for f in required_fields if f not in data]
 
                 if not missing_fields:
@@ -514,7 +520,7 @@ class ClusterValidator:
                 details = {
                     "content_length": len(content),
                     "has_prometheus_format": has_prometheus_format,
-                    "sample_metrics": content[:200] + "..." if len(content) > 200 else content,
+                    "sample_metrics": (content[:200] + "..." if len(content) > 200 else content),
                 }
 
                 return TestResult(

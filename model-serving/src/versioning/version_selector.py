@@ -18,6 +18,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -164,10 +165,10 @@ class VersionSelector:
         seen: Dict[SemanticVersion, ModelVersionInfo] = {}
         for version in manager_versions:
             manifest = self._read_manager_value(
-                lambda version=version: self.artifact_manager.get_manifest(version), None
+                partial(self.artifact_manager.get_manifest, version), None
             )
             integrity = self._read_manager_value(
-                lambda version=version: self.artifact_manager.verify_integrity(version), {}
+                partial(self.artifact_manager.verify_integrity, version), {}
             )
             is_available = all(integrity.values()) if integrity else True
             seen[version] = ModelVersionInfo(
@@ -364,15 +365,15 @@ class VersionSelector:
 
     def _try_fallback_strategies(
         self,
-        spec,
-        primary_strategy,
-        primary_error,
-        fallback_strategies,
-        constraints,
-        minimum_version,
-        exclude_prereleases,
-        performance_weight,
-        performance_threshold,
+        spec: Optional[Union[str, SemanticVersion]],
+        primary_strategy: VersionSelectionStrategy,
+        primary_error: VersionSelectionError,
+        fallback_strategies: List[VersionSelectionStrategy],
+        constraints: Optional[List[str]],
+        minimum_version: Optional[str],
+        exclude_prereleases: bool,
+        performance_weight: float,
+        performance_threshold: Optional[Dict[str, float]],
     ) -> Optional[VersionSelectionResult]:
         """Return the first successful fallback selection, if any."""
         logger.warning("Primary selection strategy failed: %s", primary_error)
@@ -723,7 +724,7 @@ class VersionManager:
 
     def get_version_status(self) -> Dict[str, Any]:
         return {
-            "current_version": str(self.current_version) if self.current_version else None,
+            "current_version": (str(self.current_version) if self.current_version else None),
             "available_versions": [str(v) for v in self.selector.list_available_versions()],
             "stable_versions": [
                 str(v) for v in self.selector.list_available_versions(stable_only=True)

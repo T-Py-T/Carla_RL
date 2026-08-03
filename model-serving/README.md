@@ -158,7 +158,7 @@ carla-rl-serving/
 ├── artifacts/             # Model artifacts
 │   └── v0.1.0/           # Version directory
 │       ├── model.pt      # Model file
-│       ├── preprocessor.pkl # Preprocessor
+│       ├── preprocessor.json # Data-only preprocessor state
 │       └── model_card.yaml  # Metadata
 ├── monitoring/            # Monitoring configuration
 ├── k8s/                  # Kubernetes manifests
@@ -233,7 +233,7 @@ carla-rl-serving/
 
 Each model version requires:
 - `model.pt` - PyTorch/TorchScript model file
-- `preprocessor.pkl` - Feature preprocessing pipeline
+- `preprocessor.json` - Data-only feature preprocessing state
 - `model_card.yaml` - Model metadata and configuration
 
 **Example model_card.yaml:**
@@ -250,7 +250,7 @@ performance_metrics:
   success_rate: 0.95
 artifact_hashes:
   model.pt: "sha256:abc123..."
-  preprocessor.pkl: "sha256:def456..."
+  preprocessor.json: "sha256:def456..."
 ```
 
 ## Testing

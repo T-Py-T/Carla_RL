@@ -44,7 +44,9 @@ def create_mock_inference_function():
 
 
 def run_performance_regression_test(
-    config: BenchmarkConfig, baseline_file: Optional[str] = None, threshold_percent: float = 10.0
+    config: BenchmarkConfig,
+    baseline_file: Optional[str] = None,
+    threshold_percent: float = 10.0,
 ) -> Dict[str, Any]:
     """Run performance regression test against baseline."""
 
@@ -102,7 +104,8 @@ def run_performance_regression_test(
             result.latency_stats.p95_ms, baseline_metrics.get("p95_latency_ms", 0)
         )
         throughput_diff = calculate_percentage_diff(
-            result.throughput_stats.requests_per_second, baseline_metrics.get("throughput_rps", 0)
+            result.throughput_stats.requests_per_second,
+            baseline_metrics.get("throughput_rps", 0),
         )
 
         # Check for significant regressions
@@ -163,7 +166,9 @@ def main():
     )
 
     parser.add_argument(
-        "--baseline-file", type=str, help="Path to baseline performance file for comparison"
+        "--baseline-file",
+        type=str,
+        help="Path to baseline performance file for comparison",
     )
 
     parser.add_argument(
@@ -178,7 +183,9 @@ def main():
     )
 
     parser.add_argument(
-        "--exit-on-failure", action="store_true", help="Exit with non-zero code if test fails"
+        "--exit-on-failure",
+        action="store_true",
+        help="Exit with non-zero code if test fails",
     )
 
     args = parser.parse_args()

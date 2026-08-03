@@ -7,7 +7,7 @@ and the existing model loading infrastructure.
 
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from .artifact_manager import ArtifactManager
 from .integrity_validator import IntegrityValidationError, IntegrityValidator
@@ -34,7 +34,7 @@ class ModelLoaderWithIntegrity:
         self.artifacts_dir = Path(artifacts_dir)
         self.artifact_manager = ArtifactManager(self.artifacts_dir)
         self.integrity_validator = IntegrityValidator(self.artifact_manager)
-        self._loaded_models: Dict[str, Any] = {}
+        self._loaded_models: Dict[str, Dict[str, Any]] = {}
 
         logger.info(
             f"Initialized ModelLoaderWithIntegrity with artifacts_dir: {self.artifacts_dir}"
@@ -245,7 +245,7 @@ class ModelLoaderWithIntegrity:
         # This is a placeholder implementation
         # In a real implementation, this would load the actual model files
 
-        model_data = {
+        model_data: Dict[str, Any] = {
             "version": version_dir.name,
             "artifacts_dir": str(version_dir),
             "loaded_at": self._get_current_timestamp(),
@@ -324,12 +324,12 @@ class IntegrityValidationMiddleware:
 
     def validate_and_load(
         self,
-        load_function,
+        load_function: Callable[..., Any],
         version: Union[str, SemanticVersion],
         artifacts_dir: Path,
         required_artifacts: List[str],
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> Any:
         """
         Validate artifacts and then load model using provided function.

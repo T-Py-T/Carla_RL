@@ -98,7 +98,7 @@ def analyze_dependencies(dependencies, gpu, analysis):
 
 def analyze_system_info(system_info: Dict[str, Any]) -> Dict[str, Any]:
     """Analyze system information and provide recommendations."""
-    analysis = {
+    analysis: Dict[str, Any] = {
         "hardware_grade": "Unknown",
         "recommendations": [],
         "capabilities": {},
@@ -151,7 +151,7 @@ def analyze_latency_improvement(optimization, analysis):
 
 def analyze_latency_performance(benchmarks: Dict[str, Any]) -> Dict[str, Any]:
     """Analyze latency performance and validate requirements."""
-    analysis = {
+    analysis: Dict[str, Any] = {
         "p50_requirement_met": False,
         "p50_latency_ms": None,
         "performance_grade": "Unknown",
@@ -171,7 +171,11 @@ def analyze_latency_performance(benchmarks: Dict[str, Any]) -> Dict[str, Any]:
 
 def analyze_throughput_performance(benchmarks: Dict[str, Any]) -> Dict[str, Any]:
     """Analyze throughput performance."""
-    analysis = {"throughput_rps": None, "throughput_grade": "Unknown", "recommendations": []}
+    analysis: Dict[str, Any] = {
+        "throughput_rps": None,
+        "throughput_grade": "Unknown",
+        "recommendations": [],
+    }
 
     if "optimization" not in benchmarks:
         return analysis
@@ -198,7 +202,11 @@ def analyze_throughput_performance(benchmarks: Dict[str, Any]) -> Dict[str, Any]
 
 def analyze_memory_performance(benchmarks: Dict[str, Any]) -> Dict[str, Any]:
     """Analyze memory usage performance."""
-    analysis = {"memory_usage_mb": None, "memory_efficiency": "Unknown", "recommendations": []}
+    analysis: Dict[str, Any] = {
+        "memory_usage_mb": None,
+        "memory_efficiency": "Unknown",
+        "recommendations": [],
+    }
 
     if "optimization" not in benchmarks:
         return analysis
@@ -225,7 +233,11 @@ def analyze_memory_performance(benchmarks: Dict[str, Any]) -> Dict[str, Any]:
 
 def analyze_batch_performance(benchmarks: Dict[str, Any]) -> Dict[str, Any]:
     """Analyze batch size performance scaling."""
-    analysis = {"optimal_batch_size": None, "scaling_efficiency": "Unknown", "recommendations": []}
+    analysis: Dict[str, Any] = {
+        "optimal_batch_size": None,
+        "scaling_efficiency": "Unknown",
+        "recommendations": [],
+    }
 
     if "batch_sizes" not in benchmarks:
         return analysis

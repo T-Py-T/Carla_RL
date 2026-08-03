@@ -13,15 +13,15 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Add the package root to the import path when run as a script.
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from semantic_version import parse_version
-from versioning import (
+from src.versioning import (
     ArtifactManager,
     VersionSelectionError,
     VersionSelectionStrategy,
     VersionSelector,
+    parse_version,
 )
 
 # Configure logging
@@ -53,11 +53,11 @@ def list_versions(artifact_manager: ArtifactManager, stable_only: bool = False) 
     print(f"Available versions ({'stable only' if stable_only else 'all'}):")
     for version in versions:
         version_info = selector.get_version_info(version)
-        status = "✓" if version_info and version_info.is_available else "✗"
+        status = "✓" if version_info["is_available"] else "✗"
         print(f"  {status} {version}")
 
-        if version_info and version_info.performance_metrics:
-            metrics = version_info.performance_metrics
+        metrics = version_info["performance_metrics"]
+        if metrics:
             latency = metrics.get("avg_latency_ms", "N/A")
             throughput = metrics.get("throughput_rps", "N/A")
             print(f"    Performance: {latency}ms latency, {throughput} RPS")
@@ -89,9 +89,11 @@ def select_version(
                 "strategy_used": result.strategy_used.value,
                 "fallback_used": result.fallback_used,
                 "fallback_reason": result.fallback_reason,
-                "available_versions": [str(v) for v in result.available_versions]
-                if result.available_versions
-                else None,
+                "available_versions": (
+                    [str(v) for v in result.available_versions]
+                    if result.available_versions
+                    else None
+                ),
                 "selection_metadata": result.selection_metadata,
             }
             print(json.dumps(output, indent=2))
@@ -125,38 +127,32 @@ def get_version_info(
 
     if json_output:
         output = {
-            "version": str(info.version),
-            "is_available": info.is_available,
-            "integrity_status": info.integrity_status,
-            "last_accessed": info.last_accessed,
-            "usage_count": info.usage_count,
-            "performance_metrics": info.performance_metrics,
-            "manifest": {
-                "version": info.manifest.version,
-                "created_at": info.manifest.created_at,
-                "model_type": info.manifest.model_type,
-                "description": info.manifest.description,
-                "artifacts": info.manifest.artifacts,
-                "dependencies": info.manifest.dependencies,
-                "metadata": info.manifest.metadata,
-            },
+            "version": info["version"],
+            "is_available": info["is_available"],
+            "is_stable": info["is_stable"],
+            "is_prerelease": info["is_prerelease"],
+            "integrity_status": info["integrity_status"],
+            "performance_metrics": info["performance_metrics"],
+            "model_card": info["model_card"],
+            "files": [str(path) for path in info["files"]],
         }
         print(json.dumps(output, indent=2))
     else:
-        print(f"Version: {info.version}")
-        print(f"Available: {info.is_available}")
-        print(f"Integrity Status: {info.integrity_status}")
-        print(f"Usage Count: {info.usage_count}")
+        print(f"Version: {info['version']}")
+        print(f"Available: {info['is_available']}")
+        print(f"Stable: {info['is_stable']}")
+        print(f"Integrity Status: {info['integrity_status']}")
 
-        if info.performance_metrics:
+        if info["performance_metrics"]:
             print("Performance Metrics:")
-            for metric, value in info.performance_metrics.items():
+            for metric, value in info["performance_metrics"].items():
                 print(f"  {metric}: {value}")
 
-        print(f"Created: {info.manifest.created_at}")
-        print(f"Model Type: {info.manifest.model_type}")
-        print(f"Description: {info.manifest.description}")
-        print(f"Artifacts: {len(info.manifest.artifacts)} files")
+        model_card = info["model_card"]
+        if model_card:
+            print(f"Model Type: {model_card.get('model_type', 'N/A')}")
+            print(f"Description: {model_card.get('description', 'N/A')}")
+        print(f"Artifacts: {len(info['files'])} files")
 
 
 def check_compatibility(
@@ -264,7 +260,10 @@ Examples:
     )
     select_parser.add_argument("--constraints", nargs="*", help="Version constraints")
     select_parser.add_argument(
-        "--performance-weight", type=float, default=0.0, help="Performance weighting (0.0-1.0)"
+        "--performance-weight",
+        type=float,
+        default=0.0,
+        help="Performance weighting (0.0-1.0)",
     )
 
     # Info command

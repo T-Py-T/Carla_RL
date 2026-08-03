@@ -216,7 +216,9 @@ def main():
     )
 
     parser.add_argument(
-        "--exit-on-failure", action="store_true", help="Exit with non-zero code if test fails"
+        "--exit-on-failure",
+        action="store_true",
+        help="Exit with non-zero code if test fails",
     )
 
     args = parser.parse_args()

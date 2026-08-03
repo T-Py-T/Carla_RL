@@ -27,7 +27,10 @@ class ContentStorageError(Exception):
     """Exception raised for content storage errors."""
 
     def __init__(
-        self, message: str, content_hash: Optional[str] = None, operation: Optional[str] = None
+        self,
+        message: str,
+        content_hash: Optional[str] = None,
+        operation: Optional[str] = None,
     ):
         super().__init__(message)
         self.content_hash = content_hash
@@ -175,7 +178,9 @@ class ContentAddressableStorage:
                 # Check storage limits
                 if self.max_size and self._get_total_size() + content_size > self.max_size:
                     raise ContentStorageError(
-                        f"Storage limit exceeded: {self.max_size} bytes", content_hash, "store"
+                        f"Storage limit exceeded: {self.max_size} bytes",
+                        content_hash,
+                        "store",
                     )
 
                 # Store content
@@ -554,16 +559,14 @@ class ContentAddressableStorage:
     def _init_database(self) -> None:
         """Initialize the content index database."""
         with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                """
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS content_refs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     content_hash TEXT NOT NULL,
                     data TEXT NOT NULL,
                     UNIQUE(content_hash, id)
                 )
-            """
-            )
+            """)
             conn.commit()
 
     def _get_current_timestamp(self) -> str:

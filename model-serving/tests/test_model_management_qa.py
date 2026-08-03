@@ -50,9 +50,9 @@ class TestModelManagementQA:
     def create_complete_artifacts(self, temp_dir: Path, with_hashes: bool = True) -> None:
         """Create complete test artifacts for QA validation."""
         # Create model
-        model = SimpleTestModel()
+        model = torch.jit.script(SimpleTestModel())
         model_path = temp_dir / "model.pt"
-        torch.save(model, model_path)
+        torch.jit.save(model, model_path)
 
         # Create preprocessor
         observations = [
@@ -62,19 +62,20 @@ class TestModelManagementQA:
         preprocessor = StandardFeaturePreprocessor()
         preprocessor.fit(observations)
 
-        preprocessor_path = temp_dir / "preprocessor.pkl"
+        preprocessor_path = temp_dir / "preprocessor.json"
         preprocessor.save(preprocessor_path)
 
         # Create model card
         model_card_data = {
             "model_name": "test-carla-ppo",
             "version": "v0.1.0",
-            "model_type": "pytorch",
+            "model_type": "torchscript",
             "input_shape": [5],
             "output_shape": [3],
             "framework_version": "2.1.0",
             "description": "Test model for QA validation",
             "performance_metrics": {"reward": 850.5, "success_rate": 0.95},
+            "preprocessor_filename": "preprocessor.json",
         }
 
         if with_hashes:
@@ -90,7 +91,7 @@ class TestModelManagementQA:
 
             model_card_data["artifact_hashes"] = {
                 "model.pt": compute_hash(model_path),
-                "preprocessor.pkl": compute_hash(preprocessor_path),
+                "preprocessor.json": compute_hash(preprocessor_path),
             }
 
         model_card_path = temp_dir / "model_card.yaml"
@@ -122,20 +123,20 @@ class TestModelManagementQA:
 
     def test_qa_fr_2_2_model_loading_formats(self):
         """
-        QA Test: FR-2.2 - Model loading supporting TorchScript and PyTorch formats
+        QA Test: FR-2.2 - Safe model loading and TorchScript support
         """
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
 
-            # Test PyTorch model loading
+            # State dictionaries require an application-owned architecture registry.
             model = SimpleTestModel()
             pytorch_path = temp_path / "pytorch_model.pt"
-            torch.save(model, pytorch_path)
+            torch.save(model.state_dict(), pytorch_path)
 
             from src.model_loader import load_pytorch_model
 
-            pytorch_wrapper = load_pytorch_model(pytorch_path, torch.device("cpu"))
-            assert pytorch_wrapper.model_type == "pytorch"
+            with pytest.raises(ModelLoadingError, match="registered model architecture"):
+                load_pytorch_model(pytorch_path, torch.device("cpu"))
 
             # Test TorchScript model loading
             scripted_model = torch.jit.script(model)
@@ -145,7 +146,7 @@ class TestModelManagementQA:
             torchscript_wrapper = load_pytorch_model(torchscript_path, torch.device("cpu"))
             assert torchscript_wrapper.model_type == "torchscript"
 
-            print("FR-2.2: Model loading formats (PyTorch/TorchScript) validated")
+            print("FR-2.2: Safe state-dict rejection and TorchScript loading validated")
 
     def test_qa_fr_2_3_artifact_integrity_validation(self):
         """
@@ -185,7 +186,7 @@ class TestModelManagementQA:
         preprocessor.fit(observations)
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir) / "preprocessor.pkl"
+            temp_path = Path(temp_dir) / "preprocessor.json"
 
             # Save and load
             preprocessor.save(temp_path)
@@ -215,7 +216,7 @@ class TestModelManagementQA:
 
         # Simulate "serving" preprocessor (loaded from file)
         with tempfile.TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir) / "preprocessor.pkl"
+            temp_path = Path(temp_dir) / "preprocessor.json"
             train_preprocessor.save(temp_path)
             serve_preprocessor = StandardFeaturePreprocessor.load(temp_path)
 
@@ -360,7 +361,11 @@ class TestModelManagementQA:
         QA Test: Model compatibility validation works correctly
         """
         # Valid model card
-        valid_model_card = {"input_shape": [5], "output_shape": [3], "framework_version": "2.1.0"}
+        valid_model_card = {
+            "input_shape": [5],
+            "output_shape": [3],
+            "framework_version": "2.1.0",
+        }
 
         result = validate_model_compatibility(valid_model_card)
         assert result is True

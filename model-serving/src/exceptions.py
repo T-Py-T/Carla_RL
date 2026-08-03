@@ -40,7 +40,10 @@ class ModelLoadingError(CarlaRLServingException):
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
-            message=message, error_code="MODEL_LOADING_ERROR", details=details, status_code=500
+            message=message,
+            error_code="MODEL_LOADING_ERROR",
+            details=details,
+            status_code=500,
         )
 
 
@@ -61,7 +64,10 @@ class InferenceError(CarlaRLServingException):
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
-            message=message, error_code="INFERENCE_ERROR", details=details, status_code=500
+            message=message,
+            error_code="INFERENCE_ERROR",
+            details=details,
+            status_code=500,
         )
 
 
@@ -70,7 +76,10 @@ class PreprocessingError(CarlaRLServingException):
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
-            message=message, error_code="PREPROCESSING_ERROR", details=details, status_code=422
+            message=message,
+            error_code="PREPROCESSING_ERROR",
+            details=details,
+            status_code=422,
         )
 
 
@@ -79,7 +88,10 @@ class ValidationError(CarlaRLServingException):
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
-            message=message, error_code="VALIDATION_ERROR", details=details, status_code=422
+            message=message,
+            error_code="VALIDATION_ERROR",
+            details=details,
+            status_code=422,
         )
 
 
@@ -88,7 +100,10 @@ class ServiceUnavailableError(CarlaRLServingException):
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
-            message=message, error_code="SERVICE_UNAVAILABLE", details=details, status_code=503
+            message=message,
+            error_code="SERVICE_UNAVAILABLE",
+            details=details,
+            status_code=503,
         )
 
 
@@ -97,7 +112,10 @@ class ResourceExhaustedError(CarlaRLServingException):
 
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
-            message=message, error_code="RESOURCE_EXHAUSTED", details=details, status_code=429
+            message=message,
+            error_code="RESOURCE_EXHAUSTED",
+            details=details,
+            status_code=429,
         )
 
 
@@ -116,7 +134,10 @@ def create_error_response(error: Exception, request_id: str | None = None) -> di
         return {
             "error": error.error_code,
             "message": error.message,
-            "details": {**error.details, **({"request_id": request_id} if request_id else {})},
+            "details": {
+                **error.details,
+                **({"request_id": request_id} if request_id else {}),
+            },
             "timestamp": error.timestamp,
         }
     elif isinstance(error, PydanticValidationError):

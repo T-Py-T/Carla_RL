@@ -16,7 +16,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 MODEL_VERSION_TAG = "model.version"
 
@@ -46,7 +46,9 @@ class Span:
     logs: List[Dict[str, Any]] = field(default_factory=list)
     error: Optional[Exception] = None
 
-    def finish(self, status: SpanStatus = SpanStatus.SUCCESS, error: Optional[Exception] = None):
+    def finish(
+        self, status: SpanStatus = SpanStatus.SUCCESS, error: Optional[Exception] = None
+    ) -> None:
         """Finish the span and calculate duration."""
         self.end_time = time.time()
         self.duration_ms = (self.end_time - self.start_time) * 1000
@@ -60,22 +62,22 @@ class Span:
         attach tags inside a `with tracer.trace_...() as span:` block."""
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
         """Finish the span, recording exception state if one propagated."""
         if exc_value is not None:
             self.finish(SpanStatus.ERROR, exc_value)
         elif self.end_time is None:
             self.finish(SpanStatus.SUCCESS)
 
-    def add_tag(self, key: str, value: Any):
+    def add_tag(self, key: str, value: Any) -> None:
         """Add a tag to the span."""
         self.tags[key] = value
 
-    def add_tags(self, tags: Dict[str, Any]):
+    def add_tags(self, tags: Dict[str, Any]) -> None:
         """Add multiple tags to the span."""
         self.tags.update(tags)
 
-    def add_log(self, event: str, fields: Dict[str, Any]):
+    def add_log(self, event: str, fields: Dict[str, Any]) -> None:
         """Add a log entry to the span."""
         self.logs.append({"timestamp": time.time(), "event": event, "fields": fields})
 
@@ -196,7 +198,7 @@ class TracingMiddleware:
         with self._lock:
             return [span for span in self.spans.values() if span.trace_id == trace_id]
 
-    def clear_trace(self, trace_id: str):
+    def clear_trace(self, trace_id: str) -> None:
         """Clear all spans for a trace."""
         with self._lock:
             spans_to_remove = [
@@ -205,7 +207,7 @@ class TracingMiddleware:
             for span_id in spans_to_remove:
                 del self.spans[span_id]
 
-    def clear_old_spans(self, max_age_seconds: int = 3600):
+    def clear_old_spans(self, max_age_seconds: int = 3600) -> None:
         """Clear spans older than specified age."""
         current_time = time.time()
         with self._lock:
@@ -224,7 +226,7 @@ class TracingMiddleware:
         trace_id: Optional[str] = None,
         parent_span_id: Optional[str] = None,
         tags: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> Iterator[Span]:
         """Context manager for creating and managing spans."""
         span = self.start_span(operation_name, trace_id, parent_span_id, tags)
         try:
@@ -241,7 +243,7 @@ class TracingMiddleware:
         endpoint: str,
         request_id: Optional[str] = None,
         user_agent: Optional[str] = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> Span:
         """Start a request tracing span."""
         tags = {
@@ -263,7 +265,7 @@ class TracingMiddleware:
         device: str,
         batch_size: int,
         deterministic: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Span:
         """Start an inference tracing span."""
         tags = {
@@ -277,7 +279,7 @@ class TracingMiddleware:
 
         return self.start_span("inference", tags=tags)
 
-    def trace_model_loading(self, model_version: str, device: str, **kwargs) -> Span:
+    def trace_model_loading(self, model_version: str, device: str, **kwargs: Any) -> Span:
         """Start a model loading tracing span."""
         tags = {
             MODEL_VERSION_TAG: model_version,
@@ -289,7 +291,7 @@ class TracingMiddleware:
 
         return self.start_span("model_loading", tags=tags)
 
-    def trace_model_warmup(self, model_version: str, **kwargs) -> Span:
+    def trace_model_warmup(self, model_version: str, **kwargs: Any) -> Span:
         """Start a model warmup tracing span."""
         tags = {
             MODEL_VERSION_TAG: model_version,
@@ -300,7 +302,7 @@ class TracingMiddleware:
 
         return self.start_span("model_warmup", tags=tags)
 
-    def trace_health_check(self, check_name: str, **kwargs) -> Span:
+    def trace_health_check(self, check_name: str, **kwargs: Any) -> Span:
         """Start a health check tracing span."""
         tags = {
             "health_check.name": check_name,
@@ -324,7 +326,7 @@ class TracingMiddleware:
         error_count = sum(1 for span in spans if span.status == SpanStatus.ERROR)
 
         # Group spans by operation
-        operations = {}
+        operations: Dict[str, List[Span]] = {}
         for span in spans:
             op_name = span.operation_name
             if op_name not in operations:
@@ -338,7 +340,7 @@ class TracingMiddleware:
                 "total_duration_ms": total_duration,
                 "span_count": span_count,
                 "error_count": error_count,
-                "success_rate": (span_count - error_count) / span_count if span_count > 0 else 0,
+                "success_rate": ((span_count - error_count) / span_count if span_count > 0 else 0),
                 "operations": {
                     op_name: {
                         "count": len(op_spans),

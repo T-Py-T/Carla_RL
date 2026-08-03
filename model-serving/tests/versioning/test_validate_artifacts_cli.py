@@ -92,7 +92,12 @@ class TestValidateArtifactsCLI:
         assert exc_info.value.code == 1
 
     def test_validate_version_artifacts_with_output(
-        self, artifact_manager, integrity_validator, sample_artifacts, pinned_artifacts, temp_dir
+        self,
+        artifact_manager,
+        integrity_validator,
+        sample_artifacts,
+        pinned_artifacts,
+        temp_dir,
     ):
         """Test version validation with output file."""
         from scripts.validate_artifacts import validate_version_artifacts
@@ -138,7 +143,12 @@ class TestValidateArtifactsCLI:
         validate_all_versions(artifact_manager, integrity_validator, args)
 
     def test_validate_all_versions_with_output(
-        self, artifact_manager, integrity_validator, sample_artifacts, pinned_artifacts, temp_dir
+        self,
+        artifact_manager,
+        integrity_validator,
+        sample_artifacts,
+        pinned_artifacts,
+        temp_dir,
     ):
         """Test validating all versions with output file."""
         from scripts.validate_artifacts import validate_all_versions
@@ -166,7 +176,12 @@ class TestValidateArtifactsCLI:
         assert "total_versions" in report["summary"]
 
     def test_generate_integrity_report(
-        self, artifact_manager, integrity_validator, sample_artifacts, pinned_artifacts, temp_dir
+        self,
+        artifact_manager,
+        integrity_validator,
+        sample_artifacts,
+        pinned_artifacts,
+        temp_dir,
     ):
         """Test generating integrity report."""
         from scripts.validate_artifacts import generate_integrity_report
@@ -324,7 +339,11 @@ class TestValidateArtifactsCLI:
         # This should raise SystemExit due to invalid version format
         with pytest.raises(SystemExit) as exc_info:
             validate_version_artifacts(
-                artifact_manager, integrity_validator, "invalid-version", sample_artifacts, args
+                artifact_manager,
+                integrity_validator,
+                "invalid-version",
+                sample_artifacts,
+                args,
             )
 
         assert exc_info.value.code == 1
@@ -353,7 +372,12 @@ class TestValidateArtifactsCLI:
         assert exc_info.value.code == 1
 
     def test_validate_version_artifacts_verbose_output(
-        self, artifact_manager, integrity_validator, sample_artifacts, pinned_artifacts, capsys
+        self,
+        artifact_manager,
+        integrity_validator,
+        sample_artifacts,
+        pinned_artifacts,
+        capsys,
     ):
         """Test validation with verbose output."""
         from scripts.validate_artifacts import validate_version_artifacts

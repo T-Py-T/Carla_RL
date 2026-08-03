@@ -156,7 +156,7 @@ def create_test_model(input_size: int = 10, hidden_size: int = 50, output_size: 
         return None
 
 
-def benchmark_latency(model: Any, input_tensor: Any, num_runs: int = 100) -> Dict[str, float]:
+def benchmark_latency(model: Any, input_tensor: Any, num_runs: int = 100) -> Dict[str, float | str]:
     """Benchmark model latency."""
     if model is None:
         return {"error": MODEL_NOT_AVAILABLE}
@@ -200,7 +200,7 @@ def benchmark_latency(model: Any, input_tensor: Any, num_runs: int = 100) -> Dic
 
 def benchmark_throughput(
     model: Any, input_tensor: Any, duration_seconds: float = 10.0
-) -> Dict[str, float]:
+) -> Dict[str, float | str]:
     """Benchmark model throughput."""
     if model is None:
         return {"error": MODEL_NOT_AVAILABLE}
@@ -229,7 +229,7 @@ def benchmark_throughput(
         return {"error": str(e)}
 
 
-def benchmark_memory_usage(model: Any, input_tensor: Any) -> Dict[str, float]:
+def benchmark_memory_usage(model: Any, input_tensor: Any) -> Dict[str, float | str]:
     """Benchmark memory usage."""
     if model is None:
         return {"error": MODEL_NOT_AVAILABLE}
@@ -257,7 +257,7 @@ def benchmark_memory_usage(model: Any, input_tensor: Any) -> Dict[str, float]:
         peak_memory = process.memory_info().rss
         memory_used = peak_memory - initial_memory
 
-        result = {
+        result: Dict[str, float | str] = {
             "cpu_memory_mb": memory_used / (1024 * 1024),
             "peak_memory_mb": peak_memory / (1024 * 1024),
         }
@@ -276,7 +276,7 @@ def run_optimization_benchmarks() -> Dict[str, Any]:
         import torch
         from optimization.optimization_manager import OptimizationManager
 
-        results = {}
+        results: Dict[str, Any] = {}
 
         # Create test model
         model = create_test_model()
@@ -337,7 +337,7 @@ def run_batch_size_benchmarks() -> Dict[str, Any]:
         import torch
         from optimization.optimization_manager import OptimizationManager
 
-        results = {}
+        results: Dict[str, Any] = {}
         batch_sizes = [1, 4, 8, 16, 32]
 
         manager = OptimizationManager()
@@ -375,7 +375,7 @@ def run_hardware_specific_benchmarks() -> Dict[str, Any]:
     try:
         from optimization.optimization_manager import OptimizationManager
 
-        results = {}
+        results: Dict[str, Any] = {}
 
         # Test different optimization profiles
         manager = OptimizationManager()
@@ -466,7 +466,9 @@ def create_parser():
     )
     parser.add_argument("--comprehensive", action="store_true", help="Run comprehensive benchmarks")
     parser.add_argument(
-        "--system-info-only", action="store_true", help="Only collect system information"
+        "--system-info-only",
+        action="store_true",
+        help="Only collect system information",
     )
     return parser
 

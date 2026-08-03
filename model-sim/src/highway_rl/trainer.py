@@ -48,9 +48,9 @@ class HighwayTrainer:
         self.save_frequency = save_frequency
 
         # Training metrics
-        self.episode_rewards = []
-        self.episode_lengths = []
-        self.training_start_time = None
+        self.episode_rewards: List[float] = []
+        self.episode_lengths: List[int] = []
+        self.training_start_time: Optional[float] = None
         self.best_mean_reward = float("-inf")
 
     def train(
@@ -124,6 +124,7 @@ class HighwayTrainer:
                 )
                 break
 
+        assert self.training_start_time is not None
         training_time = time.time() - self.training_start_time
         final_eval = self.evaluate()
         self.save_model("final_model")
@@ -134,9 +135,9 @@ class HighwayTrainer:
             "best_mean_reward": self.best_mean_reward,
             "final_evaluation": final_eval,
             "episodes_per_hour": episodes_trained / (training_time / 3600),
-            "mean_episode_length": np.mean(self.episode_lengths)
-            if self.episode_lengths
-            else 0,
+            "mean_episode_length": (
+                np.mean(self.episode_lengths) if self.episode_lengths else 0
+            ),
             "total_steps": sum(self.episode_lengths),
         }
 
@@ -148,11 +149,13 @@ class HighwayTrainer:
 
         return summary
 
-    def _train_episode(self, max_steps: int):
+    def _train_episode(
+        self, max_steps: int
+    ) -> tuple[float, int, Dict[str, float], float]:
         """Run one training episode and return its aggregate measurements."""
         episode_start_time = time.time()
         state, _ = self.environment.reset()
-        total_reward = 0
+        total_reward = 0.0
         steps = 0
         training_metrics = {}
 
@@ -171,8 +174,13 @@ class HighwayTrainer:
         return total_reward, steps, training_metrics, time.time() - episode_start_time
 
     def _log_episode(
-        self, episode, total_reward, steps, episode_metrics, training_metrics
-    ):
+        self,
+        episode: int,
+        total_reward: float,
+        steps: int,
+        episode_metrics: Dict[str, Any],
+        training_metrics: Dict[str, float],
+    ) -> None:
         """Record an episode and periodically print a concise progress line."""
         if self.logger:
             self.logger.log_episode(
@@ -218,7 +226,7 @@ class HighwayTrainer:
         """Return whether the rolling reward has reached the configured target."""
         if target_reward is None or len(self.episode_rewards) < 100:
             return False
-        return np.mean(self.episode_rewards[-100:]) >= target_reward
+        return bool(np.mean(self.episode_rewards[-100:]) >= target_reward)
 
     def evaluate(self, episodes: Optional[int] = None) -> Dict[str, Any]:
         """
@@ -265,10 +273,10 @@ class HighwayTrainer:
             "individual_rewards": rewards,
         }
 
-    def _evaluate_episode(self):
+    def _evaluate_episode(self) -> tuple[float, int, int, bool]:
         """Run one greedy evaluation episode."""
         state, _ = self.environment.reset()
-        total_reward = 0
+        total_reward = 0.0
         steps = 0
         episode_collisions = 0
         succeeded = False
@@ -321,7 +329,7 @@ class HighwayTrainer:
         else:
             return reward > 10  # Default criteria
 
-    def save_model(self, name: str):
+    def save_model(self, name: str) -> None:
         """Save model with given name."""
         filepath = self.save_dir / name
         self.agent.save(str(filepath))
@@ -332,9 +340,11 @@ class HighwayTrainer:
             "episode_lengths": self.episode_lengths[-100:],
             "best_mean_reward": self.best_mean_reward,
             "scenario": self.environment.scenario,
-            "training_time": time.time() - self.training_start_time
-            if self.training_start_time
-            else 0,
+            "training_time": (
+                time.time() - self.training_start_time
+                if self.training_start_time
+                else 0
+            ),
         }
 
         import json
@@ -342,7 +352,7 @@ class HighwayTrainer:
         with open(f"{filepath}_metadata.json", "w") as f:
             json.dump(metadata, f, indent=2)
 
-    def load_model(self, name: str):
+    def load_model(self, name: str) -> None:
         """Load model with given name."""
         filepath = self.save_dir / name
         self.agent.load(str(filepath))

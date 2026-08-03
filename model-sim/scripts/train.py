@@ -4,6 +4,7 @@ from collections import deque
 from multiprocessing import Array, Process, Queue, Value
 from queue import Empty
 from threading import Thread
+from typing import Any
 
 import settings
 from sources import (
@@ -62,9 +63,11 @@ if __name__ == "__main__":
     episode = Value("L", hparams["episode"] if hparams else 0)
     epsilon = Array(
         "d",
-        hparams["epsilon"]
-        if hparams
-        else [settings.START_EPSILON, settings.EPSILON_DECAY, settings.MIN_EPSILON],
+        (
+            hparams["epsilon"]
+            if hparams
+            else [settings.START_EPSILON, settings.EPSILON_DECAY, settings.MIN_EPSILON]
+        ),
     )
     discount = Value("d", hparams["discount"] if hparams else settings.DISCOUNT)
     update_target_every = Value(
@@ -89,10 +92,10 @@ if __name__ == "__main__":
     )
     weights = Array("c", weights_size.value)
     weights_iteration = Value("L", hparams["weights_iteration"] if hparams else 0)
-    transitions = Queue()
-    tensorboard_stats = Queue()
+    transitions: Any = Queue()
+    tensorboard_stats: Any = Queue()
     trainer_stats = Array("f", [0, 0])
-    carla_check = None
+    carla_check: float | None = None
     episode_stats = Array(
         "d",
         [-(10**6), -(10**6), -(10**6), 0, 0, 0, 0, -(10**6), -(10**6), -(10**6)]
@@ -105,9 +108,11 @@ if __name__ == "__main__":
     optimizer = Array("d", [-1, -1, 0, 0, 0, 0])
     car_npcs = Array(
         "L",
-        hparams["car_npcs"]
-        if hparams
-        else [settings.CAR_NPCS, settings.RESET_CAR_NPC_EVERY_N_TICKS],
+        (
+            hparams["car_npcs"]
+            if hparams
+            else [settings.CAR_NPCS, settings.RESET_CAR_NPC_EVERY_N_TICKS]
+        ),
     )
     pause_agents = []
     for _ in range(settings.AGENTS):
@@ -119,7 +124,7 @@ if __name__ == "__main__":
     carla_frametimes_list = []
     carla_fps_counters = []
     carla_fps = []
-    agents_in_carla_instance = {}
+    agents_in_carla_instance: dict[int, list[Any]] = {}
     for process_no in range(settings.CARLA_HOSTS_NO):
         agents_in_carla_instance[process_no] = []
     for agent in range(settings.AGENTS):
@@ -132,9 +137,9 @@ if __name__ == "__main__":
         agents_in_carla_instance[carla_instance - 1].append(pause_agents[agent])
     for process_no in range(settings.CARLA_HOSTS_NO):
         carla_settings_process_stats = Array("f", [-1, -1, -1, -1, -1, -1])
-        carla_frametimes = Queue()
+        carla_frametimes: Any = Queue()
         carla_frametimes_list.append(carla_frametimes)
-        carla_fps_counter = deque(maxlen=60)
+        carla_fps_counter: deque[float] = deque(maxlen=60)
         carla_fps.append(Value("f", 0))
         carla_fps_counters.append(carla_fps_counter)
         carla_settings_stats.append(carla_settings_process_stats)
@@ -191,7 +196,7 @@ if __name__ == "__main__":
 
     # Start one new process for each agent
     print("Starting agents...")
-    agents = []
+    agents: list[Process] = []
     for agent in range(settings.AGENTS):
         carla_instance = (
             1
@@ -331,6 +336,7 @@ if __name__ == "__main__":
         # When Carla restarts, give it up to 60 seconds, then try again if failed
         if (
             stop.value == STOP.restarting_carla_simulator
+            and carla_check is not None
             and time.time() > carla_check + 60
         ):
             stop.value = STOP.carla_simulator_error
@@ -345,8 +351,8 @@ if __name__ == "__main__":
             trainer_process.join()
 
             # The same for all agents
-            for agent in agents:
-                agent.join()
+            for agent_process in agents:
+                agent_process.join()
 
             # ... and Carla settings
             for process_no in range(settings.CARLA_HOSTS_NO):

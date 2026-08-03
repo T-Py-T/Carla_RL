@@ -63,7 +63,6 @@ dev = [
     "pytest-asyncio>=1.0.0",
     "pytest-cov>=7.0.0",
     "httpx>=0.28.0",
-    "black>=26.0.0",
     "ruff>=0.15.0",
     "mypy>=2.1.0",
     "pre-commit>=4.0.0",
@@ -97,25 +96,6 @@ packages = ["src"]
 [tool.hatch.version]
 path = "src/version.py"
 pattern = "MODEL_VERSION = \"(?P<version>[^\"]+)\""
-
-# Black code formatting
-[tool.black]
-line-length = 100
-target-version = ['py312']
-include = '\.pyi?$'
-extend-exclude = '''
-/(
-  # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | build
-  | dist
-)/
-'''
 
 # Ruff linting
 [tool.ruff]
@@ -171,6 +151,9 @@ module = [
     "torch.*",
     "numpy.*",
     "yaml.*",
+    "psutil.*",
+    "tensorrt.*",
+    "toml.*",
 ]
 ignore_missing_imports = true
 

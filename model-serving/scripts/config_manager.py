@@ -11,10 +11,10 @@ import json
 import sys
 from pathlib import Path
 
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Add the package root to the import path when run as a script.
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config import (
+from src.config import (
     AppConfig,
     ConfigValidator,
     SchemaFormat,
@@ -23,7 +23,7 @@ from config import (
     generate_schema_docs,
     load_config,
 )
-from config.settings import Environment
+from src.config.settings import Environment
 
 OUTPUT_FORMAT_HELP = "Output format"
 OUTPUT_FILE_HELP = "Output file path"
@@ -59,7 +59,10 @@ def main():
     validate_parser = subparsers.add_parser("validate", help="Validate configuration")
     validate_parser.add_argument("--config", "-c", required=True, help="Configuration file path")
     validate_parser.add_argument(
-        "--format", choices=["text", "json", "yaml"], default="text", help=OUTPUT_FORMAT_HELP
+        "--format",
+        choices=["text", "json", "yaml"],
+        default="text",
+        help=OUTPUT_FORMAT_HELP,
     )
 
     # Diff command
@@ -67,7 +70,10 @@ def main():
     diff_parser.add_argument("config1", help="First configuration file")
     diff_parser.add_argument("config2", help="Second configuration file")
     diff_parser.add_argument(
-        "--format", choices=["text", "json", "yaml"], default="text", help=OUTPUT_FORMAT_HELP
+        "--format",
+        choices=["text", "json", "yaml"],
+        default="text",
+        help=OUTPUT_FORMAT_HELP,
     )
     diff_parser.add_argument("--output", "-o", help=OUTPUT_FILE_HELP)
 
@@ -110,7 +116,7 @@ def main():
 def handle_load_command(args) -> int:
     """Handle load command."""
     # Load configuration
-    config = load_config(config_file=args.config, env_prefix=args.env_prefix)
+    config: AppConfig = load_config(config_file=args.config, env_prefix=args.env_prefix)
 
     # Validate if requested
     if args.validate:
@@ -179,7 +185,7 @@ def handle_generate_command(args) -> int:
 def handle_validate_command(args) -> int:
     """Handle validate command."""
     # Load configuration
-    config = load_config(config_file=args.config)
+    config: AppConfig = load_config(config_file=args.config)
 
     # Validate
     validator = ConfigValidator()
@@ -237,8 +243,8 @@ def handle_validate_command(args) -> int:
 def handle_diff_command(args) -> int:
     """Handle diff command."""
     # Load configurations
-    config1 = load_config(config_file=args.config1)
-    config2 = load_config(config_file=args.config2)
+    config1: AppConfig = load_config(config_file=args.config1)
+    config2: AppConfig = load_config(config_file=args.config2)
 
     # Compare
     diff_result = compare_configs(config1, config2)

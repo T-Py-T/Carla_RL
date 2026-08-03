@@ -362,11 +362,15 @@ Examples:
     parser.add_argument("--artifacts-dir", required=True, help="Path to artifacts directory")
 
     parser.add_argument(
-        "--version", help="Specific version to report on (if not provided, reports on all versions)"
+        "--version",
+        help="Specific version to report on (if not provided, reports on all versions)",
     )
 
     parser.add_argument(
-        "--format", choices=["text", "json", "csv"], default="text", help="Output format"
+        "--format",
+        choices=["text", "json", "csv"],
+        default="text",
+        help="Output format",
     )
 
     parser.add_argument("--output", "-o", help="Output file (if not provided, prints to stdout)")
@@ -374,7 +378,9 @@ Examples:
     parser.add_argument("--no-metadata", action="store_true", help="Exclude metadata from report")
 
     parser.add_argument(
-        "--no-artifacts", action="store_true", help="Exclude artifact details from report"
+        "--no-artifacts",
+        action="store_true",
+        help="Exclude artifact details from report",
     )
 
     parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")

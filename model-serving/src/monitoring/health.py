@@ -51,7 +51,7 @@ class HealthChecker:
     - Custom health checks
     """
 
-    def __init__(self, app_state: Optional[Dict[str, Any]] = None):
+    def __init__(self, app_state: Optional[Dict[str, Any]] = None) -> None:
         """Initialize health checker with optional app state reference."""
         self.app_state = app_state or {}
         self.checks: List[Tuple[str, Callable[[], HealthCheckResult]]] = []
@@ -60,7 +60,7 @@ class HealthChecker:
         # Register default health checks
         self._register_default_checks()
 
-    def _register_default_checks(self):
+    def _register_default_checks(self) -> None:
         """Register default health checks."""
         self.add_check("model_loaded", self._check_model_loaded)
         self.add_check("model_warmed_up", self._check_model_warmed_up)
@@ -71,7 +71,7 @@ class HealthChecker:
         self.add_check("gpu_availability", self._check_gpu_availability)
         self.add_check("service_uptime", self._check_service_uptime)
 
-    def add_check(self, name: str, check_func: Callable[[], HealthCheckResult]):
+    def add_check(self, name: str, check_func: Callable[[], HealthCheckResult]) -> None:
         """Add a custom health check."""
         self.checks.append((name, check_func))
 
@@ -413,7 +413,9 @@ class HealthChecker:
 
         for _, check_func in self.checks:
 
-            async def run_check(check_func: Callable[[], HealthCheckResult]):
+            async def run_check(
+                check_func: Callable[[], HealthCheckResult],
+            ) -> HealthCheckResult:
                 # Run CPU-bound check in thread pool
                 loop = asyncio.get_event_loop()
                 return await loop.run_in_executor(None, check_func)
@@ -423,9 +425,9 @@ class HealthChecker:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         # Handle any exceptions
-        processed_results = []
+        processed_results: List[HealthCheckResult] = []
         for i, result in enumerate(results):
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 check_name = self.checks[i][0]
                 processed_results.append(
                     HealthCheckResult(
@@ -470,7 +472,7 @@ class HealthChecker:
             return HealthStatus.UNKNOWN
 
         # Count statuses
-        status_counts = {}
+        status_counts: Dict[HealthStatus, int] = {}
         for result in results:
             status_counts[result.status] = status_counts.get(result.status, 0) + 1
 
@@ -494,13 +496,17 @@ class HealthChecker:
         total_duration_ms = (time.time() - start_time) * 1000
 
         # Group results by status
-        status_groups = {}
+        status_groups: Dict[str, List[Dict[str, Any]]] = {}
         for result in results:
             status = result.status.value
             if status not in status_groups:
                 status_groups[status] = []
             status_groups[status].append(
-                {"name": result.name, "message": result.message, "duration_ms": result.duration_ms}
+                {
+                    "name": result.name,
+                    "message": result.message,
+                    "duration_ms": result.duration_ms,
+                }
             )
 
         return {
@@ -532,7 +538,9 @@ def get_health_checker(app_state: Optional[Dict[str, Any]] = None) -> HealthChec
     return _health_checker
 
 
-def initialize_health_checker(app_state: Optional[Dict[str, Any]] = None) -> HealthChecker:
+def initialize_health_checker(
+    app_state: Optional[Dict[str, Any]] = None,
+) -> HealthChecker:
     """Initialize the global health checker."""
     global _health_checker
     _health_checker = HealthChecker(app_state)

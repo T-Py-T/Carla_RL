@@ -23,7 +23,11 @@ class Observation(BaseModel):
 
     model_config = ConfigDict(
         json_schema_extra={
-            "example": {"speed": 25.5, "steering": 0.1, "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]}
+            "example": {
+                "speed": 25.5,
+                "steering": 0.1,
+                "sensors": [0.8, 0.2, 0.5, 0.9, 0.1],
+            }
         }
     )
 
@@ -70,10 +74,16 @@ class Action(BaseModel):
         description="Throttle intensity (0.0 = no throttle, 1.0 = full throttle)",
     )
     brake: float = Field(
-        ..., ge=0.0, le=1.0, description="Brake intensity (0.0 = no brake, 1.0 = full brake)"
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Brake intensity (0.0 = no brake, 1.0 = full brake)",
     )
     steer: float = Field(
-        ..., ge=-1.0, le=1.0, description="Steering angle (-1.0 = full left, 1.0 = full right)"
+        ...,
+        ge=-1.0,
+        le=1.0,
+        description="Steering angle (-1.0 = full left, 1.0 = full right)",
     )
 
 
@@ -88,7 +98,11 @@ class PredictRequest(BaseModel):
         json_schema_extra={
             "example": {
                 "observations": [
-                    {"speed": 25.5, "steering": 0.1, "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]}
+                    {
+                        "speed": 25.5,
+                        "steering": 0.1,
+                        "sensors": [0.8, 0.2, 0.5, 0.9, 0.1],
+                    }
                 ],
                 "deterministic": True,
             }
@@ -96,10 +110,14 @@ class PredictRequest(BaseModel):
     )
 
     observations: list[Observation] = Field(
-        ..., min_length=1, max_length=1000, description="Batch of observations to process"
+        ...,
+        min_length=1,
+        max_length=1000,
+        description="Batch of observations to process",
     )
     deterministic: bool | None = Field(
-        default=False, description="Whether to use deterministic inference (reproducible outputs)"
+        default=False,
+        description="Whether to use deterministic inference (reproducible outputs)",
     )
 
 
@@ -161,7 +179,11 @@ class MetadataResponse(BaseModel):
                 "version": EXAMPLE_MODEL_VERSION,
                 "device": "cpu",
                 "inputShape": [5],
-                "actionSpace": {"throttle": [0.0, 1.0], "brake": [0.0, 1.0], "steer": [-1.0, 1.0]},
+                "actionSpace": {
+                    "throttle": [0.0, 1.0],
+                    "brake": [0.0, 1.0],
+                    "steer": [-1.0, 1.0],
+                },
             }
         }
     )

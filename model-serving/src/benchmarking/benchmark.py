@@ -7,7 +7,7 @@ test scenarios for validating performance requirements.
 
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import psutil
@@ -63,7 +63,7 @@ class LatencyStats:
     outlier_count: int = 0
     outlier_percentage: float = 0.0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Calculate additional statistics after initialization."""
         self.median_ms = self.p50_ms
         self.variance_ms2 = self.std_ms**2
@@ -157,7 +157,10 @@ class BenchmarkEngine:
         return observations
 
     def measure_latency(
-        self, inference_func: Callable, observations: List[Dict[str, Any]], iterations: int
+        self,
+        inference_func: Callable,
+        observations: List[Dict[str, Any]],
+        iterations: int,
     ) -> LatencyStats:
         """Measure inference latency with comprehensive statistical analysis."""
         latencies = []
@@ -385,7 +388,7 @@ class BenchmarkEngine:
         times_lock = threading.Lock()
         errors_lock = threading.Lock()
 
-        def worker():
+        def worker() -> None:
             nonlocal successful_requests, failed_requests
             while time.perf_counter() < end_time:
                 request_start = time.perf_counter()
@@ -426,7 +429,10 @@ class BenchmarkEngine:
         )
 
     def measure_memory_usage(
-        self, inference_func: Callable, observations: List[Dict[str, Any]], iterations: int
+        self,
+        inference_func: Callable,
+        observations: List[Dict[str, Any]],
+        iterations: int,
     ) -> MemoryStats:
         """Measure memory usage during inference with comprehensive profiling."""
         import gc
@@ -510,7 +516,7 @@ class BenchmarkEngine:
         slope, _ = np.polyfit(x, memory_samples, 1)
 
         # If memory consistently grows by more than 1MB per iteration, consider it a leak
-        return slope > 1.0
+        return bool(slope > 1.0)
 
     def _calculate_memory_fragmentation(self, memory_samples: np.ndarray) -> float:
         """Calculate memory fragmentation based on variance in memory usage."""
@@ -590,13 +596,15 @@ class BenchmarkEngine:
             "gpu": {
                 "model": hardware_info.gpu.model if hardware_info.gpu else None,
                 "memory_gb": hardware_info.gpu.memory_gb if hardware_info.gpu else 0.0,
-                "compute_capability": hardware_info.gpu.compute_capability
-                if hardware_info.gpu
-                else None,
-                "cuda_available": hardware_info.gpu.cuda_available if hardware_info.gpu else False,
-                "tensorrt_available": hardware_info.gpu.tensorrt_available
-                if hardware_info.gpu
-                else False,
+                "compute_capability": (
+                    hardware_info.gpu.compute_capability if hardware_info.gpu else None
+                ),
+                "cuda_available": (
+                    hardware_info.gpu.cuda_available if hardware_info.gpu else False
+                ),
+                "tensorrt_available": (
+                    hardware_info.gpu.tensorrt_available if hardware_info.gpu else False
+                ),
             },
             "memory": {
                 "total_gb": hardware_info.memory.total_gb,
@@ -732,10 +740,12 @@ class BenchmarkEngine:
         # Normalize metrics (lower is better for latency, higher is better for throughput)
         latency_score = max(0, 1.0 - (result.latency_stats.p50_ms / self.config.p50_threshold_ms))
         throughput_score = min(
-            1.0, result.throughput_stats.requests_per_second / self.config.throughput_threshold_rps
+            1.0,
+            result.throughput_stats.requests_per_second / self.config.throughput_threshold_rps,
         )
         memory_score = max(
-            0, 1.0 - (result.memory_stats.peak_memory_mb / self.config.max_memory_usage_mb)
+            0,
+            1.0 - (result.memory_stats.peak_memory_mb / self.config.max_memory_usage_mb),
         )
 
         # Efficiency score (throughput per unit of memory)
@@ -887,7 +897,10 @@ class BenchmarkEngine:
 
         try:
             with open(filepath, "r") as f:
-                return json.load(f)
+                loaded = json.load(f)
+                if not isinstance(loaded, dict):
+                    raise ValueError("Baseline root must be an object")
+                return cast(Dict[str, Any], loaded)
         except Exception as e:
             print(f"Error loading baseline {hardware_signature}: {e}")
             return None
@@ -917,10 +930,12 @@ class BenchmarkEngine:
             current_result.latency_stats.p99_ms, baseline_metrics["p99_latency_ms"]
         )
         throughput_diff = self._calculate_percentage_diff(
-            current_result.throughput_stats.requests_per_second, baseline_metrics["throughput_rps"]
+            current_result.throughput_stats.requests_per_second,
+            baseline_metrics["throughput_rps"],
         )
         memory_diff = self._calculate_percentage_diff(
-            current_result.memory_stats.peak_memory_mb, baseline_metrics["memory_usage_mb"]
+            current_result.memory_stats.peak_memory_mb,
+            baseline_metrics["memory_usage_mb"],
         )
 
         # Determine if performance improved or degraded
@@ -970,7 +985,7 @@ class BenchmarkEngine:
             "summary": {
                 "improved_metrics": improvements,
                 "total_metrics": total_metrics,
-                "performance_trend": "improved" if overall_improvement > 0.5 else "degraded",
+                "performance_trend": ("improved" if overall_improvement > 0.5 else "degraded"),
             },
         }
 
@@ -1011,7 +1026,7 @@ class BenchmarkEngine:
 
     def _format_result_report(self, index: int, result: BenchmarkResult) -> List[str]:
         """Format one detailed benchmark result."""
-        batch_size = "Unknown"
+        batch_size: str | int = "Unknown"
         if index <= len(result.config.batch_sizes):
             batch_size = result.config.batch_sizes[index - 1]
         status = lambda passed: "✓" if passed else "✗"

@@ -13,11 +13,11 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+# Add the package root to the import path when run as a script.
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from versioning import ArtifactManager, MigrationError, MigrationManager
-from versioning.migration_manager import create_builtin_migration_steps
+from src.versioning import ArtifactManager, MigrationError, MigrationManager
+from src.versioning.migration_manager import create_builtin_migration_steps
 
 # Configure logging
 logging.basicConfig(
@@ -69,7 +69,9 @@ def list_migration_plans(migration_manager: MigrationManager, json_output: bool 
 
 
 def list_migration_results(
-    migration_manager: MigrationManager, status: Optional[str] = None, json_output: bool = False
+    migration_manager: MigrationManager,
+    status: Optional[str] = None,
+    json_output: bool = False,
 ) -> None:
     """List migration results."""
     results = migration_manager.list_migration_results(status)
@@ -351,12 +353,20 @@ Examples:
 
         elif args.command == "create-plan":
             create_migration_plan(
-                migration_manager, args.from_version, args.to_version, args.description, args.json
+                migration_manager,
+                args.from_version,
+                args.to_version,
+                args.description,
+                args.json,
             )
 
         elif args.command == "execute":
             execute_migration(
-                migration_manager, args.plan_id, not args.no_backup, not args.no_validate, args.json
+                migration_manager,
+                args.plan_id,
+                not args.no_backup,
+                not args.no_validate,
+                args.json,
             )
 
         elif args.command == "rollback":

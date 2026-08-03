@@ -402,7 +402,10 @@ def get_default_profile(environment: Environment) -> ConfigProfile:
         Default environment profile
     """
     manager = ProfileManager()
-    return manager.get_environment_profile(environment)
+    profile = manager.get_environment_profile(environment)
+    if profile is None:
+        raise ValueError(f"No default profile registered for {environment.value}")
+    return profile
 
 
 def apply_profile_to_config(config: AppConfig, profile_name: str) -> AppConfig:

@@ -82,7 +82,9 @@ class PerformanceValidator:
         self._load_baselines()
 
     def validate_requirements(
-        self, benchmark_result: BenchmarkResult, requirements: Optional[Dict[str, float]] = None
+        self,
+        benchmark_result: BenchmarkResult,
+        requirements: Optional[Dict[str, float]] = None,
     ) -> ValidationResult:
         """Validate benchmark results against performance requirements."""
 
@@ -128,7 +130,8 @@ class PerformanceValidator:
                 benchmark_result.latency_stats.p99_ms, baseline.p99_latency_ms
             )
             throughput_vs_baseline = self._calculate_percentage_diff(
-                benchmark_result.throughput_stats.requests_per_second, baseline.throughput_rps
+                benchmark_result.throughput_stats.requests_per_second,
+                baseline.throughput_rps,
             )
             memory_vs_baseline = self._calculate_percentage_diff(
                 benchmark_result.memory_stats.peak_memory_mb, baseline.memory_usage_mb
@@ -214,9 +217,11 @@ class PerformanceValidator:
         baseline = PerformanceBaseline(
             hardware_signature=hardware_signature,
             cpu_model=benchmark_result.hardware_info.get("cpu", {}).get("model", "Unknown"),
-            gpu_model=benchmark_result.hardware_info.get("gpu", {}).get("model")
-            if benchmark_result.hardware_info.get("gpu")
-            else None,
+            gpu_model=(
+                benchmark_result.hardware_info.get("gpu", {}).get("model")
+                if benchmark_result.hardware_info.get("gpu")
+                else None
+            ),
             memory_gb=benchmark_result.hardware_info.get("memory", {}).get("total_gb", 0.0),
             p50_latency_ms=benchmark_result.latency_stats.p50_ms,
             p95_latency_ms=benchmark_result.latency_stats.p95_ms,

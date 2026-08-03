@@ -9,7 +9,7 @@ import os
 import time
 import uuid
 from contextlib import asynccontextmanager
-from typing import Any
+from typing import Any, AsyncIterator, Awaitable, Callable, cast
 
 import uvicorn
 from fastapi import Depends, FastAPI, Request, Response
@@ -37,6 +37,7 @@ from .monitoring import (
     get_tracer,
     initialize_metrics,
 )
+from .monitoring.tracing import SpanStatus
 from .version import APP_NAME, GIT_SHA, MODEL_NAME, MODEL_VERSION
 
 # Global state for model and inference engine
@@ -48,7 +49,7 @@ app_state: dict[str, Any] = {
 }
 
 
-def get_inference_engine():
+def get_inference_engine() -> Any:
     """Dependency to get the inference engine with validation."""
     if not app_state["model_loaded"] or app_state["inference_engine"] is None:
         raise ServiceUnavailableError(
@@ -59,7 +60,7 @@ def get_inference_engine():
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """FastAPI lifespan context manager for startup and shutdown."""
     # Startup
     app_state["startup_time"] = time.time()
@@ -92,7 +93,7 @@ async def lifespan(app: FastAPI):
 
         # Select version using intelligent version selection
         print(f"Discovering model versions in: {artifacts_root}")
-        selected_version = None
+        selected_version: Any = None
 
         try:
             selected_version = get_version_from_environment(
@@ -196,7 +197,9 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=os.getenv("ALLOWED_HOSTS
 
 
 @app.middleware("http")
-async def add_request_id_middleware(request: Request, call_next):
+async def add_request_id_middleware(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
     """Add unique request ID to each request for tracing."""
     request_id = str(uuid.uuid4())
     request.state.request_id = request_id
@@ -263,7 +266,7 @@ async def add_request_id_middleware(request: Request, call_next):
         )
 
         # Finish tracing span with error
-        tracer.finish_span(span.span_id, status="error", error=e)
+        tracer.finish_span(span.span_id, status=SpanStatus.ERROR, error=e)
 
         raise
     finally:
@@ -278,7 +281,7 @@ async def add_request_id_middleware(request: Request, call_next):
 
 # Register exception handlers
 for exception_type, handler in EXCEPTION_HANDLERS.items():
-    app.add_exception_handler(exception_type, handler)
+    app.add_exception_handler(exception_type, cast(Any, handler))
 
 
 @app.get("/healthz", response_model=HealthResponse, tags=["Health"])
@@ -321,7 +324,9 @@ async def health_check() -> HealthResponse:
 
 
 @app.get("/metadata", response_model=MetadataResponse, tags=["Model"])
-async def get_metadata(inference_engine=Depends(get_inference_engine)) -> MetadataResponse:
+async def get_metadata(
+    inference_engine: Any = Depends(get_inference_engine),
+) -> MetadataResponse:
     """
     Get model metadata and configuration.
 
@@ -350,7 +355,9 @@ async def get_metadata(inference_engine=Depends(get_inference_engine)) -> Metada
 
 
 @app.post("/warmup", response_model=WarmupResponse, tags=["Model"])
-async def warmup_model(inference_engine=Depends(get_inference_engine)) -> WarmupResponse:
+async def warmup_model(
+    inference_engine: Any = Depends(get_inference_engine),
+) -> WarmupResponse:
     """
     Warm up the model with dummy inference.
 
@@ -396,7 +403,9 @@ async def warmup_model(inference_engine=Depends(get_inference_engine)) -> Warmup
         except Exception as e:
             # Record error metrics
             metrics.record_error(
-                error_type=type(e).__name__, endpoint="/warmup", model_version=model_version
+                error_type=type(e).__name__,
+                endpoint="/warmup",
+                model_version=model_version,
             )
 
             # Log error
@@ -413,7 +422,7 @@ async def warmup_model(inference_engine=Depends(get_inference_engine)) -> Warmup
 
 @app.post("/predict", response_model=PredictResponse, tags=["Inference"])
 async def predict(
-    request: PredictRequest, inference_engine=Depends(get_inference_engine)
+    request: PredictRequest, inference_engine: Any = Depends(get_inference_engine)
 ) -> PredictResponse:
     """
     Perform batch inference on observations.
@@ -467,7 +476,9 @@ async def predict(
         except Exception as e:
             # Record error metrics
             metrics.record_error(
-                error_type=type(e).__name__, endpoint="/predict", model_version=model_version
+                error_type=type(e).__name__,
+                endpoint="/predict",
+                model_version=model_version,
             )
 
             # Log error

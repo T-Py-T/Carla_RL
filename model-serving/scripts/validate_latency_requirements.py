@@ -89,7 +89,7 @@ def analyze_latency_distribution(latency_stats) -> Dict[str, Any]:
     """Analyze latency distribution characteristics."""
 
     # Calculate distribution characteristics
-    distribution_analysis = {
+    distribution_analysis: Dict[str, Any] = {
         "percentiles": {
             "p50": latency_stats.p50_ms,
             "p90": latency_stats.p90_ms,
@@ -239,11 +239,16 @@ def main():
     )
 
     parser.add_argument(
-        "--output", "-o", type=str, help="Output file for validation results (JSON format)"
+        "--output",
+        "-o",
+        type=str,
+        help="Output file for validation results (JSON format)",
     )
 
     parser.add_argument(
-        "--exit-on-failure", action="store_true", help="Exit with non-zero code if validation fails"
+        "--exit-on-failure",
+        action="store_true",
+        help="Exit with non-zero code if validation fails",
     )
 
     args = parser.parse_args()

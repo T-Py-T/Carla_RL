@@ -62,7 +62,7 @@ class ValidationResult:
     errors: List[ValidationIssue]
     summary: Dict[str, int]
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Categorize issues by severity."""
         self.warnings = [i for i in self.issues if i.severity == ValidationSeverity.WARNING]
         self.errors = [i for i in self.issues if i.severity == ValidationSeverity.ERROR]
@@ -80,7 +80,7 @@ class ValidationResult:
 class ConfigValidator:
     """Configuration validator with comprehensive validation rules."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize configuration validator."""
         self._validators: Dict[str, List[Callable]] = {}
         self._custom_rules: List[Callable] = []
@@ -462,7 +462,7 @@ def validate_model_config(config: AppConfig) -> List[ValidationIssue]:
     issues = []
     model_config = config.model
 
-    if not model_config.model_path.exists():
+    if model_config.model_path is not None and not model_config.model_path.exists():
         issues.append(
             ValidationIssue(
                 field="model.model_path",
@@ -561,7 +561,11 @@ def format_validation_result(result: ValidationResult) -> str:
     lines.append(f"Info: {result.summary['info']}")
     lines.append("")
 
-    for severity in [ValidationSeverity.ERROR, ValidationSeverity.WARNING, ValidationSeverity.INFO]:
+    for severity in [
+        ValidationSeverity.ERROR,
+        ValidationSeverity.WARNING,
+        ValidationSeverity.INFO,
+    ]:
         lines.extend(_format_severity_issues(result.issues, severity))
 
     return "\n".join(lines)

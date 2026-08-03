@@ -8,7 +8,7 @@ environment variables > configuration files > default values.
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Type, TypeVar, Union
+from typing import Any, Dict, List, Optional, Type, TypeVar, Union, cast
 
 import yaml
 
@@ -139,7 +139,7 @@ class ConfigLoader:
         self.sources.append(("default", config))
         return self
 
-    def load_config(self, config_class: Type[T] = AppConfig) -> T:
+    def load_config(self, config_class: Optional[Type[T]] = None) -> T:
         """
         Load configuration using hierarchical sources.
 
@@ -153,8 +153,11 @@ class ConfigLoader:
             ValidationError: If configuration validation fails
             FileNotFoundError: If required files are missing
         """
+        if config_class is None:
+            config_class = cast(Type[T], AppConfig)
+
         # Start with empty configuration
-        config_data = {}
+        config_data: Dict[str, Any] = {}
 
         # Load from sources in order (defaults first, env last)
         for source_type, source_value in self.sources:
@@ -186,24 +189,28 @@ class ConfigLoader:
 
     def _load_file(self, file_path: str) -> Dict[str, Any]:
         """Load configuration from file."""
-        file_path = Path(file_path)
-        suffix = file_path.suffix.lower()
+        path = Path(file_path)
+        suffix = path.suffix.lower()
 
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(path, "r", encoding="utf-8") as f:
             if suffix == ".json":
-                return json.load(f)
+                loaded = json.load(f)
             elif suffix in [".yaml", ".yml"]:
-                return yaml.safe_load(f)
+                loaded = yaml.safe_load(f)
             elif suffix == ".toml":
                 import toml
 
-                return toml.load(f)
+                loaded = toml.load(f)
             else:
                 raise ValueError(f"Unsupported file format: {suffix}")
 
+        if not isinstance(loaded, dict) or not all(isinstance(key, str) for key in loaded):
+            raise ValueError("Configuration root must be an object with string keys")
+        return cast(Dict[str, Any], loaded)
+
     def _load_env_file(self, file_path: str) -> Dict[str, Any]:
         """Load configuration from environment file."""
-        env_data = {}
+        env_data: Dict[str, Any] = {}
 
         with open(file_path, "r", encoding="utf-8") as f:
             for line in f:
@@ -218,7 +225,7 @@ class ConfigLoader:
 
     def _load_env_vars(self, prefix: str = "") -> Dict[str, Any]:
         """Load configuration from environment variables."""
-        env_data = {}
+        env_data: Dict[str, Any] = {}
 
         for key, value in os.environ.items():
             if prefix and not key.startswith(prefix.upper()):
@@ -314,7 +321,7 @@ class ConfigLoader:
 def load_config(
     config_file: Optional[Union[str, Path]] = None,
     env_prefix: str = "APP_",
-    config_class: Type[T] = AppConfig,
+    config_class: Optional[Type[T]] = None,
 ) -> T:
     """
     Convenience function to load configuration.
@@ -327,6 +334,9 @@ def load_config(
     Returns:
         Loaded configuration object
     """
+    if config_class is None:
+        config_class = cast(Type[T], AppConfig)
+
     loader = ConfigLoader()
 
     # Add default source

@@ -9,7 +9,7 @@ import json
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union, cast
 
 import yaml
 from deepdiff import DeepDiff
@@ -49,7 +49,7 @@ class DiffResult:
     summary: Dict[str, int] = field(default_factory=dict)
     categories: Dict[str, List[DiffItem]] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Categorize differences and create summary."""
         if not self.summary:
             self.summary = {"added": 0, "removed": 0, "changed": 0, "unchanged": 0}
@@ -71,7 +71,7 @@ class DiffResult:
 class ConfigDiff:
     """Configuration difference calculator."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize configuration diff calculator."""
         self._ignore_paths: Set[str] = set()
         self._custom_comparators: Dict[str, Callable[..., Any]] = {}
@@ -106,7 +106,10 @@ class ConfigDiff:
 
         # Use DeepDiff for comparison
         diff = DeepDiff(
-            dict1, dict2, ignore_order=True, exclude_paths=ignore_paths or self._ignore_paths
+            dict1,
+            dict2,
+            ignore_order=True,
+            exclude_paths=ignore_paths or self._ignore_paths,
         )
 
         # Convert DeepDiff result to our format
@@ -208,7 +211,12 @@ class ConfigDiff:
     def _get_change_severity(self, path: str) -> str:
         """Determine severity of configuration change."""
         # Critical paths that should be errors
-        critical_paths = ["security.enabled", "server.port", "model.model_path", "database.backend"]
+        critical_paths = [
+            "security.enabled",
+            "server.port",
+            "model.model_path",
+            "database.backend",
+        ]
 
         if any(critical in path for critical in critical_paths):
             return "error"
@@ -299,11 +307,15 @@ def _load_config_from_file(
 
     with open(file_path, "r", encoding="utf-8") as f:
         if file_format == "json":
-            return json.load(f)
+            loaded = json.load(f)
         elif file_format in ["yaml", "yml"]:
-            return yaml.safe_load(f) or {}
+            loaded = yaml.safe_load(f) or {}
         else:
             raise ValueError(f"Unsupported format: {file_format}")
+
+    if not isinstance(loaded, dict) or not all(isinstance(key, str) for key in loaded):
+        raise ValueError("Configuration root must be an object with string keys")
+    return cast(Dict[str, Any], loaded)
 
 
 def format_diff_result(result: DiffResult, format: str = "text") -> str:
@@ -322,7 +334,7 @@ def format_diff_result(result: DiffResult, format: str = "text") -> str:
     elif format == "json":
         return json.dumps(_diff_result_to_dict(result), indent=2)
     elif format == "yaml":
-        return yaml.dump(_diff_result_to_dict(result), default_flow_style=False, indent=2)
+        return str(yaml.dump(_diff_result_to_dict(result), default_flow_style=False, indent=2))
     else:
         raise ValueError(f"Unsupported format: {format}")
 
@@ -477,7 +489,7 @@ def _apply_deployment_rule(
         return len([item for item in diff_result.items if "security" in item.path]) == 0
 
     elif rule_name == "max_changes":
-        max_changes = rule_config.get("max_changes", 10)
+        max_changes = int(rule_config.get("max_changes", 10))
         return diff_result.total_changes <= max_changes
 
     elif rule_name == "allowed_categories":

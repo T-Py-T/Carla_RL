@@ -25,7 +25,7 @@ class WandBLogger:
         experiment_name: Optional[str] = None,
         config: Optional[Dict] = None,
         log_system_metrics: bool = True,
-    ):
+    ) -> None:
         """
         Initialize W&B logger.
 
@@ -80,7 +80,7 @@ class WandBLogger:
         episode_metrics: Dict[str, Any],
         agent_metrics: Optional[Dict[str, Any]] = None,
         model_metrics: Optional[Dict[str, Any]] = None,
-    ):
+    ) -> None:
         """
         Log episode metrics.
 
@@ -123,7 +123,7 @@ class WandBLogger:
 
     def log_training_step(
         self, step_metrics: Dict[str, Any], model_weights: Optional[Dict] = None
-    ):
+    ) -> None:
         """
         Log training step metrics.
 
@@ -154,7 +154,7 @@ class WandBLogger:
         self,
         eval_metrics: Dict[str, Any],
         scenario_breakdown: Optional[Dict[str, Dict]] = None,
-    ):
+    ) -> None:
         """
         Log evaluation results.
 
@@ -180,7 +180,7 @@ class WandBLogger:
 
     def log_model_comparison(
         self, model_name: str, comparison_metrics: Dict[str, float]
-    ):
+    ) -> None:
         """Log model comparison metrics."""
         log_data = {}
         for metric, value in comparison_metrics.items():
@@ -219,7 +219,7 @@ class WandBLogger:
 
     def log_hyperparameter_sweep(
         self, sweep_config: Dict[str, Any], best_metrics: Dict[str, float]
-    ):
+    ) -> None:
         """Log hyperparameter sweep results."""
         wandb.log(
             {
@@ -234,7 +234,7 @@ class WandBLogger:
         model_path: str,
         model_name: str = "highway_dqn_model",
         metadata: Optional[Dict] = None,
-    ):
+    ) -> None:
         """Save model as W&B artifact."""
         artifact = wandb.Artifact(
             name=model_name, type="model", metadata=metadata or {}
@@ -243,7 +243,7 @@ class WandBLogger:
         artifact.add_file(model_path)
         wandb.log_artifact(artifact)
 
-    def finish(self):
+    def finish(self) -> None:
         """Finish W&B run."""
         total_time = time.time() - self.start_time
         wandb.log(
@@ -269,7 +269,7 @@ class TensorBoardLogger:
         self.writer = tf.summary.create_file_writer(str(self.log_dir))
         self.step = 0
 
-    def log_scalar(self, name: str, value: float, step: Optional[int] = None):
+    def log_scalar(self, name: str, value: float, step: Optional[int] = None) -> None:
         """Log scalar value."""
         if step is None:
             step = self.step
@@ -277,7 +277,9 @@ class TensorBoardLogger:
         with self.writer.as_default():
             tf.summary.scalar(name, value, step=step)
 
-    def log_histogram(self, name: str, values: np.ndarray, step: Optional[int] = None):
+    def log_histogram(
+        self, name: str, values: np.ndarray, step: Optional[int] = None
+    ) -> None:
         """Log histogram."""
         if step is None:
             step = self.step
@@ -285,7 +287,9 @@ class TensorBoardLogger:
         with self.writer.as_default():
             tf.summary.histogram(name, values, step=step)
 
-    def log_image(self, name: str, image: np.ndarray, step: Optional[int] = None):
+    def log_image(
+        self, name: str, image: np.ndarray, step: Optional[int] = None
+    ) -> None:
         """Log image."""
         if step is None:
             step = self.step
@@ -293,11 +297,11 @@ class TensorBoardLogger:
         with self.writer.as_default():
             tf.summary.image(name, image, step=step)
 
-    def flush(self):
+    def flush(self) -> None:
         """Flush writer."""
         self.writer.flush()
 
-    def close(self):
+    def close(self) -> None:
         """Close writer."""
         self.writer.close()
 
@@ -312,9 +316,9 @@ class MultiLogger:
         config: Optional[Dict] = None,
         use_wandb: bool = True,
         use_tensorboard: bool = True,
-    ):
+    ) -> None:
         """Initialize multi-logger."""
-        self.loggers = []
+        self.loggers: list[WandBLogger | TensorBoardLogger] = []
 
         if use_wandb:
             self.wandb_logger = WandBLogger(project_name, experiment_name, config)
@@ -327,9 +331,9 @@ class MultiLogger:
     def log_episode(
         self,
         episode_metrics: Dict,
-        agent_metrics: Dict = None,
-        model_metrics: Dict = None,
-    ):
+        agent_metrics: Optional[Dict] = None,
+        model_metrics: Optional[Dict] = None,
+    ) -> None:
         """Log to all loggers."""
         if hasattr(self, "wandb_logger"):
             self.wandb_logger.log_episode(episode_metrics, agent_metrics, model_metrics)
@@ -346,7 +350,17 @@ class MultiLogger:
                 for key, value in agent_metrics.items():
                     self.tb_logger.log_scalar(f"agent/{key}", value)
 
-    def finish(self):
+    def log_evaluation(self, eval_metrics: Dict[str, Any]) -> None:
+        """Log evaluation metrics to the configured backends."""
+        if hasattr(self, "wandb_logger"):
+            self.wandb_logger.log_evaluation(eval_metrics)
+
+        if hasattr(self, "tb_logger"):
+            for key, value in eval_metrics.items():
+                if isinstance(value, (int, float)):
+                    self.tb_logger.log_scalar(f"eval/{key}", value)
+
+    def finish(self) -> None:
         """Finish all loggers."""
         if hasattr(self, "wandb_logger"):
             self.wandb_logger.finish()

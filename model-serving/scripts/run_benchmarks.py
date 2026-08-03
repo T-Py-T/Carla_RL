@@ -130,7 +130,10 @@ Examples:
 
     # Output options
     parser.add_argument(
-        "--output", "-o", type=str, help="Output file for detailed results (JSON format)"
+        "--output",
+        "-o",
+        type=str,
+        help="Output file for detailed results (JSON format)",
     )
 
     parser.add_argument("--report", type=str, help="Generate human-readable report to file")
@@ -139,7 +142,9 @@ Examples:
 
     # Hardware detection
     parser.add_argument(
-        "--detect-hardware", action="store_true", help="Show hardware information and exit"
+        "--detect-hardware",
+        action="store_true",
+        help="Show hardware information and exit",
     )
 
     # Validation options

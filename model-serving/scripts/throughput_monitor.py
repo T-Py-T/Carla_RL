@@ -55,11 +55,13 @@ class ThroughputMonitor:
         self.alerts: List[ThroughputAlert] = []
         self.throughput_history: List[Dict[str, Any]] = []
         self.monitoring = False
-        self.alert_queue = queue.Queue()
+        self.alert_queue: queue.Queue[ThroughputAlert] = queue.Queue()
 
         # Create benchmark configuration for monitoring
         self.config = BenchmarkConfig(
-            warmup_iterations=2, measurement_iterations=10, throughput_threshold_rps=threshold_rps
+            warmup_iterations=2,
+            measurement_iterations=10,
+            throughput_threshold_rps=threshold_rps,
         )
         self.engine = BenchmarkEngine(self.config)
 
@@ -288,7 +290,11 @@ def main():
     )
 
     parser.add_argument(
-        "--interval", "-i", type=int, default=30, help="Check interval in seconds (default: 30)"
+        "--interval",
+        "-i",
+        type=int,
+        default=30,
+        help="Check interval in seconds (default: 30)",
     )
 
     parser.add_argument(
@@ -313,7 +319,10 @@ def main():
     )
 
     parser.add_argument(
-        "--output", "-o", type=str, help="Output file for monitoring summary (JSON format)"
+        "--output",
+        "-o",
+        type=str,
+        help="Output file for monitoring summary (JSON format)",
     )
 
     args = parser.parse_args()

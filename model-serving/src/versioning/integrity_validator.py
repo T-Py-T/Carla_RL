@@ -145,7 +145,8 @@ class IntegrityValidator:
                 return {
                     artifact: manifest.artifacts.get(artifact) for artifact in required_artifacts
                 }
-            return manifest.artifacts
+            artifacts: Dict[str, Optional[str]] = dict(manifest.artifacts)
+            return artifacts
 
         message = f"No manifest found for version {version}"
         report["errors"].append(message)
@@ -356,7 +357,7 @@ class IntegrityValidator:
         self._validation_cache.clear()
         logger.debug("Validation cache cleared")
 
-    def get_cache_stats(self) -> Dict[str, int]:
+    def get_cache_stats(self) -> Dict[str, Any]:
         """Get validation cache statistics."""
         return {
             "cached_validations": len(self._validation_cache),
@@ -378,7 +379,7 @@ class ModelLoaderIntegrityMixin:
     model loading classes to add automatic integrity validation.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._integrity_validator: Optional[IntegrityValidator] = None
         self._validation_enabled = True

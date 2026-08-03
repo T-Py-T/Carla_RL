@@ -188,11 +188,7 @@ class TestConfigLoader:
             loader = ConfigLoader(Path(temp_dir))
 
             # Create invalid config data
-            invalid_data = {
-                "server": {
-                    "port": 99999  # Invalid port
-                }
-            }
+            invalid_data = {"server": {"port": 99999}}  # Invalid port
 
             # Create the file first
             invalid_file = Path(temp_dir) / "invalid.json"

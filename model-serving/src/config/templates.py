@@ -6,7 +6,7 @@ and environment-specific template management.
 """
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -21,17 +21,14 @@ class ConfigTemplate:
 
     name: str
     description: str = ""
-    environment: Optional[Environment] = None
+    environment: Optional[ConfigEnvironment] = None
     template_content: str = ""
-    variables: Dict[str, Any] = None
-    dependencies: Optional[List[str]] = None
+    variables: Dict[str, Any] = field(default_factory=dict)
+    dependencies: List[str] = field(default_factory=list)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize default values."""
-        if self.variables is None:
-            self.variables = {}
-        if self.dependencies is None:
-            self.dependencies = []
+        # Defaults are created per instance by ``default_factory``.
 
     def render(self, context: Optional[Dict[str, Any]] = None) -> str:
         """
@@ -433,7 +430,7 @@ cache:
     def generate_config(
         self,
         template_name: str,
-        environment: Environment,
+        environment: ConfigEnvironment,
         context: Optional[Dict[str, Any]] = None,
         output_file: Optional[Path] = None,
     ) -> str:
@@ -461,7 +458,7 @@ cache:
 def create_template(
     name: str,
     content: str,
-    environment: Optional[Environment] = None,
+    environment: Optional[ConfigEnvironment] = None,
     variables: Optional[Dict[str, Any]] = None,
     description: str = "",
 ) -> ConfigTemplate:
@@ -487,7 +484,7 @@ def create_template(
     )
 
 
-def create_environment_template(environment: Environment) -> ConfigTemplate:
+def create_environment_template(environment: ConfigEnvironment) -> ConfigTemplate:
     """
     Create template for specific environment.
 
@@ -498,12 +495,15 @@ def create_environment_template(environment: Environment) -> ConfigTemplate:
         Environment-specific template
     """
     engine = TemplateEngine()
-    return engine.get_template(environment.value)
+    template = engine.get_template(environment.value)
+    if template is None:
+        raise ValueError(f"No template registered for {environment.value}")
+    return template
 
 
 def generate_config_from_template(
     template_name: str,
-    environment: Environment,
+    environment: ConfigEnvironment,
     context: Optional[Dict[str, Any]] = None,
     output_file: Optional[Path] = None,
 ) -> str:
