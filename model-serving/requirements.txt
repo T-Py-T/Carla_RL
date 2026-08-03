@@ -91,52 +91,24 @@ prometheus-client==0.25.0
     # via carla-rl-serving
 psutil==7.2.2
     # via carla-rl-serving
+# Runtime + test dependencies for the CarlaRL model-serving image.
+# Pins mirror the resolved versions in uv.lock; keep them in sync with
+# pyproject.toml when bumping. Requires Python >=3.12 (numpy 2.5 wheels).
+fastapi==0.139.0
+uvicorn[standard]==0.50.0
 pydantic==2.13.4
-    # via
-    #   carla-rl-serving
-    #   fastapi
-pydantic-core==2.46.4
-    # via pydantic
-python-dotenv==1.2.2
-    # via uvicorn
-python-multipart==0.0.27
-    # via carla-rl-serving
+python-multipart==0.0.32
 pyyaml==6.0.3
-    # via
-    #   carla-rl-serving
-    #   uvicorn
-requests==2.33.1
-    # via carla-rl-serving
-setuptools==81.0.0
-    # via torch
-starlette==1.0.0
-    # via fastapi
-sympy==1.14.0
-    # via torch
 toml==0.10.2
-    # via carla-rl-serving
-torch==2.11.0
-    # via carla-rl-serving
-triton==3.6.0 ; sys_platform == 'linux'
-    # via torch
-typing-extensions==4.15.0
-    # via
-    #   fastapi
-    #   pydantic
-    #   pydantic-core
-    #   torch
-    #   typing-inspection
-typing-inspection==0.4.2
-    # via
-    #   fastapi
-    #   pydantic
-urllib3==2.7.0
-    # via requests
-uvicorn==0.46.0
-    # via carla-rl-serving
-uvloop==0.22.1 ; platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'
-    # via uvicorn
-watchfiles==1.1.1
-    # via uvicorn
-websockets==16.0
-    # via uvicorn
+prometheus-client==0.25.0
+jinja2==3.1.6
+watchdog==6.0.0
+deepdiff==9.1.0
+psutil==7.2.2
+torch==2.13.0
+numpy==2.5.1
+requests==2.34.2
+httpx==0.28.1
+pytest==9.1.1
+pytest-asyncio==1.4.0
+pytest-cov==7.1.0

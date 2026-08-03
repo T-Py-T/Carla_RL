@@ -2,17 +2,17 @@
 Unit tests for benchmark engine.
 """
 
-import pytest
 import time
-import numpy as np
 from unittest.mock import Mock, patch
 
+import numpy as np
+import pytest
 from src.benchmarking.benchmark import (
-    BenchmarkEngine,
     BenchmarkConfig,
+    BenchmarkEngine,
     LatencyStats,
-    ThroughputStats,
     MemoryStats,
+    ThroughputStats,
 )
 
 
@@ -272,8 +272,7 @@ class TestBenchmarkEngine:
         assert "torch_version" in hardware_info
         assert "python_version" in hardware_info
 
-    @pytest.mark.asyncio
-    async def test_run_benchmark(self):
+    def test_run_benchmark(self):
         """Test running complete benchmark."""
         config = BenchmarkConfig(warmup_iterations=2, measurement_iterations=5)
         engine = BenchmarkEngine(config)
@@ -283,7 +282,7 @@ class TestBenchmarkEngine:
             time.sleep(0.001)  # 1ms
             return [{"throttle": 0.5, "brake": 0.0, "steer": 0.1}] * len(observations)
 
-        result = await engine.run_benchmark(mock_inference, batch_size=1)
+        result = engine.run_benchmark(mock_inference, batch_size=1)
 
         assert result.config == config
         assert result.p50_requirement_met is not None

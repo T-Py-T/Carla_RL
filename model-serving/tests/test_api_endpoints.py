@@ -8,6 +8,7 @@ in the suite.
 """
 
 
+
 class TestHealthEndpoint:
     """Test cases for /healthz endpoint."""
 

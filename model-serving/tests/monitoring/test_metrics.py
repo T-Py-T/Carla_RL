@@ -226,6 +226,7 @@ class TestMetricsCollector:
         collector = MetricsCollector()
         
         content_type = collector.get_metrics_content_type()
+
         assert content_type == CONTENT_TYPE_LATEST
     
     @patch('psutil.cpu_percent')

@@ -263,24 +263,18 @@ class InferenceEngine:
             else:
                 features = to_feature_matrix(observations)
 
-            # Convert to tensor
-            if isinstance(features, np.ndarray):
-                # Try to reuse pre-allocated tensor
-                batch_size, feature_dim = features.shape
-                if batch_size <= self.max_batch_size:
-                    try:
-                        tensor = self._get_or_create_tensor(batch_size, feature_dim)
-                        tensor[:batch_size, :feature_dim] = torch.from_numpy(features)
-                        input_tensor = tensor[:batch_size, :feature_dim]
-                    except Exception:
-                        # Fallback to direct tensor creation
-                        input_tensor = torch.from_numpy(features).to(
-                            self.device, dtype=torch.float32
-                        )
-                else:
+            # Convert to tensor, reusing pre-allocated storage where possible.
+            batch_size, feature_dim = features.shape
+            if batch_size <= self.max_batch_size:
+                try:
+                    tensor = self._get_or_create_tensor(batch_size, feature_dim)
+                    tensor[:batch_size, :feature_dim] = torch.from_numpy(features)
+                    input_tensor = tensor[:batch_size, :feature_dim]
+                except Exception:
+                    # Fallback to direct tensor creation
                     input_tensor = torch.from_numpy(features).to(self.device, dtype=torch.float32)
             else:
-                input_tensor = features.to(self.device, dtype=torch.float32)
+                input_tensor = torch.from_numpy(features).to(self.device, dtype=torch.float32)
 
             preprocessing_time_ms = (time.perf_counter() - start_time) * 1000.0
             return input_tensor, preprocessing_time_ms
@@ -290,9 +284,9 @@ class InferenceEngine:
                 f"Preprocessing failed: {str(e)}",
                 details={
                     "num_observations": len(observations),
-                    "preprocessor_type": type(self.preprocessor).__name__
-                    if self.preprocessor
-                    else "minimal",
+                    "preprocessor_type": (
+                        type(self.preprocessor).__name__ if self.preprocessor else "minimal"
+                    ),
                 },
             )
 
@@ -335,7 +329,10 @@ class InferenceEngine:
             )
 
     def predict(
-        self, observations: list[Observation], deterministic: bool = False, use_cache: bool = True
+        self,
+        observations: list[Observation],
+        deterministic: bool = False,
+        use_cache: bool = True,
     ) -> tuple[list[Action], float]:
         """
         Perform inference on batch of observations.
@@ -374,7 +371,7 @@ class InferenceEngine:
             if self.cache and use_cache:
                 cached_result = self.cache.get(observations, deterministic)
                 if cached_result is not None:
-                    actions, cached_time = cached_result
+                    actions, _ = cached_result
                     # Return cached result with minimal timing overhead
                     total_time_ms = (time.perf_counter() - total_start_time) * 1000.0
                     return actions, total_time_ms
@@ -401,7 +398,10 @@ class InferenceEngine:
 
             # Update metrics
             self.metrics.add_request(
-                batch_size, inference_time_ms, preprocessing_time_ms, postprocessing_time_ms
+                batch_size,
+                inference_time_ms,
+                preprocessing_time_ms,
+                postprocessing_time_ms,
             )
 
             return actions, total_time_ms
@@ -454,7 +454,10 @@ class InferenceEngine:
         except Exception as e:
             raise InferenceError(
                 f"Warmup failed: {str(e)}",
-                details={"warmup_batches": warmup_batches, "warmup_batch_size": warmup_batch_size},
+                details={
+                    "warmup_batches": warmup_batches,
+                    "warmup_batch_size": warmup_batch_size,
+                },
             )
 
     def get_performance_stats(self) -> dict[str, Any]:
@@ -521,7 +524,7 @@ class InferenceEngine:
 
     def get_memory_usage(self) -> dict[str, Any]:
         """Get current memory usage statistics."""
-        stats = {
+        stats: dict[str, Any] = {
             "preallocated_tensors": len(self._preallocated_tensors),
             "cache_enabled": self.cache is not None,
             "cache_size": self.cache.size() if self.cache else 0,

@@ -5,6 +5,43 @@
 **Scope:** Verify functionality after dependabot-driven dependency updates.
 **Host:** macOS (arm64) with OrbStack. All testing performed in Linux containers (no host Python).
 
+## 0. Resolution (2026-07-05)
+
+All dependencies were upgraded to their latest releases and pinned via the uv
+locks; every open dependabot PR (idna, starlette, python-multipart, msgpack) is
+superseded by this upgrade. Target runtime is now **Python 3.13** for both
+projects: numpy 2.5 requires >=3.12 and TensorFlow 2.21 ships no cp314 wheels,
+so 3.13 is the ceiling for the full stack.
+
+Resolved stack: model-sim on numpy 2.5.1 / TensorFlow 2.21.0 / Keras 3.15 /
+gymnasium 1.3.0 / highway-env 1.11; model-serving on torch 2.12.1 / numpy 2.5.1 /
+fastapi 0.139.0 / pydantic 2.13.4 / starlette 1.3.1 / uvicorn 0.50.0. Docker base
+images and CI `setup-python` pins moved 3.11 -> 3.13.
+
+Fixes applied this session (beyond the audit's already-landed source patches):
+- `model-sim/src/highway_rl/environment.py`: reset the env before capturing the
+  observation/action spaces so the agent is built with the post-config shape
+  (15x6), not the stale pre-reset default (5x5). This unblocked `trainer.evaluate`
+  and therefore `make train-highway`.
+- `model-sim/evaluation/highway/evaluate_models.py`: build the eval env with the
+  training optimized config so obs shape matches the saved weights.
+- `model-serving/src/benchmarking/benchmark.py`: numpy 2.0 renamed
+  `np.percentile(interpolation=)` to `method=`.
+- `model-serving/src/optimization/{cpu,gpu}_optimizer.py`: select an available
+  `torch.backends.quantized.engine` (torch 2.12 leaves it "none" on macOS arm64,
+  which broke dynamic quantization).
+- `model-serving/tests/monitoring/test_metrics.py`: assert against
+  prometheus_client `CONTENT_TYPE_LATEST` (0.25 bumped it to version=1.0.0).
+
+Verification (Python 3.13, Apple Silicon, host uv envs):
+- model-sim: env create + 2-episode DQN train + internal/greedy evaluate + save,
+  and the `evaluate_models.py` entrypoint (20 episodes) run clean.
+- model-serving: server boots and loads the TorchScript artifact; `/healthz`,
+  `/metadata`, `/warmup`, `/predict` (single + batch), `/versions`, `/metrics`
+  all return correctly; `pytest -m "not integration"` = 681 passed, 14 skipped.
+
+Sections 1-6 below are the original pre-fix analysis, retained for history.
+
 ## 1. What was actually bumped
 
 Tracked from the merged dependabot PRs that landed on `master`:

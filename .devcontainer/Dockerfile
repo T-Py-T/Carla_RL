@@ -1,4 +1,4 @@
-FROM python:3.14-slim
+FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -26,15 +26,15 @@ COPY model-serving/requirements.txt /tmp/model-serving-requirements.txt
 RUN pip install --no-cache-dir -r /tmp/model-serving-requirements.txt
 
 RUN pip install --no-cache-dir \
-        "highway-env>=1.10.2" \
+        "highway-env>=1.11" \
         "gymnasium>=1.3.0" \
-        "opencv-python-headless>=4.10.0" \
+        "opencv-python-headless>=4.11.0" \
         "colorama>=0.4.6" \
-        "wandb>=0.26.0" \
+        "wandb>=0.22.0" \
         "tensorflow>=2.21.0,<2.22" \
-        "pytest-timeout>=2.4.0" \
-        "ruff>=0.9.0" \
-        "mypy>=1.18.0" \
-        "pre-commit>=4.0.0"
+        "pytest-timeout>=2.2.0" \
+        "ruff>=0.1.8" \
+        "mypy>=1.0.0" \
+        "pre-commit>=3.0.0"
 
 CMD ["/bin/bash"]
