@@ -1,14 +1,7 @@
 name: Security Scan
 
 on:
-  schedule:
-    # Run daily at 2 AM UTC
-    - cron: '0 2 * * *'
-  push:
-    branches: [main, master, dev]
   pull_request:
-    types: [opened, synchronize, reopened]
-  workflow_dispatch:
 
 jobs:
   # Security scanning for dependencies and code

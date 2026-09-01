@@ -1,16 +1,7 @@
 name: Performance Regression Test
 
 on:
-  push:
-    branches: [ dev, staging, main ]
-    paths:
-      - 'model-serving/**'
-      - '.github/workflows/performance-regression-test.yml'
   pull_request:
-    branches: [ dev, staging, main ]
-    paths:
-      - 'model-serving/**'
-      - '.github/workflows/performance-regression-test.yml'
 
 jobs:
   performance-test:
