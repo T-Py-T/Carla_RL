@@ -97,8 +97,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Labels for metadata
-LABEL maintainer="CarlaRL Team" \
-      version="1.0.0" \
-      description="CarlaRL Policy-as-a-Service - High-performance RL policy serving" \
-      org.opencontainers.image.source="https://github.com/your-org/carla-rl" \
-      org.opencontainers.image.documentation="https://github.com/your-org/carla-rl/blob/main/README.md"
+LABEL maintainer="Taylor Turner" \
+      version="0.1.0" \
+      description="HTTP service for versioned TorchScript driving policies" \
+      org.opencontainers.image.source="https://github.com/T-Py-T/Carla_RL" \
+      org.opencontainers.image.documentation="https://github.com/T-Py-T/Carla_RL/blob/master/model-serving/README.md"

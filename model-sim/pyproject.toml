@@ -2,7 +2,7 @@
 name = "highway-rl"
 version = "0.1.0"
 description = "Reinforcement Learning for Self-Driving using Highway environments"
-authors = [{name = "Your Name", email = "your@email.com"}]
+authors = [{name = "Taylor Turner"}]
 readme = "README.md"
 # numpy 2.5+ requires Python >=3.12, and TensorFlow 2.21 ships no cp314 wheels,
 # so the supported window for the latest stack is 3.12-3.13.
