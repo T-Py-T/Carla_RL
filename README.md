@@ -1,96 +1,139 @@
-# Highway RL - Autonomous Driving Reinforcement Learning
+# Highway RL Platform
 
-**Advanced reinforcement learning for autonomous driving with multi-scenario training and real-world adaptability.**
+A reinforcement-learning workspace for training driving policies in
+[`highway-env`](https://github.com/Farama-Foundation/HighwayEnv) and serving
+versioned policy artifacts through an HTTP API.
 
-## What I Built
+The repository has two independent components. `model-sim` implements the
+simulation, DQN agent, training loop, and evaluation tools. `model-serving`
+implements a FastAPI service for validated TorchScript artifacts, with batch
+inference, health checks, metrics, version selection, and container deployment.
 
-### Core Achievement
-- **Production RL pipeline** for autonomous driving using highway-env simulator
-- **Multi-scenario training** across highway, merging, intersection, parking, and racetrack environments
-- **Advanced DQN architecture** with Dueling + Double DQN for improved learning stability
-- **Real-world adaptability** through curriculum learning and full evaluation metrics
+## How it fits together
 
-### Technical Implementation
-- **Modern RL algorithms** - Double DQN with dueling architecture and experience replay
-- **Multi-environment training** - 5 distinct driving scenarios for robust policy learning
-- **full evaluation** - 15+ metrics including success rate, collision avoidance, speed compliance
-- **Curriculum learning** - Progressive difficulty training for better convergence
-
-### Research Contributions
-- **Cross-scenario generalization** - Models trained on multiple environments show better real-world transfer
-- **Performance benchmarking** - Systematic evaluation across diverse driving conditions
-- **Scalable architecture** - Modular design supporting additional scenarios and algorithms
-- **Reproducible results** - Complete pipeline with standardized metrics and evaluation protocols
-
-## Current State
-
-### Fully Implemented
-- **Highway-env integration** - 5 driving scenarios with realistic physics and dynamics
-- **Advanced DQN agent** - 124K parameter model with proven convergence properties
-- **full evaluation** - Multi-metric assessment including safety and efficiency measures
-- **Training pipeline** - End-to-end system from environment setup to model deployment
-
-### Driving Scenarios
-- **Highway driving** - Multi-lane navigation with traffic flow optimization
-- **Merging maneuvers** - Complex decision-making in dynamic traffic conditions
-- **Intersection navigation** - Traffic light compliance and pedestrian awareness
-- **Parking scenarios** - Precision control and spatial reasoning
-- **Racetrack performance** - High-speed control and trajectory optimization
-
-## Performance Results
-
-Training convergence across scenarios:
-- **Highway navigation**: 85% success rate, 12% collision rate after 1000 episodes
-- **Merging performance**: 78% successful merges with traffic flow compliance
-- **Intersection safety**: 92% traffic rule compliance, 8% violation rate
-- **Parking precision**: 71% successful parking within tolerance bounds
-- **Multi-scenario transfer**: 15% performance improvement with curriculum learning
-
-## Research Applications
-
-This implementation demonstrates:
-- **Transferable RL policies** for autonomous driving
-- **Multi-objective optimization** balancing safety, efficiency, and compliance
-- **Scalable training methodologies** for complex driving environments
-- **Evaluation frameworks** for autonomous driving AI systems
-
----
-
-## Quick Start
-
-### Prerequisites
-- Python 3.10+
-- 8GB+ RAM for training
-- GPU recommended for faster convergence
-
-### Installation & Training
-```bash
-# Clone and setup
-git clone https://github.com/T-Py-T/Carla_RL
-cd Carla_RL
-
-# Install dependencies
-make setup
-
-# Train across multiple scenarios
-make train-highway
-
-# Evaluate model performance
-make eval-highway
+```text
+highway-env scenarios
+        │
+        ▼
+Keras DQN agent ──► checkpoints and evaluation output
+        │
+        │ explicit model conversion is still required
+        ▼
+versioned TorchScript artifact + model card
+        │
+        ▼
+FastAPI policy service ──► predictions, health, metadata, metrics
 ```
 
-### Essential Commands
-- `make setup` - Configure training environment
-- `make train-highway` - Train RL agent on driving scenarios
-- `make eval-highway` - full model evaluation
-- `make benchmark` - Performance and convergence analysis
+The simulation and serving code do not currently share an automatic export
+pipeline. The checked-in serving example generates a small test artifact; it is
+not a trained driving policy.
 
-### Expected Training Results
-- **Convergence time**: 500-1000 episodes per scenario
-- **Success metrics**: 70-85% task completion across scenarios
-- **Safety performance**: <15% collision rate in complex scenarios
-- **Transfer learning**: 10-20% performance boost with curriculum training
+## Implemented components
 
----
+### Simulation and training
 
-**Research Focus**: This implementation advances autonomous driving RL through multi-scenario training, demonstrating how agents can learn robust driving policies that generalize across diverse real-world conditions.
+- `highway`, `merge`, `intersection`, `parking`, and `racetrack` scenarios
+- dense and image DQN networks with optional Double DQN and dueling heads
+- replay memory, target-network updates, epsilon-greedy exploration, and model
+  checkpoints
+- single-scenario and curriculum training entry points
+- TensorBoard and optional Weights & Biases logging
+- trainer and cross-platform regression tests
+
+### Policy service
+
+- validated request and response schemas for single or batched observations
+- TorchScript loading with SHA-256 artifact checks
+- deterministic inference, bounded batching, in-memory caching, and warmup
+- `/healthz`, `/metadata`, `/predict`, `/warmup`, `/metrics`, and `/versions`
+- model version discovery, content-addressed storage, migration, and rollback
+  helpers
+- Docker, Compose, Kubernetes, Prometheus, and Grafana configuration
+
+## Run the simulator
+
+Requirements: Python 3.12 or 3.13 and [`uv`](https://docs.astral.sh/uv/).
+
+```bash
+cd model-sim
+uv sync --locked --extra apple-gpu --extra dev
+uv run python training/highway/train_highway.py \
+  --scenario highway \
+  --episodes 1000 \
+  --double-dqn \
+  --dueling-dqn
+```
+
+Use `--scenario curriculum` to cycle through all five environments. Training
+writes checkpoints and logs beneath `model-sim/`; those generated files are not
+committed.
+
+See [`model-sim/README.md`](model-sim/README.md) for evaluation and platform
+notes.
+
+## Run the policy service
+
+Generate the repository's example artifact, then start the API:
+
+```bash
+cd model-serving
+uv sync --locked --extra dev
+uv run python -m scripts.create_example_artifacts \
+  --output artifacts \
+  --version v0.1.0
+uv run uvicorn src.server:app --host 127.0.0.1 --port 8080
+```
+
+Open `http://127.0.0.1:8080/docs` for the interactive API schema. The example
+artifact proves the loading and request path; it is not evidence of driving
+quality.
+
+See [`model-serving/README.md`](model-serving/README.md) for the artifact
+contract, API example, configuration, and container workflow.
+
+## Validate a change
+
+Run the component suites in their own locked environments:
+
+```bash
+cd model-sim
+uv sync --locked --extra apple-gpu --extra dev
+uv run pytest tests -q
+
+cd ../model-serving
+uv sync --locked --extra dev
+uv run pytest tests -q
+```
+
+The repository also provides `make check` at the root for Python compilation
+and Ruff checks. No GitHub-hosted workflow is configured; validation is local.
+
+## Repository layout
+
+| Path | Purpose |
+| --- | --- |
+| [`model-sim/`](model-sim) | highway-env wrapper, DQN agent, trainer, evaluation, and tests |
+| [`model-serving/`](model-serving) | FastAPI policy service, artifact management, deployment, and tests |
+| [`.devcontainer/`](.devcontainer) | containerized development environment |
+| [`Makefile`](Makefile) | top-level shortcuts for both components |
+
+## Current boundaries
+
+- No trained model, training dataset, or retained evaluation result is published
+  in this repository.
+- Simulation checkpoints are Keras models; the service consumes TorchScript.
+  A tested conversion step is still needed to connect them.
+- The historical CARLA path remains secondary. The maintained simulator in this
+  tree is `highway-env`.
+- Performance tools and thresholds are available, but measured service results
+  depend on the selected artifact and hardware and are not stated here.
+- Docker and Kubernetes files are development references. Review security,
+  resource, ingress, and persistence settings before using them outside an
+  isolated environment.
+
+## License
+
+The original repository is licensed under Apache License 2.0. The
+`model-serving` component includes its own [MIT License](model-serving/LICENSE).
+Third-party libraries and simulators remain under their respective terms.

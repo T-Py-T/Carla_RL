@@ -4,13 +4,13 @@ Unit tests for preprocessing pipeline in CarlaRL Policy-as-a-Service.
 Tests feature preprocessing, normalization, and train-serve parity validation.
 """
 
+import json
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock
 
 import numpy as np
 import pytest
-
 from src.exceptions import PreprocessingError
 from src.io_schemas import Observation
 from src.preprocessing import (
@@ -69,18 +69,15 @@ class TestFeaturePreprocessorBase:
     def test_base_preprocessor_load_invalid_object(self):
         """Test loading invalid object."""
         with tempfile.TemporaryDirectory() as temp_dir:
-            temp_path = Path(temp_dir) / "invalid.pkl"
+            temp_path = Path(temp_dir) / "invalid.json"
 
-            # Save non-preprocessor object
-            import pickle
-
-            with open(temp_path, "wb") as f:
-                pickle.dump({"not": "preprocessor"}, f)
+            # Save valid JSON that does not match the preprocessor schema.
+            temp_path.write_text(json.dumps({"not": "preprocessor"}))
 
             with pytest.raises(PreprocessingError) as exc_info:
                 FeaturePreprocessor.load(temp_path)
 
-            assert "not a FeaturePreprocessor" in str(exc_info.value)
+            assert "Unsupported preprocessor serialization format" in str(exc_info.value)
 
 
 class TestStandardFeaturePreprocessor:

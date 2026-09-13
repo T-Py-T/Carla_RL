@@ -297,7 +297,7 @@ class TestModelManagementQA:
             # Validate specific values
             assert model_card["model_name"] == "test-carla-ppo"
             assert model_card["version"] == "v0.1.0"
-            assert model_card["model_type"] == "pytorch"
+            assert model_card["model_type"] == "torchscript"
 
             print(" FR-2.8: Model metadata parsing validated")
 

@@ -252,6 +252,8 @@ def load_pytorch_model(model_path: Path, device: torch.device) -> PolicyWrapper:
                 details={"available_keys": available_keys},
             )
 
+        except ModelLoadingError:
+            raise
         except Exception as pytorch_error:
             raise ModelLoadingError(
                 f"Failed to load model from {model_path}",
