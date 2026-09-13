@@ -92,5 +92,6 @@ def test_train_handles_zero_requested_episodes(tmp_path):
     summary = trainer.train(episodes=0)
 
     assert summary["episodes_trained"] == 0
+    assert summary["episodes_per_hour"] == 0.0
     assert summary["total_steps"] == 0
     assert summary["mean_episode_length"] == 0

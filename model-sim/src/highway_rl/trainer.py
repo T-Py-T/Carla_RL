@@ -134,7 +134,11 @@ class HighwayTrainer:
             "total_training_time": training_time,
             "best_mean_reward": self.best_mean_reward,
             "final_evaluation": final_eval,
-            "episodes_per_hour": episodes_trained / (training_time / 3600),
+            "episodes_per_hour": (
+                episodes_trained / (training_time / 3600)
+                if episodes_trained > 0 and training_time > 0
+                else 0.0
+            ),
             "mean_episode_length": (
                 np.mean(self.episode_lengths) if self.episode_lengths else 0
             ),
