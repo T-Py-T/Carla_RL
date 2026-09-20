@@ -218,9 +218,10 @@ fsd-playback-offline:
 	uv run python demos/fsd_playback.py --mode offline --headless --steps 240 --fps 12
 
 fsd-capture-proof:
-	@echo "Capturing FSD playback proof artifacts..."
+	@echo "Capturing JevPilot-style FSD proof artifacts (Three.js preferred)..."
 	@mkdir -p /opt/cursor/artifacts/carla-fsd-p0
-	uv run python demos/capture_proof.py --output-dir /opt/cursor/artifacts/carla-fsd-p0
+	cd demos/web && npm install --silent
+	uv run python demos/capture_proof.py --renderer threejs --output-dir /opt/cursor/artifacts/carla-fsd-p0
 
 carla-up:
 	@chmod +x docker/setup_carla.sh

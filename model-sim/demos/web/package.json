@@ -1,0 +1,11 @@
+{
+  "name": "carla-rl-fsd-web-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "capture": "node scripts/capture.mjs"
+  },
+  "dependencies": {
+    "puppeteer": "^24.6.0"
+  }
+}

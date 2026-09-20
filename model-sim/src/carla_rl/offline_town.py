@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 
 from . import settings
+from .jevpilot_theme import BUILDING_FACADE, ROAD_SHOULDER, ROAD_SURFACE, SKY_HORIZON, SKY_TOP
 
 
 @dataclass
@@ -19,7 +20,7 @@ class TownState:
 
 
 class OfflineTownRenderer:
-    """CPU-only perspective town view for FSD-style playback demos."""
+    """CPU perspective town view styled after JevPilot Three.js scenes."""
 
     def __init__(
         self,
@@ -60,6 +61,7 @@ class OfflineTownRenderer:
     def render(self) -> np.ndarray:
         frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
         self._draw_sky(frame)
+        self._draw_shoulder(frame)
         self._draw_buildings(frame)
         self._draw_road(frame)
         self._draw_lane_markings(frame)
@@ -68,46 +70,69 @@ class OfflineTownRenderer:
         return frame
 
     def _draw_sky(self, frame: np.ndarray) -> None:
-        for y in range(self.height):
-            t = y / max(self.height * 0.55, 1)
-            color = (
-                min(int(28 + 40 * t), 255),
-                min(int(48 + 70 * t), 255),
-                min(int(88 + 120 * t), 255),
+        horizon = int(self.height * 0.52)
+        for y in range(horizon):
+            t = y / max(horizon, 1)
+            color = tuple(
+                int(SKY_TOP[i] + (SKY_HORIZON[i] - SKY_TOP[i]) * t) for i in range(3)
             )
             frame[y, :] = color
+
+    def _draw_shoulder(self, frame: np.ndarray) -> None:
+        horizon = int(self.height * 0.52)
+        bottom_w = int(self.width * 1.05)
+        top_w = int(self.width * 0.34)
+        left_bottom = (self.width - bottom_w) // 2
+        right_bottom = left_bottom + bottom_w
+        left_top = (self.width - top_w) // 2
+        right_top = left_top + top_w
+        pts = np.array(
+            [
+                [left_bottom, self.height],
+                [right_bottom, self.height],
+                [right_top, horizon - 6],
+                [left_top, horizon - 6],
+            ],
+            dtype=np.int32,
+        )
+        cv2.fillPoly(frame, [pts], ROAD_SHOULDER)
 
     def _draw_buildings(self, frame: np.ndarray) -> None:
         horizon = int(self.height * 0.52)
         rng = np.random.default_rng(int(self.state.distance_m) // 4)
-        for index in range(14):
-            depth = 0.15 + (index / 14.0) * 0.85
-            base_x = int((index / 14.0) * self.width + np.sin(self._phase + index) * 18)
+        palette = [
+            BUILDING_FACADE,
+            (155, 163, 171),
+            (139, 152, 160),
+            (125, 138, 148),
+        ]
+        for index in range(16):
+            depth = 0.12 + (index / 16.0) * 0.88
+            base_x = int((index / 16.0) * self.width + np.sin(self._phase + index) * 14)
             side = -1 if index % 2 == 0 else 1
-            width = int(80 + 160 * depth)
-            height = int(horizon - 40 - depth * (120 + rng.integers(0, 80)))
+            width = int(70 + 150 * depth)
+            height = int(horizon - 50 - depth * (110 + rng.integers(0, 70)))
             x = base_x if side < 0 else self.width - base_x - width
             x = int(np.clip(x, -width // 2, self.width - width // 2))
-            shade = int(35 + 55 * depth)
+            color = palette[index % len(palette)]
             cv2.rectangle(
                 frame,
                 (x, height),
-                (x + width, horizon + int(30 * depth)),
-                (shade, shade + 8, shade + 18),
+                (x + width, horizon + int(24 * depth)),
+                color,
                 -1,
             )
-            # Window grid
-            for row in range(4):
-                for col in range(3):
-                    wx = x + 12 + col * (width // 4)
-                    wy = height + 18 + row * 22
-                    if wy < horizon - 8:
-                        cv2.rectangle(frame, (wx, wy), (wx + 14, wy + 12), (190, 210, 230), 1)
+            for row in range(5):
+                for col in range(max(2, width // 28)):
+                    wx = x + 10 + col * (width // max(2, width // 28))
+                    wy = height + 14 + row * 18
+                    if wy < horizon - 10:
+                        cv2.rectangle(frame, (wx, wy), (wx + 12, wy + 10), (220, 228, 235), 1)
 
     def _draw_road(self, frame: np.ndarray) -> None:
         horizon = int(self.height * 0.52)
-        bottom_w = int(self.width * 0.95)
-        top_w = int(self.width * 0.18)
+        bottom_w = int(self.width * 0.88)
+        top_w = int(self.width * 0.16)
         left_bottom = (self.width - bottom_w) // 2
         right_bottom = left_bottom + bottom_w
         left_top = (self.width - top_w) // 2
@@ -121,7 +146,7 @@ class OfflineTownRenderer:
             ],
             dtype=np.int32,
         )
-        cv2.fillPoly(frame, [pts], (48, 48, 52))
+        cv2.fillPoly(frame, [pts], ROAD_SURFACE)
 
     def _draw_lane_markings(self, frame: np.ndarray) -> None:
         horizon = int(self.height * 0.52)
@@ -130,7 +155,7 @@ class OfflineTownRenderer:
             for depth in np.linspace(0.05, 1.0, 18):
                 y = int(horizon + (self.height - horizon) * depth)
                 x_center = self.width / 2 + lane * self.width * (0.15 + depth * 0.75)
-                x_center += np.sin(self._phase * 0.5 + depth * 3) * 4
+                x_center += np.sin(self._phase * 0.5 + depth * 3) * 3
                 dash = int((depth * 60 + scroll) % 30)
                 if dash < 18:
                     w = int(8 + depth * 18)
@@ -138,7 +163,7 @@ class OfflineTownRenderer:
                         frame,
                         (int(x_center - w / 2), y),
                         (int(x_center + w / 2), y),
-                        (220, 220, 220),
+                        (235, 238, 242),
                         2,
                         cv2.LINE_AA,
                     )
@@ -146,11 +171,11 @@ class OfflineTownRenderer:
     def _draw_horizon_glow(self, frame: np.ndarray) -> None:
         horizon = int(self.height * 0.52)
         overlay = frame.copy()
-        cv2.line(overlay, (0, horizon), (self.width, horizon), (120, 170, 220), 2, cv2.LINE_AA)
-        cv2.addWeighted(overlay, 0.35, frame, 0.65, 0, frame)
+        cv2.line(overlay, (0, horizon), (self.width, horizon), SKY_HORIZON, 2, cv2.LINE_AA)
+        cv2.addWeighted(overlay, 0.25, frame, 0.75, 0, frame)
 
     def _draw_hood(self, frame: np.ndarray) -> None:
         h, w = frame.shape[:2]
-        pts = np.array([[0, h], [w, h], [w, int(h * 0.82)], [0, int(h * 0.86)]], dtype=np.int32)
-        cv2.fillPoly(frame, [pts], (12, 12, 14))
-        cv2.line(frame, (0, int(h * 0.86)), (w, int(h * 0.82)), (70, 70, 75), 2, cv2.LINE_AA)
+        pts = np.array([[0, h], [w, h], [w, int(h * 0.84)], [0, int(h * 0.87)]], dtype=np.int32)
+        cv2.fillPoly(frame, [pts], (20, 22, 24))
+        cv2.line(frame, (0, int(h * 0.87)), (w, int(h * 0.84)), (70, 74, 78), 2, cv2.LINE_AA)

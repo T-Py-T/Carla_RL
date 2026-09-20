@@ -1,11 +1,18 @@
 # 3D Town FSD Playback (P0)
 
-This deliverable replaces the rejected PR #110 2D highway-env HUD with a **3D town ego-camera** playback experience inspired by JevPilot / FSD demos:
+Taylor-approved P0 direction: **3D town ego-camera** playback with JevPilot / FSD look-and-feel — not the rejected PR #110 2D highway-env HUD.
 
-- Perspective ego RGB view (CARLA when available; offline town renderer otherwise)
-- Projected candidate path overlays in the camera frame
-- Decision readout UI (action label, Q-values, softmax probabilities, JSON inspector)
-- Local rule-based policy only — no Jev driver wiring, no `TYPESAFE_API_KEY`
+Gold-standard references (visual only; no Jev driver wiring):
+
+- https://github.com/standardagents/jevpilot
+- https://jevpilot.standardagents.ai
+
+## Aesthetic packet applied
+
+- JevPilot **Three.js town** palette (`#b7c9db` sky, `#70817c` road, `#d8d6c9` shoulder)
+- Candidate path colors from `road-vectors.js`: blue selected ribbon (`#007aff`), forward `#48a5ff`, lane amber `#e6a34b`, brake/collision `#e86940`
+- HUD chrome modeled after `.navigation-hud`, `.bottom-hud`, and JSON inspector (`Under the hood`)
+- **Local policy only** — no `TYPESAFE_API_KEY`, Jev API optional for look reference only
 
 ## Quick start (clean checkout, no CARLA required)
 
@@ -15,54 +22,40 @@ uv sync --locked --extra apple-gpu --extra dev
 uv run python demos/fsd_playback.py --mode offline --headless --steps 240
 ```
 
-This runs the CPU offline town renderer with full FSD overlays. Use `--save-video /tmp/demo.mp4` to capture MP4 proof locally.
+## Interactive Three.js demo (browser)
+
+```bash
+cd model-sim/demos/web
+npm install
+# open index.html in a browser, or:
+npx serve .
+```
+
+Headless proof capture (uses Puppeteer + WebGL):
+
+```bash
+cd model-sim/demos/web && npm install
+cd ../..
+uv run python demos/capture_proof.py --renderer threejs --output-dir /opt/cursor/artifacts/carla-fsd-p0
+```
 
 ## CARLA 3D playback (Linux + NVIDIA GPU)
 
-1. Start CARLA:
-
 ```bash
 cd model-sim
-chmod +x docker/setup_carla.sh
-./docker/setup_carla.sh
-```
-
-2. Install the CARLA Python API egg matching simulator `0.9.15` (from the CARLA release `PythonAPI/carla/dist/` folder):
-
-```bash
-export CARLA_EGG=/path/to/carla-*-linux-x86_64.egg
-uv pip install "$CARLA_EGG"
-```
-
-3. Run the demo:
-
-```bash
+chmod +x docker/setup_carla.sh && ./docker/setup_carla.sh
+# Install matching CARLA 0.9.15 Python API egg
 uv run python demos/fsd_playback.py --mode carla --town Town03 --headless --save-video /tmp/carla_fsd.mp4
 ```
-
-`--mode auto` (default) connects to CARLA when the API is installed and RPC is reachable; otherwise it falls back to offline mode.
-
-## Capture hosted proof artifacts
-
-```bash
-uv run python demos/capture_proof.py --output-dir /opt/cursor/artifacts/carla-fsd-p0
-```
-
-Produces:
-
-- `before_plain_ego.png` — plain ego frame (no overlays)
-- `after_fsd_overlay.png` — ego frame with projected paths + decision UI
-- `fsd_town_playback_demo.gif` — animated rollout
-- `fsd_town_playback_demo.mp4` — video rollout
 
 ## Makefile shortcuts
 
 ```bash
 make fsd-playback-offline
 make fsd-capture-proof
-make carla-up          # requires Docker + NVIDIA
+make carla-up
 ```
 
 ## Visual delta vs rejected PR #110
 
-PR #110 was a **top-down 2D highway-env pygame HUD** (Frogger-style). This P0 is a **perspective 3D town ego-camera** with path lines projected into the forward view and a decision panel — matching the JevPilot FSD demo direction Taylor approved.
+PR #110 was a **2D top-down highway-env pygame HUD** (Frogger-style). This P0 is a **perspective 3D town ego-camera** with JevPilot-style projected path ribbons and glass HUD panels.

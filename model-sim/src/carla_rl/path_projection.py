@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 
 from . import settings
+from .jevpilot_theme import PATH_FORWARD
 
 
 Point2D = Tuple[int, int]
@@ -69,37 +70,59 @@ def candidate_path_points(
     return points
 
 
+def _draw_path_polyline(
+    canvas: np.ndarray,
+    points: List[Point2D],
+    color: Tuple[int, int, int],
+    thickness: int,
+) -> None:
+    for start, end in zip(points, points[1:]):
+        cv2.line(canvas, start, end, color, thickness, cv2.LINE_AA)
+
+
 def draw_candidate_paths(
     frame_bgr: np.ndarray,
     selected_action: int,
     probabilities: Iterable[float],
-    alpha_selected: float = 0.95,
-    alpha_other: float = 0.55,
+    alpha_selected: float = 0.92,
+    alpha_other: float = 0.62,
 ) -> np.ndarray:
-    """Overlay colored candidate paths on a BGR camera frame."""
+    """Overlay JevPilot-style candidate paths (blue selected ribbon + amber/cyan alts)."""
     output = frame_bgr.copy()
     height, width = output.shape[:2]
     probs = list(probabilities)
 
+    # Draw non-selected candidates first.
     for action in range(len(probs)):
+        if action == selected_action:
+            continue
         points = project_vehicle_points(
             candidate_path_points(action), width=width, height=height
         )
         if len(points) < 2:
             continue
-        color = settings.ACTION_COLORS_BGR.get(action, (200, 200, 200))
-        thickness = 4 if action == selected_action else 2
-        alpha = alpha_selected if action == selected_action else alpha_other
+        color = settings.ACTION_COLORS_BGR.get(action, PATH_FORWARD)
         overlay = output.copy()
-        for start, end in zip(points, points[1:]):
-            cv2.line(overlay, start, end, color, thickness, cv2.LINE_AA)
-        cv2.addWeighted(overlay, alpha, output, 1.0 - alpha, 0, output)
+        _draw_path_polyline(overlay, points, color, thickness=2)
+        cv2.addWeighted(overlay, alpha_other, output, 1.0 - alpha_other, 0, output)
+
+    # Selected path: glow ribbon then bright blue centerline (JevPilot road-vectors.js).
+    selected_points = project_vehicle_points(
+        candidate_path_points(selected_action), width=width, height=height
+    )
+    if len(selected_points) >= 2:
+        glow = output.copy()
+        _draw_path_polyline(glow, selected_points, settings.SELECTED_PATH_GLOW_BGR, thickness=8)
+        cv2.addWeighted(glow, 0.18, output, 0.82, 0, output)
+        ribbon = output.copy()
+        _draw_path_polyline(ribbon, selected_points, settings.SELECTED_PATH_COLOR_BGR, thickness=5)
+        cv2.addWeighted(ribbon, alpha_selected, output, 1.0 - alpha_selected, 0, output)
 
     return output
 
 
 def draw_lane_centerline(frame_bgr: np.ndarray) -> np.ndarray:
-    """Draw a subtle centerline to anchor the projected path in offline mode."""
+    """Subtle road anchor — JevPilot keeps the route visible under ribbons."""
     height, width = frame_bgr.shape[:2]
     center = project_vehicle_points(
         [(6, 0, -1.55), (12, 0, -1.55), (18, 0, -1.55), (24, 0, -1.55)],
@@ -108,6 +131,6 @@ def draw_lane_centerline(frame_bgr: np.ndarray) -> np.ndarray:
     )
     overlay = frame_bgr.copy()
     for start, end in zip(center, center[1:]):
-        cv2.line(overlay, start, end, (180, 180, 180), 1, cv2.LINE_AA)
-    cv2.addWeighted(overlay, 0.35, frame_bgr, 0.65, 0, frame_bgr)
+        cv2.line(overlay, start, end, (201, 196, 193), 1, cv2.LINE_AA)
+    cv2.addWeighted(overlay, 0.22, frame_bgr, 0.78, 0, frame_bgr)
     return frame_bgr

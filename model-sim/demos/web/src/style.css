@@ -1,0 +1,238 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Manrope:wght@500;600&display=swap");
+
+:root {
+  font: 13px "DM Sans", sans-serif;
+  color: #171a20;
+  --muted: #6b7077;
+  --line: #e3e5e8;
+  --accent: #e82127;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #b7c9db;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.glass {
+  background: #ffffffed;
+  backdrop-filter: blur(18px);
+  border: 1px solid #e4e6e8cc;
+  box-shadow: 0 6px 28px #00000020;
+}
+
+.topbar {
+  position: fixed;
+  z-index: 5;
+  left: 22px;
+  top: 18px;
+  padding: 10px 14px;
+  border-radius: 12px;
+}
+
+.topbar strong {
+  font: 600 15px "Manrope", sans-serif;
+  letter-spacing: -0.4px;
+}
+
+.topbar span {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.navigation-hud {
+  position: fixed;
+  top: 18px;
+  right: 24px;
+  z-index: 6;
+}
+
+.navigation-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 10px;
+  padding: 13px 14px;
+  min-width: 300px;
+}
+
+.turn-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #f5f6f8;
+  font: 600 18px "Manrope", sans-serif;
+}
+
+.navigation-card strong {
+  display: block;
+  font: 550 13px "Manrope", sans-serif;
+}
+
+.navigation-card small {
+  display: block;
+  margin-top: 3px;
+  color: #a3a6ab;
+  font-size: 11px;
+}
+
+.nav-divider {
+  width: 1px;
+  height: 28px;
+  background: #f7f7f7;
+}
+
+.bottom-hud {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 5;
+}
+
+.driver-dock {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 15px;
+  padding: 12px 14px;
+  min-width: 720px;
+}
+
+.speed-cluster {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.speed-cluster strong {
+  font: 500 38px/0.98 "Manrope", sans-serif;
+  letter-spacing: -2px;
+}
+
+.speed-cluster span {
+  display: block;
+  font-size: 9px;
+  color: var(--muted);
+}
+
+.speed-limit {
+  border: 1.5px solid #171a20;
+  border-radius: 5px;
+  padding: 3px 6px;
+  text-align: center;
+  background: #fff;
+}
+
+.speed-limit small {
+  display: block;
+  font-size: 6px;
+  letter-spacing: 0.6px;
+  color: #a3a6ab;
+}
+
+.speed-limit b {
+  font-size: 15px;
+}
+
+.dock-divider {
+  width: 1px;
+  height: 38px;
+  background: #f7f7f7;
+}
+
+#decision-status strong {
+  display: block;
+  font-size: 12px;
+}
+
+#decision-status span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.candidate-button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 10px;
+  color: var(--muted);
+  background: #fff;
+}
+
+.candidate-button.selected {
+  color: var(--accent);
+  border-color: #f3c2c4;
+}
+
+.json-inspector {
+  position: fixed;
+  right: 24px;
+  top: 96px;
+  width: 320px;
+  border-radius: 12px;
+  padding: 12px 14px;
+  z-index: 6;
+}
+
+.json-inspector header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.json-inspector header strong {
+  font: 600 13px "Manrope", sans-serif;
+}
+
+.json-inspector header span {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: #a3a6ab;
+}
+
+#json-content {
+  margin: 0;
+  max-height: 170px;
+  overflow: hidden;
+  font: 10px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #6b7077;
+  white-space: pre-wrap;
+}
+
+.json-key {
+  color: #8a4b12;
+}
+
+.json-string {
+  color: #176b3a;
+}
+
+.json-number {
+  color: #245ea8;
+}

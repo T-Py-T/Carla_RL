@@ -59,5 +59,5 @@ def test_fsd_hud_render_includes_panels():
     )
     composed = hud.render(renderer.render())
     assert composed.shape == (360, 640, 3)
-    # Nav strip background should be present near bottom.
-    assert composed[-5, 10, 0] < 40
+    # JevPilot glass bottom HUD should brighten the centered dock strip.
+    assert composed[-24, 320, 0] > 180

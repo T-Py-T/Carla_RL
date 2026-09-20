@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Carla RL · JevPilot-style FSD Playback</title>
+    <link rel="stylesheet" href="./src/style.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <div class="topbar glass">
+      <strong>Carla RL · FSD Playback</strong>
+      <span>Town03 · local policy (no Jev driver)</span>
+    </div>
+
+    <div class="navigation-hud">
+      <div class="navigation-card glass">
+        <div class="turn-icon" id="turn-icon">↑</div>
+        <div>
+          <strong id="next-maneuver">Continue straight</strong>
+          <small id="turn-distance">0 m ahead</small>
+        </div>
+        <span class="nav-divider"></span>
+        <small id="remaining">420 m left</small>
+      </div>
+    </div>
+
+    <div class="json-inspector glass">
+      <header>
+        <strong>Under the hood</strong>
+        <span>LIVE · LOCAL</span>
+      </header>
+      <pre id="json-content">{}</pre>
+    </div>
+
+    <div class="bottom-hud">
+      <div class="driver-dock glass">
+        <div class="speed-cluster">
+          <div>
+            <strong id="speed">0</strong>
+            <span>km/h</span>
+          </div>
+          <div class="speed-limit">
+            <small>LIMIT</small>
+            <b>50</b>
+          </div>
+        </div>
+        <span class="dock-divider"></span>
+        <div id="decision-status">
+          <strong id="pilot-state">Local playback</strong>
+          <span id="context-message">Candidate paths visible</span>
+        </div>
+        <span class="dock-divider"></span>
+        <button class="candidate-button selected" type="button">FWD</button>
+        <button class="candidate-button" type="button">LFT</button>
+        <button class="candidate-button" type="button">RGT</button>
+        <button class="candidate-button" type="button">BRK</button>
+      </div>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

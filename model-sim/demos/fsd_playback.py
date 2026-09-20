@@ -106,6 +106,8 @@ def run_offline(args: argparse.Namespace) -> int:
                     speed_kmh=town_state.speed_kmh,
                     town=args.town,
                     mode="offline",
+                    maneuver=settings.MANEUVER_LABELS.get(decision.action, decision.action_label),
+                    distance_m=town_state.distance_m,
                     info={"distance_m": round(town_state.distance_m, 2)},
                 )
             )
@@ -169,6 +171,8 @@ def run_carla(args: argparse.Namespace, env: CarlaPlaybackEnv) -> int:
                         crashed=info.get("crashed", False),
                         town=args.town,
                         mode="carla",
+                        maneuver=settings.MANEUVER_LABELS.get(decision.action, decision.action_label),
+                        distance_m=float(info.get("distance_m", step * 2)),
                         info=info,
                     )
                 )
