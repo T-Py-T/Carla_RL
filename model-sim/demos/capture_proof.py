@@ -26,8 +26,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--frames", type=int, default=120)
     parser.add_argument("--fps", type=float, default=12.0)
-    parser.add_argument("--width", type=int, default=960)
-    parser.add_argument("--height", type=int, default=540)
+    parser.add_argument("--width", type=int, default=1280)
+    parser.add_argument("--height", type=int, default=720)
     return parser.parse_args()
 
 

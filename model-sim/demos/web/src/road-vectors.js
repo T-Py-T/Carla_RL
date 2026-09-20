@@ -138,8 +138,10 @@ export class PathVectors {
     });
 
     if (selectedPoints) {
-      updateRibbon(this.selected, selectedPoints, 0.2, 0.26);
-      updateRibbon(this.selectedGlow, selectedPoints, 0.42, 0.2);
+      updateRibbon(this.selected, selectedPoints, 0.24, 0.28);
+      updateRibbon(this.selectedGlow, selectedPoints, 0.48, 0.22);
+      this.selected.material.uniforms.tint.value.set("#007aff");
+      this.selectedGlow.material.uniforms.tint.value.set("#38bcd6");
     }
     this.selected.visible = this.selectedGlow.visible = !!selectedPoints;
 
