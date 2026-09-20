@@ -1,8 +1,9 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Manrope:wght@500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;450;500;550;600;650;700&family=Manrope:wght@400;500;600;650;700;750&display=swap");
 
 :root {
   font: 13px "DM Sans", sans-serif;
   color: #171a20;
+  background: #b7c9db;
   --muted: #6b7077;
   --line: #e3e5e8;
   --accent: #e82127;
@@ -18,7 +19,6 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #b7c9db;
 }
 
 #app {
@@ -35,6 +35,7 @@ canvas {
 .glass {
   background: #ffffffed;
   backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   border: 1px solid #e4e6e8cc;
   box-shadow: 0 6px 28px #00000020;
 }
@@ -65,6 +66,15 @@ canvas {
   top: 18px;
   right: 24px;
   z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.navigation-hud > * {
+  pointer-events: auto;
 }
 
 .navigation-card {
@@ -74,6 +84,7 @@ canvas {
   border-radius: 10px;
   padding: 13px 14px;
   min-width: 300px;
+  min-height: 65px;
 }
 
 .turn-icon {
@@ -84,6 +95,7 @@ canvas {
   place-items: center;
   background: #f5f6f8;
   font: 600 18px "Manrope", sans-serif;
+  color: #44484f;
 }
 
 .navigation-card strong {
@@ -104,12 +116,20 @@ canvas {
   background: #f7f7f7;
 }
 
+#remaining {
+  font-size: 11px;
+  color: #6b7077;
+  white-space: nowrap;
+}
+
 .bottom-hud {
   position: fixed;
   left: 50%;
   bottom: 16px;
   transform: translateX(-50%);
   z-index: 5;
+  width: max-content;
+  max-width: calc(100% - 32px);
 }
 
 .driver-dock {
@@ -119,6 +139,7 @@ canvas {
   border-radius: 15px;
   padding: 12px 14px;
   min-width: 720px;
+  height: 76px;
 }
 
 .speed-cluster {
@@ -130,6 +151,7 @@ canvas {
 .speed-cluster strong {
   font: 500 38px/0.98 "Manrope", sans-serif;
   letter-spacing: -2px;
+  font-variant-numeric: tabular-nums;
 }
 
 .speed-cluster span {
@@ -182,57 +204,153 @@ canvas {
   font-size: 10px;
   color: var(--muted);
   background: #fff;
+  min-height: 41px;
 }
 
 .candidate-button.selected {
-  color: var(--accent);
-  border-color: #f3c2c4;
+  border-color: #171a20;
+  background: #171a20;
+  color: #fff;
 }
 
-.json-inspector {
+#vector-labels {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.vector-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: 1px solid #183c5866;
+  border-radius: 5px;
+  background: #e4f3f7e6;
+  color: #183c58;
+  box-shadow: 0 1px 8px #1d607b1a;
+  font: 500 10px monospace;
+  padding: 4px 6px;
+  min-width: 30px;
+  text-align: center;
+}
+
+.vector-label.selected {
+  background: #007aff;
+  border-color: #0069dc;
+  color: #fff;
+  box-shadow: 0 2px 12px #0077c24a;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+#json-dialog {
   position: fixed;
   right: 24px;
   top: 96px;
-  width: 320px;
-  border-radius: 12px;
-  padding: 12px 14px;
   z-index: 6;
+  width: 340px;
+  max-height: 360px;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #171a20;
+  box-shadow: 0 20px 120px #112e3044;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.json-inspector header {
+.json-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f7f7f7;
 }
 
-.json-inspector header strong {
-  font: 600 13px "Manrope", sans-serif;
+.json-header strong {
+  font: 600 15px "Manrope", sans-serif;
+  letter-spacing: -0.5px;
 }
 
-.json-inspector header span {
+#json-live {
   font-size: 8px;
   letter-spacing: 1px;
   color: #a3a6ab;
 }
 
-#json-content {
-  margin: 0;
-  max-height: 170px;
-  overflow: hidden;
-  font: 10px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+.json-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+}
+
+.json-tabs {
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 7px;
+  background: #f7f7f7;
+}
+
+.json-tabs button {
+  font-size: 10px;
   color: #6b7077;
-  white-space: pre-wrap;
+  padding: 6px 10px;
+  border-radius: 5px;
+  border: 0;
+  background: transparent;
+}
+
+.json-tabs .active {
+  background: #ffffff;
+  color: var(--accent);
+  box-shadow: 0 1px 4px #24272d0c;
+}
+
+#json-description {
+  font-size: 10px;
+  margin: 0 16px 10px;
+  color: var(--muted);
+}
+
+#json-content {
+  background: #171a20;
+  color: #e5e7eb;
+  font: 10px/1.65 "SFMono-Regular", Consolas, monospace;
+  margin: 0;
+  padding: 14px 16px;
+  overflow: auto;
+  flex: 1;
+  max-height: 210px;
 }
 
 .json-key {
-  color: #8a4b12;
+  color: #f0f1f3;
 }
 
 .json-string {
-  color: #176b3a;
+  color: #c7cbd2;
 }
 
 .json-number {
-  color: #245ea8;
+  color: #8db5ff;
+}
+
+.json-bool {
+  color: #ff9298;
+}
+
+body.plain-mode .navigation-hud,
+body.plain-mode .bottom-hud,
+body.plain-mode #json-dialog,
+body.plain-mode .topbar,
+body.plain-mode #vector-labels {
+  display: none !important;
+}
+
+[hidden] {
+  display: none !important;
 }

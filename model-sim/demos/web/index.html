@@ -8,6 +8,7 @@
   </head>
   <body>
     <div id="app"></div>
+    <div id="vector-labels"></div>
 
     <div class="topbar glass">
       <strong>Carla RL · FSD Playback</strong>
@@ -26,11 +27,20 @@
       </div>
     </div>
 
-    <div class="json-inspector glass">
-      <header>
-        <strong>Under the hood</strong>
-        <span>LIVE · LOCAL</span>
-      </header>
+    <div id="json-dialog">
+      <div class="json-header">
+        <div>
+          <strong>Under the hood</strong>
+          <span id="json-live">LIVE · LOCAL</span>
+        </div>
+      </div>
+      <div class="json-toolbar">
+        <div class="json-tabs">
+          <button type="button" data-tab="decision" class="active">Decision</button>
+          <button type="button" data-tab="signals">Local signals</button>
+        </div>
+      </div>
+      <p id="json-description">Local policy probabilities and action labels — no Jev API driver.</p>
       <pre id="json-content">{}</pre>
     </div>
 
