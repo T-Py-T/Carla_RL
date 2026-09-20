@@ -39,6 +39,7 @@ dev = [
   "ruff>=0.1.8",
   "mypy>=1.0.0",
   "pre-commit>=3.0.0",
+  "pillow>=11.0.0",
 ]
 
 [build-system]
@@ -48,9 +49,6 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src"]
 
-[project.scripts]
-carla-train = "carla_rl.trainer:main"
-carla-play = "carla_rl.play:main"
 
 [tool.ruff]
 line-length = 88
