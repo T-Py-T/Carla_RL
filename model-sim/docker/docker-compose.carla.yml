@@ -1,0 +1,10 @@
+services:
+  carla:
+    image: carlasim/carla:0.9.15
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    ports:
+      - "2000:2000"
+      - "2001:2001"
+    command: bash -c "./CarlaUE4.sh -RenderOffScreen -carla-rpc-port=2000"

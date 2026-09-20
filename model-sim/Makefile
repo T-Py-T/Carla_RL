@@ -2,7 +2,7 @@
 # Apple Silicon optimized autonomous driving simulation
 # Usage: make <target>
 
-.PHONY: help setup validate test train play clean install lint format check-gpu monitor
+.PHONY: help setup validate test train play clean install lint format check-gpu monitor fsd-playback-offline fsd-capture-proof carla-up
 
 # Default target
 help:
@@ -14,6 +14,11 @@ help:
 	@echo "  make train-highway   - Train RL agent (Apple Silicon optimized)"
 	@echo "  make eval-highway    - Evaluate trained models"
 	@echo "  make check-gpu       - Verify Metal acceleration"
+	@echo ""
+	@echo "3D FSD Playback (P0):"
+	@echo "  make fsd-playback-offline - Run offline town ego-camera demo"
+	@echo "  make fsd-capture-proof    - Capture GIF/MP4 proof artifacts"
+	@echo "  make carla-up             - Start CARLA via Docker (GPU required)"
 	@echo ""
 	@echo "Development:"
 	@echo "  make clean          - Clean temporary files"
@@ -206,6 +211,20 @@ status:
 	@echo ""
 	@echo "System Resources:"
 	@uv run python -c "import psutil; mem=psutil.virtual_memory(); print(f'Memory: {mem.used/(1024**3):.1f}GB / {mem.total/(1024**3):.1f}GB ({mem.percent:.1f}% used)')"
+
+# 3D FSD town playback (P0)
+fsd-playback-offline:
+	@echo "Running offline 3D town ego-camera FSD playback..."
+	uv run python demos/fsd_playback.py --mode offline --headless --steps 240 --fps 12
+
+fsd-capture-proof:
+	@echo "Capturing FSD playback proof artifacts..."
+	@mkdir -p /opt/cursor/artifacts/carla-fsd-p0
+	uv run python demos/capture_proof.py --output-dir /opt/cursor/artifacts/carla-fsd-p0
+
+carla-up:
+	@chmod +x docker/setup_carla.sh
+	@./docker/setup_carla.sh
 
 # Quick start for new users
 quickstart: setup
