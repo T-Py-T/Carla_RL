@@ -1,2 +1,8 @@
 # Force LF for all files
 * text eol=lf
+
+# PR proof binaries — must stay binary (avoid LF corruption)
+docs/pr-111-artifacts/** -text
+docs/pr-111-artifacts/*.png binary
+docs/pr-111-artifacts/*.gif binary
+docs/pr-111-artifacts/*.mp4 binary
