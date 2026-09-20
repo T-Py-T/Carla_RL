@@ -76,9 +76,12 @@ class HighwayEnvironment:
             "distance_traveled": 0.0,
         }
 
-    def reset(self) -> Tuple[np.ndarray, Dict]:
+    def reset(self, seed: Optional[int] = None) -> Tuple[np.ndarray, Dict]:
         """Reset environment and metrics."""
-        obs, info = self.env.reset()
+        if seed is None:
+            obs, info = self.env.reset()
+        else:
+            obs, info = self.env.reset(seed=seed)
 
         # Reset metrics
         self.episode_metrics = {
@@ -139,6 +142,18 @@ class HighwayEnvironment:
     def render(self) -> Any:
         """Render environment."""
         return self.env.render()
+
+    def get_unwrapped(self) -> Any:
+        """Return the underlying highway-env environment."""
+        return self.env.unwrapped
+
+    def get_available_actions(self) -> List[int]:
+        """Return currently legal discrete meta-actions."""
+        return self.env.unwrapped.get_available_actions()
+
+    def get_action_labels(self) -> Dict[int, str]:
+        """Return action-index to label mapping for DiscreteMetaAction."""
+        return dict(self.env.unwrapped.action_type.actions)
 
     def close(self) -> None:
         """Close environment."""
@@ -223,6 +238,24 @@ class HighwayEnvironment:
             )
 
         return base_config
+
+    @classmethod
+    def get_playback_config(cls, scenario: str) -> Dict:
+        """Playback-oriented config with a taller viewport for the HUD panel."""
+        config = cls.get_optimized_config(scenario)
+        config.update(
+            {
+                "screen_width": 800,
+                "screen_height": 320,
+                "centering_position": [0.3, 0.55],
+                "scaling": 5.5,
+                "show_trajectories": False,
+                "render_agent": True,
+                "real_time_rendering": True,
+                "offscreen_rendering": False,
+            }
+        )
+        return config
 
 
 class MultiScenarioEnvironment:

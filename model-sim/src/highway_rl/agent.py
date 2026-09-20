@@ -8,7 +8,7 @@ Features improved architecture and training stability.
 import os
 import random
 from collections import deque
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import tensorflow as tf
@@ -214,17 +214,79 @@ class HighwayDQNAgent:
         """Store experience in replay buffer."""
         self.memory.append((state, action, reward, next_state, done))
 
-    def act(self, state: np.ndarray, training: bool = True) -> int:
-        """Choose action using epsilon-greedy policy."""
-        if training and self.rng.random() <= self.epsilon:
-            return random.randrange(self.action_size)
-
-        # Ensure state has batch dimension
+    def get_q_values(self, state: np.ndarray) -> np.ndarray:
+        """Return per-action Q-values for a single observation."""
         if len(state.shape) == len(self.state_size):
             state = np.expand_dims(state, axis=0)
 
-        q_values = self.q_network.predict(state, verbose=0)
-        return int(np.argmax(q_values[0]))
+        return self.q_network.predict(state, verbose=0)[0]
+
+    @staticmethod
+    def q_values_to_probabilities(
+        q_values: np.ndarray,
+        available_actions: Optional[List[int]] = None,
+        temperature: float = 1.0,
+    ) -> np.ndarray:
+        """Convert Q-values to a softmax distribution over legal actions."""
+        logits = np.array(q_values, dtype=np.float64)
+        if available_actions is not None:
+            mask = np.full(logits.shape, -np.inf)
+            for action in available_actions:
+                mask[action] = logits[action]
+            logits = mask
+
+        if temperature <= 0:
+            probs = np.zeros_like(logits)
+            probs[int(np.argmax(logits))] = 1.0
+            return probs
+
+        scaled = logits / temperature
+        scaled -= np.max(scaled)
+        exp_logits = np.exp(scaled)
+        denominator = np.sum(exp_logits)
+        if denominator <= 0:
+            return np.ones_like(logits) / len(logits)
+        return exp_logits / denominator
+
+    def act_with_details(
+        self,
+        state: np.ndarray,
+        training: bool = True,
+        available_actions: Optional[List[int]] = None,
+        temperature: float = 1.0,
+    ) -> Dict[str, Any]:
+        """Choose an action and return Q-values plus policy diagnostics."""
+        q_values = self.get_q_values(state)
+        action_pool = (
+            available_actions
+            if available_actions is not None
+            else list(range(self.action_size))
+        )
+
+        explored = training and self.rng.random() <= self.epsilon
+        if explored:
+            action = int(self.rng.choice(action_pool))
+        elif available_actions is not None:
+            masked_q = np.full(self.action_size, -np.inf)
+            for action in available_actions:
+                masked_q[action] = q_values[action]
+            action = int(np.argmax(masked_q))
+        else:
+            action = int(np.argmax(q_values))
+
+        return {
+            "action": action,
+            "q_values": q_values,
+            "probabilities": self.q_values_to_probabilities(
+                q_values, available_actions, temperature
+            ),
+            "explored": explored,
+            "epsilon": self.epsilon,
+        }
+
+    def act(self, state: np.ndarray, training: bool = True) -> int:
+        """Choose action using epsilon-greedy policy."""
+        return self.act_with_details(state, training=training)["action"]
 
     def replay(self) -> Dict[str, float]:
         """Train the agent on a batch of experiences."""

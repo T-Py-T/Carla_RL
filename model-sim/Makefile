@@ -127,13 +127,17 @@ train: train-highway
 	@echo "Use 'make train-carla' for legacy CARLA training (Windows/Linux)"
 
 play:
-	@echo "Starting model playback..."
-	@if [ ! -d "models" ] || [ -z "$$(ls -A models 2>/dev/null)" ]; then \
-		echo "ERROR: No trained models found in models/ directory"; \
-		echo "Run 'make train' first to train a model"; \
+	@echo "Starting Highway DQN playback with JevPilot-style HUD..."
+	@if [ ! -d "models/highway" ] || [ -z "$$(ls -A models/highway 2>/dev/null)" ]; then \
+		echo "ERROR: No trained highway models found in models/highway/"; \
+		echo "Run 'make train-highway' first or pass --model to play_model.py"; \
 		exit 1; \
 	fi
-	uv run python scripts/play.py
+	uv run python evaluation/highway/play_model.py --scenario highway --episodes 3
+
+play-highway:
+	@echo "Starting Highway DQN playback with JevPilot-style HUD..."
+	uv run python evaluation/highway/play_model.py $(ARGS)
 
 monitor:
 	@echo "Monitoring training progress..."
