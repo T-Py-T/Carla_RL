@@ -157,11 +157,12 @@ export class PathVectors {
   _pathPoints(car, steer) {
     const points = [];
     let x = car.position.x;
-    let z = car.position.z + 2.5;
+    // Ego forward is -Z; start at the front bumper and extend ahead of the vehicle.
+    let z = car.position.z - 2.8;
     let heading = car.rotation.y;
     for (let i = 0; i <= VECTOR_STEPS; i++) {
       heading += steer;
-      z += Math.cos(heading) * 1.35;
+      z -= Math.cos(heading) * 1.35;
       x += Math.sin(heading) * 1.35;
       points.push(new THREE.Vector3(x, 0.12, z));
     }

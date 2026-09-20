@@ -131,38 +131,49 @@ export class JevTownDemo {
     const { action, q, probs } = this._policy();
     this.action = action;
     const steer = { 0: 0, 1: -0.032, 2: 0.032, 3: 0 }[action] ?? 0;
-    const accel = action === 3 ? -3.0 : 1.2;
+    const traffic = this.traffic.step(this.car, this.stepIndex);
+    const actors = traffic.actors;
+    const leadGap = traffic.leadGap ?? Infinity;
+
+    let accel = action === 3 ? -3.0 : 1.2;
+    if (leadGap < 16) {
+      accel = Math.min(accel, -1.4);
+      this.speedKmh = Math.min(this.speedKmh, Math.max(10, (leadGap - 5) * 3.2));
+    }
+    if (leadGap < 9) {
+      accel = -3.8;
+      this.action = 3;
+    }
+
     this.speedKmh = Math.max(0, Math.min(65, this.speedKmh + accel * 0.085));
     this.heading += steer;
     this.distance += this.speedKmh / 3.6 / 10;
     this.car.position.z -= this.speedKmh / 3.6 / 10;
     this.car.rotation.y = this.heading;
-
-    const actors = this.traffic.step(this.car, this.stepIndex);
     this._updateChaseCamera();
 
     if (!this.plain) {
       this.perception.update(this.car, [this.car, ...actors]);
-      this.vectors.update(this.car, this.camera, this.width, this.height, action, probs);
+      this.vectors.update(this.car, this.camera, this.width, this.height, this.action, probs);
 
-      this.hud.maneuver.textContent = MANEUVER[action];
+      this.hud.maneuver.textContent = MANEUVER[this.action];
       this.hud.distance.textContent = `${Math.round(this.distance)} m ahead`;
       this.hud.remaining.textContent = `${Math.max(0, 420 - Math.round(this.distance))} m left`;
       this.hud.speed.textContent = String(Math.round(this.speedKmh));
       this.hud.state.textContent = "Local FSD playback";
-      this.hud.context.textContent = `${LABELS[action]} · p=${Math.round(probs[action] * 100)}%`;
-      this.hud.turnIcon.textContent = action === 1 ? "←" : action === 2 ? "→" : "↑";
-      this.hud.buttons.forEach((btn, idx) => btn.classList.toggle("selected", idx === action));
+      this.hud.context.textContent = `${LABELS[this.action]} · p=${Math.round(probs[this.action] * 100)}%`;
+      this.hud.turnIcon.textContent = this.action === 1 ? "←" : this.action === 2 ? "→" : "↑";
+      this.hud.buttons.forEach((btn, idx) => btn.classList.toggle("selected", idx === this.action));
 
       const nearby = actors.filter((a) => a.position.distanceTo(this.car.position) < 40).length;
       const payload = {
         step: this.stepIndex,
         town: "Town03",
         mode: "threejs-chase",
-        maneuver: MANEUVER[action],
-        action: { index: action, label: LABELS[action] },
+        maneuver: MANEUVER[this.action],
+        action: { index: this.action, label: LABELS[this.action] },
         vehicle: { speed_kmh: +this.speedKmh.toFixed(1), speed_limit_kmh: 50 },
-        perception: { tracks: nearby, lidar_points: 3200, scanner: "local-sim" },
+        perception: { tracks: nearby, lidar_points: 720, scanner: "local-sim" },
         q_values: Object.fromEntries(q.map((v, i) => [String(i), +v.toFixed(3)])),
         probabilities: Object.fromEntries(probs.map((v, i) => [String(i), +v.toFixed(3)])),
       };

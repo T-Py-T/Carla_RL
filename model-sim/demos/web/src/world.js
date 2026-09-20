@@ -1,6 +1,10 @@
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.172.0/build/three.module.js";
 import { createNpcVehicle, createPedestrian } from "./ego-vehicle.js";
 
+const MIN_VEHICLE_GAP = 9.5;
+const MIN_SPAWN_AHEAD = 14;
+const LANE_X = [-3.2, -2.5, -0.5, 0.5, 2.8];
+
 export function buildTown(scene) {
   scene.background = new THREE.Color("#9eb6cc");
   scene.fog = new THREE.Fog("#9eb6cc", 45, 220);
@@ -124,10 +128,10 @@ export class TrafficSystem {
 
   _spawnInitial() {
     const specs = [
-      { type: "vehicle", x: -2.5, z: -18, speed: 0.09, color: "#4a6678" },
-      { type: "vehicle", x: 2.8, z: -32, speed: 0.07, color: "#7a5a48" },
-      { type: "vehicle", x: 0.5, z: -52, speed: 0.11, color: "#3d6b58" },
-      { type: "vehicle", x: -3.2, z: 12, speed: -0.08, color: "#6a5068" },
+      { type: "vehicle", x: -2.5, z: -22, speed: 0.09, color: "#4a6678" },
+      { type: "vehicle", x: 2.8, z: -38, speed: 0.07, color: "#7a5a48" },
+      { type: "vehicle", x: 0.5, z: -58, speed: 0.08, color: "#3d6b58" },
+      { type: "vehicle", x: -1.2, z: -78, speed: 0.1, color: "#6a5068" },
       { type: "pedestrian", x: -9, z: -22, speed: 0.025, lane: 1 },
       { type: "pedestrian", x: 9.2, z: -40, speed: -0.02, lane: -1 },
       { type: "pedestrian", x: -9, z: -58, speed: 0.018, lane: 1 },
@@ -138,25 +142,82 @@ export class TrafficSystem {
           ? createNpcVehicle(spec.color)
           : createPedestrian(spec.lane > 0 ? "#548975" : "#c27d55");
       mesh.position.set(spec.x, 0, spec.z);
-      if (spec.speed < 0) mesh.rotation.y = Math.PI;
       this.scene.add(mesh);
       this.actors.push({ mesh, speed: spec.speed, kind: spec.type });
     }
   }
 
-  step(ego, tick = 0) {
+  _laneOverlap(ax, bx) {
+    return Math.abs(ax - bx) < 2.6;
+  }
+
+  _gapToEgo(mesh, ego) {
+    return ego.position.z - mesh.position.z;
+  }
+
+  _canPlaceVehicle(x, z, ego, ignoreMesh = null) {
+    if (z > ego.position.z - MIN_SPAWN_AHEAD) return false;
     for (const actor of this.actors) {
-      actor.mesh.position.z -= actor.speed;
-      if (actor.kind === "pedestrian") {
-        actor.mesh.position.x += Math.sin(tick * 0.09 + actor.mesh.position.z * 0.1) * 0.005;
-      }
-      if (actor.mesh.position.z < ego.position.z - 80) {
-        actor.mesh.position.z = ego.position.z + 40 + Math.random() * 20;
-      }
-      if (actor.mesh.position.z > ego.position.z + 30 && actor.speed < 0) {
-        actor.mesh.position.z = ego.position.z - 60;
+      if (actor.kind !== "vehicle" || actor.mesh === ignoreMesh) continue;
+      if (this._laneOverlap(x, actor.mesh.position.x) && Math.abs(z - actor.mesh.position.z) < MIN_VEHICLE_GAP) {
+        return false;
       }
     }
-    return this.actors.map((a) => a.mesh);
+    return Math.hypot(x - ego.position.x, z - ego.position.z) >= MIN_VEHICLE_GAP;
+  }
+
+  _respawnVehicleAhead(actor, ego) {
+    for (let attempt = 0; attempt < 16; attempt += 1) {
+      const x = LANE_X[Math.floor(Math.random() * LANE_X.length)];
+      const z = ego.position.z - 38 - Math.random() * 42;
+      if (this._canPlaceVehicle(x, z, ego, actor.mesh)) {
+        actor.mesh.position.set(x, 0, z);
+        return;
+      }
+    }
+  }
+
+  _leadGap(ego) {
+    let minGap = Infinity;
+    for (const actor of this.actors) {
+      if (actor.kind !== "vehicle") continue;
+      const gap = this._gapToEgo(actor.mesh, ego);
+      if (gap < 4 || gap > 120) continue;
+      if (!this._laneOverlap(actor.mesh.position.x, ego.position.x)) continue;
+      minGap = Math.min(minGap, gap);
+    }
+    return minGap;
+  }
+
+  step(ego, tick = 0) {
+    for (const actor of this.actors) {
+      if (actor.kind === "vehicle") {
+        const nextZ = actor.mesh.position.z - actor.speed;
+        const gapAfter = ego.position.z - nextZ;
+        if (
+          this._laneOverlap(actor.mesh.position.x, ego.position.x) &&
+          gapAfter < MIN_VEHICLE_GAP &&
+          gapAfter > -2
+        ) {
+          continue;
+        }
+        actor.mesh.position.z = nextZ;
+      } else {
+        actor.mesh.position.z -= actor.speed;
+        actor.mesh.position.x += Math.sin(tick * 0.09 + actor.mesh.position.z * 0.1) * 0.005;
+      }
+
+      if (actor.kind === "vehicle" && actor.mesh.position.z < ego.position.z - 90) {
+        this._respawnVehicleAhead(actor, ego);
+      }
+      if (actor.kind === "pedestrian" && actor.mesh.position.z < ego.position.z - 70) {
+        actor.mesh.position.z = ego.position.z - 30 - Math.random() * 25;
+      }
+    }
+
+    return {
+      actors: this.actors.map((a) => a.mesh),
+      leadGap: this._leadGap(ego),
+    };
   }
 }

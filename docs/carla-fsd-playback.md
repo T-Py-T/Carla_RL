@@ -7,12 +7,20 @@ Gold-standard references (visual only; no Jev driver wiring):
 - https://github.com/standardagents/jevpilot
 - https://jevpilot.standardagents.ai
 
-## Aesthetic packet applied
+## P0 “zero layer” (JevPilot / Tesla FSD bar)
 
-- JevPilot **Three.js town** palette (`#b7c9db` sky, `#70817c` road, `#d8d6c9` shoulder)
-- Candidate path colors from `road-vectors.js`: blue selected ribbon (`#007aff`), forward `#48a5ff`, lane amber `#e6a34b`, brake/collision `#e86940`
-- HUD chrome modeled after `.navigation-hud`, `.bottom-hud`, and JSON inspector (`Under the hood`)
-- **Local policy only** — no `TYPESAFE_API_KEY`, Jev API optional for look reference only
+Three.js **chase-cam** town playback — NOT highway-env top-down.
+
+| Requirement | P0 |
+|-------------|-----|
+| 3D chase cam through town | Behind-ego follow cam, white sedan, Town03-style blocks + intersection |
+| Surroundings | NPC cars, pedestrians, buildings, trees, lamps |
+| FSD viz feel | Stylized LiDAR point cloud + scan ring + wireframe detection boxes |
+| Path predictions | JevPilot ribbon shaders + `.vector-label` probability badges |
+| Decision HUD | `.navigation-hud`, `.bottom-hud`, `#json-dialog` |
+| Local only | No Jev driver / no `TYPESAFE_API_KEY` |
+
+**Later (NOT P0):** CARLA sensor mesh, real point clouds, live scanner.
 
 ## Quick start (clean checkout, no CARLA required)
 

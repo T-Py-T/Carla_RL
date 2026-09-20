@@ -11,32 +11,20 @@ export class PerceptionViz {
     this.root = new THREE.Group();
     scene.add(this.root);
     this.boxes = new Map();
+    this._pointCount = 720;
 
-    const count = 3200;
-    const positions = new Float32Array(count * 3);
-    const colors = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const radius = 3 + Math.random() * 24;
-      const y = 0.05 + Math.random() * 3.8;
-      positions[i * 3] = Math.cos(angle) * radius;
-      positions[i * 3 + 1] = y;
-      positions[i * 3 + 2] = Math.sin(angle) * radius;
-      const t = radius / 27;
-      colors[i * 3] = 0.15 + t * 0.55;
-      colors[i * 3 + 1] = 0.82 - t * 0.35;
-      colors[i * 3 + 2] = 1.0 - t * 0.25;
-    }
+    const positions = new Float32Array(this._pointCount * 3);
+    const colors = new Float32Array(this._pointCount * 3);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
     this.points = new THREE.Points(
       geo,
       new THREE.PointsMaterial({
-        size: 0.06,
+        size: 0.028,
         vertexColors: true,
         transparent: true,
-        opacity: 0.62,
+        opacity: 0.32,
         depthWrite: false,
         sizeAttenuation: true,
       }),
@@ -45,11 +33,11 @@ export class PerceptionViz {
     this.root.add(this.points);
 
     this.scanRing = new THREE.Mesh(
-      new THREE.RingGeometry(3.6, 3.95, 72),
+      new THREE.RingGeometry(1.8, 2.05, 64),
       new THREE.MeshBasicMaterial({
         color: 0x38bcd6,
         transparent: true,
-        opacity: 0.42,
+        opacity: 0.35,
         side: THREE.DoubleSide,
         depthWrite: false,
       }),
@@ -58,19 +46,21 @@ export class PerceptionViz {
     this.scanRing.position.y = 0.11;
     this.root.add(this.scanRing);
 
-    this.scanBeam = new THREE.Mesh(
-      new THREE.CircleGeometry(14, 48, 0.4, 1.2),
+    // Forward lidar wedge (not a full circle — avoids "snow in the sky")
+    this.scanWedge = new THREE.Mesh(
+      new THREE.CircleGeometry(16, 32, -0.55, 1.1),
       new THREE.MeshBasicMaterial({
         color: 0x007aff,
         transparent: true,
-        opacity: 0.06,
+        opacity: 0.07,
         side: THREE.DoubleSide,
         depthWrite: false,
       }),
     );
-    this.scanBeam.rotation.x = -Math.PI / 2;
-    this.scanBeam.position.y = 0.09;
-    this.root.add(this.scanBeam);
+    this.scanWedge.rotation.x = -Math.PI / 2;
+    this.scanWedge.rotation.z = Math.PI / 2;
+    this.scanWedge.position.set(0, 0.1, -1.5);
+    this.root.add(this.scanWedge);
     this._phase = 0;
   }
 
@@ -81,16 +71,62 @@ export class PerceptionViz {
     }
   }
 
+  _refreshLidarPoints(actors) {
+    const pos = this.points.geometry.attributes.position;
+    const col = this.points.geometry.attributes.color;
+    let index = 0;
+
+    // Ground returns in forward wedge (road scan)
+    while (index < this._pointCount * 0.75) {
+      const ahead = 3 + Math.random() * 34;
+      const lateral = (Math.random() - 0.5) * 8.5;
+      const y = 0.06 + Math.random() * 0.25;
+      pos.setXYZ(index, lateral, y, -ahead);
+      const intensity = 0.45 + (1 - ahead / 38) * 0.4;
+      col.setXYZ(index, 0.15 * intensity, 0.75 * intensity, 0.95 * intensity);
+      index += 1;
+    }
+
+    // Returns on tracked actors (detection-aligned points)
+    for (const actor of actors) {
+      if (index >= this._pointCount) break;
+      const local = actor.position.clone().sub(this.root.position);
+      local.applyAxisAngle(new THREE.Vector3(0, 1, 0), -this.root.rotation.y);
+      if (local.z > -2) continue;
+      const samples = actor.userData.kind === "vehicle" ? 28 : 12;
+      for (let s = 0; s < samples && index < this._pointCount; s++) {
+        pos.setXYZ(
+          index,
+          local.x + (Math.random() - 0.5) * 1.6,
+          0.4 + Math.random() * 1.2,
+          local.z + (Math.random() - 0.5) * 2.0,
+        );
+        col.setXYZ(index, 0.2, 0.85, 0.95);
+        index += 1;
+      }
+    }
+
+    while (index < this._pointCount) {
+      pos.setXYZ(index, 0, -100, 0);
+      col.setXYZ(index, 0, 0, 0);
+      index += 1;
+    }
+    pos.needsUpdate = true;
+    col.needsUpdate = true;
+  }
+
   update(ego, actors) {
     this.root.position.copy(ego.position);
     this.root.rotation.y = ego.rotation.y;
-    this._phase += 0.055;
+    this._phase += 0.05;
     this.scanRing.rotation.z = this._phase;
-    this.scanBeam.rotation.z = this._phase * 0.65;
+    this.scanWedge.rotation.z = Math.PI / 2 + this._phase * 0.4;
+
+    const tracked = actors.filter((a) => a !== ego);
+    this._refreshLidarPoints(tracked);
 
     const seen = new Set();
-    for (const actor of actors) {
-      if (actor === ego) continue;
+    for (const actor of tracked) {
       const dist = actor.position.distanceTo(ego.position);
       if (dist > 50) continue;
       seen.add(actor.uuid);
