@@ -6,3 +6,13 @@ docs/pr-111-artifacts/** -text
 docs/pr-111-artifacts/*.png binary
 docs/pr-111-artifacts/*.gif binary
 docs/pr-111-artifacts/*.mp4 binary
+
+docs/pr-car-asset-artifacts/** -text
+docs/pr-car-asset-artifacts/*.png binary
+docs/pr-car-asset-artifacts/*.gif binary
+docs/pr-car-asset-artifacts/*.mp4 binary
+
+model-sim/demos/web/models/** -text
+model-sim/demos/web/models/*.glb binary
+model-sim/demos/web/draco/** -text
+model-sim/demos/web/draco/*.wasm binary

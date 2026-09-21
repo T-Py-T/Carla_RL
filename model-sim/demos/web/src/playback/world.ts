@@ -1,9 +1,22 @@
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.172.0/build/three.module.js";
-import { createNpcVehicle, createPedestrian } from "./ego-vehicle.js";
+// @ts-nocheck — crude buildings (intentionally not JevPilot scenery)
+import * as THREE from "three";
+import { buildTownRoadNetwork } from "../vendor/jevpilot/jevpilot-road";
+import { placeStreetLamps } from "../vendor/jevpilot/scenery-assets";
+import { createNpcVehicle, createPedestrian } from "./ego";
 
 const MIN_VEHICLE_GAP = 9.5;
 const MIN_SPAWN_AHEAD = 14;
-const LANE_X = [-3.2, -2.5, -0.5, 0.5, 2.8];
+/** Four-lane one-way main road (−Z travel) — 3 m lanes across 12 m pavement. */
+export const ONE_WAY_LANE_X = [-4.5, -1.5, 1.5, 4.5];
+export const EGO_LANE_X = ONE_WAY_LANE_X[1];
+const LANE_X = ONE_WAY_LANE_X;
+/** Main × cross junction — keep building boxes out of this band for open sightlines. */
+const INTERSECTION_Z = -35;
+const JUNCTION_CLEARANCE_Z = 26;
+
+function blocksJunction(z: number, halfDepth = 0) {
+  return Math.abs(z - INTERSECTION_Z) < JUNCTION_CLEARANCE_Z + halfDepth;
+}
 
 export function buildTown(scene) {
   scene.background = new THREE.Color("#9eb6cc");
@@ -19,29 +32,25 @@ export function buildTown(scene) {
 
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(320, 320),
-    new THREE.MeshStandardMaterial({ color: "#d8d6c9", roughness: 1 }),
+    new THREE.MeshStandardMaterial({ color: "#b2c5a0", roughness: 1 }),
   );
   ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -0.02;
   scene.add(ground);
 
-  const roadMat = new THREE.MeshStandardMaterial({ color: "#5f716c", roughness: 0.92 });
-  const mainRoad = new THREE.Mesh(new THREE.PlaneGeometry(13, 280), roadMat);
-  mainRoad.rotation.x = -Math.PI / 2;
-  mainRoad.position.y = 0.04;
-  scene.add(mainRoad);
+  const roadGroup = new THREE.Group();
+  scene.add(roadGroup);
+  scene.userData.trafficLights = buildTownRoadNetwork(roadGroup, {
+    mainRoad: { length: 280, cx: 0, cz: 0 },
+    crossRoad: { length: 70, cx: 0, cz: -35 },
+    intersection: { cx: 0, cz: -35, offset: 0 },
+  });
 
-  const crossRoad = new THREE.Mesh(new THREE.PlaneGeometry(70, 13), roadMat);
-  crossRoad.rotation.x = -Math.PI / 2;
-  crossRoad.position.set(0, 0.045, -35);
-  scene.add(crossRoad);
-
-  const sidewalkMat = new THREE.MeshStandardMaterial({ color: "#c9c5b8", roughness: 0.95 });
-  for (const offset of [-8.2, 8.2]) {
-    const sw = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 280), sidewalkMat);
-    sw.rotation.x = -Math.PI / 2;
-    sw.position.set(offset, 0.035, 0);
-    scene.add(sw);
-  }
+  // Poly Haven CC0 street_lamp_01 — JevPilot scenery-assets.js placement along main + cross roads.
+  void placeStreetLamps(scene, [
+    { ax: 0, az: -140, bx: 0, bz: 140, length: 280 },
+    { ax: -35, az: -35, bx: 35, bz: -35, length: 70 },
+  ]);
 
   const palette = ["#8d9cab", "#7f93a3", "#6d8494", "#95a8b8", "#566878"];
   for (let block = 0; block < 18; block++) {
@@ -50,6 +59,7 @@ export function buildTown(scene) {
       const w = 5 + (block % 4) * 1.2;
       const h = 8 + (block % 5) * 2.5;
       const d = 7 + (block % 3);
+      if (blocksJunction(z, d / 2)) continue;
       const building = new THREE.Mesh(
         new THREE.BoxGeometry(w, h, d),
         new THREE.MeshStandardMaterial({
@@ -84,6 +94,7 @@ export function buildTown(scene) {
 
   for (let i = 0; i < 24; i++) {
     const z = -100 + i * 9;
+    if (blocksJunction(z + (i % 2))) continue;
     for (const side of [-1, 1]) {
       const trunk = new THREE.Mesh(
         new THREE.CylinderGeometry(0.12, 0.16, 1.6, 8),
@@ -100,55 +111,50 @@ export function buildTown(scene) {
     }
   }
 
-  for (let i = 0; i < 16; i++) {
-    const z = -90 + i * 12;
-    for (const side of [-1, 1]) {
-      const pole = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.06, 0.08, 4.5, 6),
-        new THREE.MeshStandardMaterial({ color: "#444" }),
-      );
-      pole.position.set(side * 10.5, 2.25, z);
-      scene.add(pole);
-      const lamp = new THREE.Mesh(
-        new THREE.SphereGeometry(0.18, 8, 8),
-        new THREE.MeshStandardMaterial({ color: "#fff6dd", emissive: "#ffaa55", emissiveIntensity: 0.4 }),
-      );
-      lamp.position.set(pole.position.x, 4.5, pole.position.z);
-      scene.add(lamp);
-    }
-  }
 }
 
 export class TrafficSystem {
   constructor(scene) {
     this.scene = scene;
     this.actors = [];
+  }
+
+  spawnInitial() {
+    if (this.actors.length) return;
     this._spawnInitial();
   }
 
   _spawnInitial() {
+    // Research CC shortlist — Kenney Car Kit + Khronos + OGA UAZ (NOT Model Y).
+    // After `npm run fetch:sketchfab-traffic`, swap in SKETCHFAB_TRAFFIC_MODELS ids for mixed fleet.
+    // All NPC vehicles ahead in parallel one-way lanes — slow lead in ego lane for braking demo.
     const specs = [
-      { type: "vehicle", x: -2.5, z: -22, speed: 0.09, color: "#4a6678" },
-      { type: "vehicle", x: 2.8, z: -38, speed: 0.07, color: "#7a5a48" },
-      { type: "vehicle", x: 0.5, z: -58, speed: 0.08, color: "#3d6b58" },
-      { type: "vehicle", x: -1.2, z: -78, speed: 0.1, color: "#6a5068" },
+      { type: "vehicle", x: EGO_LANE_X, z: -8.5, speed: 0.022, modelId: "kenney-sedan" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -18, speed: 0.075, modelId: "kenney-hatchback-sports" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[2], z: -26, speed: 0.068, modelId: "kenney-van" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[3], z: -34, speed: 0.072, modelId: "kenney-firetruck" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -48, speed: 0.08, modelId: "kenney-truck" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[2], z: -58, speed: 0.07, modelId: "kenney-delivery" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[3], z: -70, speed: 0.065, modelId: "khronos-milk-truck" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -82, speed: 0.06, modelId: "oga-uaz-truck" },
       { type: "pedestrian", x: -9, z: -22, speed: 0.025, lane: 1 },
-      { type: "pedestrian", x: 9.2, z: -40, speed: -0.02, lane: -1 },
+      { type: "pedestrian", x: 9.2, z: -40, speed: 0.02, lane: -1 },
       { type: "pedestrian", x: -9, z: -58, speed: 0.018, lane: 1 },
     ];
     for (const spec of specs) {
       const mesh =
         spec.type === "vehicle"
-          ? createNpcVehicle(spec.color)
+          ? createNpcVehicle(spec.modelId)
           : createPedestrian(spec.lane > 0 ? "#548975" : "#c27d55");
       mesh.position.set(spec.x, 0, spec.z);
+      if (spec.type === "vehicle") mesh.rotation.y = 0;
       this.scene.add(mesh);
       this.actors.push({ mesh, speed: spec.speed, kind: spec.type });
     }
   }
 
   _laneOverlap(ax, bx) {
-    return Math.abs(ax - bx) < 2.6;
+    return Math.abs(ax - bx) < 1.35;
   }
 
   _gapToEgo(mesh, ego) {
@@ -169,7 +175,7 @@ export class TrafficSystem {
   _respawnVehicleAhead(actor, ego) {
     for (let attempt = 0; attempt < 16; attempt += 1) {
       const x = LANE_X[Math.floor(Math.random() * LANE_X.length)];
-      const z = ego.position.z - 38 - Math.random() * 42;
+      const z = ego.position.z - 28 - Math.random() * 48;
       if (this._canPlaceVehicle(x, z, ego, actor.mesh)) {
         actor.mesh.position.set(x, 0, z);
         return;

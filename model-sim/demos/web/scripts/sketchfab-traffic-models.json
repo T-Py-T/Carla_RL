@@ -1,0 +1,79 @@
+[
+  {
+    "id": "sketchfab-generic-sedan",
+    "uid": "58c33766470d46e7b2aed542650494e5",
+    "slug": "sketchfab-generic-sedan",
+    "label": "Generic sedan",
+    "targetLength": 4.5,
+    "simplifyRatio": 0.35,
+    "artist": "MMC Works",
+    "artistUrl": "https://sketchfab.com/mmcworks",
+    "modelName": "Generic Sedan Car"
+  },
+  {
+    "id": "sketchfab-modern-sedan",
+    "uid": "38d1aeaad2f84e6eb874c4358a5c1761",
+    "slug": "sketchfab-modern-sedan",
+    "label": "Modern sedan",
+    "targetLength": 4.6,
+    "simplifyRatio": 0.08,
+    "artist": "Chazbc",
+    "artistUrl": "https://sketchfab.com/Chazbc",
+    "modelName": "Modern Sedan"
+  },
+  {
+    "id": "sketchfab-toyoace-van",
+    "uid": "b8abd3caa4864f41aaba6a583591155d",
+    "slug": "sketchfab-toyoace-van",
+    "label": "ToyoAce van",
+    "targetLength": 5.1,
+    "simplifyRatio": 0.5,
+    "artist": "ROH3D",
+    "artistUrl": "https://sketchfab.com/ROH3D",
+    "modelName": "Low Poly Car: Toyota ToyoAce Van"
+  },
+  {
+    "id": "sketchfab-renault-master-van",
+    "uid": "b2148d8984144f1a8879ca4352bfccc9",
+    "slug": "sketchfab-renault-master-van",
+    "label": "Renault Master van",
+    "targetLength": 5.4,
+    "simplifyRatio": 0.04,
+    "artist": "Nieve5677",
+    "artistUrl": "https://sketchfab.com/niev",
+    "modelName": "Renault Master Panel Van"
+  },
+  {
+    "id": "sketchfab-gmc-school-bus",
+    "uid": "6cdeeecb26d04ab4a7d96334578c67d7",
+    "slug": "sketchfab-gmc-school-bus",
+    "label": "School bus",
+    "targetLength": 10.5,
+    "simplifyRatio": 0.03,
+    "artist": "Nieve5677",
+    "artistUrl": "https://sketchfab.com/niev",
+    "modelName": "GMC B- Series School Bus"
+  },
+  {
+    "id": "sketchfab-box-truck",
+    "uid": "624ec1405d314d2eb7e1688573d2e889",
+    "slug": "sketchfab-box-truck",
+    "label": "Box truck",
+    "targetLength": 7.0,
+    "simplifyRatio": 0.25,
+    "artist": "jamesli8",
+    "artistUrl": "https://sketchfab.com/jamesli8",
+    "modelName": "Box Truck"
+  },
+  {
+    "id": "sketchfab-delivery-truck",
+    "uid": "92d8f8d09fd946a08f009d5472474a9f",
+    "slug": "sketchfab-delivery-truck",
+    "label": "Delivery truck",
+    "targetLength": 6.0,
+    "simplifyRatio": 0.4,
+    "artist": "MrPrisma3D",
+    "artistUrl": "https://sketchfab.com/MrPrisma3D",
+    "modelName": "Delivery Truck"
+  }
+]
