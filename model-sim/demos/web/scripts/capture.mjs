@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, "..");
+const root = path.resolve(__dirname, "..", "dist");
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -36,6 +36,8 @@ function contentType(filePath) {
   if (filePath.endsWith(".js")) return "text/javascript";
   if (filePath.endsWith(".html")) return "text/html";
   if (filePath.endsWith(".png")) return "image/png";
+  if (filePath.endsWith(".glb")) return "model/gltf-binary";
+  if (filePath.endsWith(".wasm")) return "application/wasm";
   return "application/octet-stream";
 }
 
@@ -62,6 +64,12 @@ function startStaticServer() {
 
 async function main() {
   const args = parseArgs();
+  const webRoot = path.resolve(__dirname, "..");
+  if (!fs.existsSync(root)) {
+    const { spawnSync } = await import("node:child_process");
+    console.log("Building Vite dist for capture...");
+    spawnSync("npm", ["run", "build"], { cwd: webRoot, stdio: "inherit" });
+  }
   const framesDir = path.join(args.outputDir, "threejs_frames");
   fs.mkdirSync(framesDir, { recursive: true });
 
@@ -75,14 +83,32 @@ async function main() {
     const page = await browser.newPage();
     await page.setViewport({ width: args.width, height: args.height, deviceScaleFactor: 1 });
 
-    // Before: plain 3D ego town, no HUD / path overlays.
-    await page.goto(`http://127.0.0.1:${port}/index.html?w=${args.width}&h=${args.height}&plain=1`, {
-      waitUntil: "networkidle0",
-    });
+    // Before: procedural detailedCar placeholder (no Model Y GLB), plain chase cam.
+    await page.goto(
+      `http://127.0.0.1:${port}/index.html?w=${args.width}&h=${args.height}&plain=1&procedural=1`,
+      { waitUntil: "networkidle0" },
+    );
     await page.waitForFunction(() => typeof window.renderPlainFrame === "function");
-    await page.evaluate(() => window.renderPlainFrame());
+    await page.evaluate(async () => {
+      await window.renderPlainFrame();
+    });
     await page.screenshot({
       path: path.join(args.outputDir, "before_plain_ego.png"),
+      type: "png",
+    });
+
+    // Hero plain: Model Y GLB loaded, chase cam, no HUD/paths.
+    await page.goto(
+      `http://127.0.0.1:${port}/index.html?w=${args.width}&h=${args.height}&plain=1`,
+      { waitUntil: "networkidle0" },
+    );
+    await page.waitForFunction(() => typeof window.renderPlainFrame === "function");
+    await page.evaluate(async () => {
+      await window.renderPlainFrame();
+    });
+    await page.evaluate(() => window.waitForDemoReady());
+    await page.screenshot({
+      path: path.join(args.outputDir, "hero_plain_ego.png"),
       type: "png",
     });
 
@@ -91,6 +117,12 @@ async function main() {
       waitUntil: "networkidle0",
     });
     await page.waitForFunction(() => typeof window.stepSimulation === "function");
+    await page.evaluate(() => window.waitForDemoReady());
+
+    // Warm-up so the clip captures approach + brake (not just the first frame).
+    for (let i = 0; i < 18; i += 1) {
+      await page.evaluate(() => window.stepSimulation());
+    }
 
     for (let i = 0; i < args.frames; i += 1) {
       await page.evaluate(() => window.stepSimulation());
