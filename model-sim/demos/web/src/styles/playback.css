@@ -1,0 +1,54 @@
+/* Carla RL playback overrides on vendored JevPilot HUD */
+
+#app {
+  position: fixed;
+  inset: 0;
+}
+
+body.plain-mode .topbar,
+body.plain-mode .navigation-hud,
+body.plain-mode #json-dialog,
+body.plain-mode .bottom-hud,
+body.plain-mode #vector-labels {
+  display: none !important;
+}
+
+#json-dialog {
+  position: fixed;
+  right: 24px;
+  top: 96px;
+  z-index: 6;
+  width: min(420px, 36vw);
+  max-height: min(520px, 70vh);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #ffffffed;
+  backdrop-filter: blur(18px);
+  border: 1px solid #e4e6e8cc;
+  box-shadow: 0 6px 28px #00000020;
+}
+
+#json-content {
+  margin: 0;
+  padding: 12px 14px 16px;
+  max-height: 360px;
+  overflow: auto;
+  font: 11px/1.45 ui-monospace, monospace;
+}
+
+.json-key { color: #6b7077; }
+.json-string { color: #007aff; }
+.json-number { color: #e82127; }
+.json-bool { color: #9a6bff; }
+
+#json-description {
+  padding: 0 14px 8px;
+  font-size: 11px;
+  color: #6b7077;
+}
+
+#json-live {
+  font-size: 9px;
+  color: #9aa0a8;
+  margin-left: 8px;
+}

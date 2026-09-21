@@ -1,4 +1,5 @@
-import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.172.0/build/three.module.js";
+// @ts-nocheck — legacy stylized viz; perception mesh work HARD blocked
+import * as THREE from "three";
 
 const BOX_COLORS = {
   vehicle: 0x00c2ff,

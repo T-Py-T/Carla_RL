@@ -4,20 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Carla RL · JevPilot-style FSD Playback</title>
-    <link rel="stylesheet" href="./src/style.css" />
+    <!-- Model Y 3D: CC BY 4.0 — 763468712 / Sketchfab. See public/models/model-y/ATTRIBUTION.md -->
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app" class="drive-area"></div>
     <div id="vector-labels"></div>
 
     <div class="topbar glass">
       <strong>Carla RL · FSD Playback</strong>
-      <span>Town03 · chase cam · local FSD viz (no Jev driver)</span>
+      <span>Town03 · chase cam · local playback adapter (no Jev driver)</span>
     </div>
 
     <div class="navigation-hud">
       <div class="navigation-card glass">
-        <div class="turn-icon" id="turn-icon">↑</div>
+        <span class="turn-icon" id="turn-icon">↑</span>
         <div>
           <strong id="next-maneuver">Continue straight</strong>
           <small id="turn-distance">0 m ahead</small>
@@ -27,7 +27,7 @@
       </div>
     </div>
 
-    <div id="json-dialog">
+    <div id="json-dialog" class="glass">
       <div class="json-header">
         <div>
           <strong>Under the hood</strong>
@@ -40,7 +40,7 @@
           <button type="button" data-tab="signals">Local signals</button>
         </div>
       </div>
-      <p id="json-description">Local policy probabilities and action labels — no Jev API driver.</p>
+      <p id="json-description">Playback adapter poses/paths/probs — no Jev decision API.</p>
       <pre id="json-content">{}</pre>
     </div>
 
@@ -69,6 +69,6 @@
       </div>
     </div>
 
-    <script type="module" src="./src/main.js"></script>
+    <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
