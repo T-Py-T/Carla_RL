@@ -11,6 +11,7 @@
     "verify:sketchfab-traffic": "node scripts/sketchfab-verify.mjs"
   },
   "dependencies": {
+    "playwright": "^1.63.0",
     "three": "^0.172.0"
   },
   "devDependencies": {

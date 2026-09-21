@@ -2,7 +2,7 @@
 import * as THREE from "three";
 import { buildTownRoadNetwork } from "../vendor/jevpilot/jevpilot-road";
 import { placeStreetLamps } from "../vendor/jevpilot/scenery-assets";
-import { createNpcVehicle, createPedestrian } from "./ego";
+import { createNpcVehicleFallback, createPedestrian, createProceduralNpcVehicle } from "./ego";
 
 const MIN_VEHICLE_GAP = 9.5;
 const MIN_SPAWN_AHEAD = 14;
@@ -119,12 +119,12 @@ export class TrafficSystem {
     this.actors = [];
   }
 
-  spawnInitial() {
+  spawnInitial(proceduralTraffic = false) {
     if (this.actors.length) return;
-    this._spawnInitial();
+    this._spawnInitial(proceduralTraffic);
   }
 
-  _spawnInitial() {
+  _spawnInitial(proceduralTraffic = false) {
     // Research CC shortlist — Kenney Car Kit + Khronos + OGA UAZ (NOT Model Y).
     // After `npm run fetch:sketchfab-traffic`, swap in SKETCHFAB_TRAFFIC_MODELS ids for mixed fleet.
     // All NPC vehicles ahead in parallel one-way lanes — slow lead in ego lane for braking demo.
@@ -144,7 +144,9 @@ export class TrafficSystem {
     for (const spec of specs) {
       const mesh =
         spec.type === "vehicle"
-          ? createNpcVehicle(spec.modelId)
+          ? proceduralTraffic
+            ? createProceduralNpcVehicle(spec.modelId)
+            : createNpcVehicleFallback(spec.modelId)
           : createPedestrian(spec.lane > 0 ? "#548975" : "#c27d55");
       mesh.position.set(spec.x, 0, spec.z);
       if (spec.type === "vehicle") mesh.rotation.y = 0;

@@ -6,6 +6,7 @@ import { createEgoVehicle, loadTrafficFleet } from "./ego";
 import { updateTrafficLights } from "../vendor/jevpilot/jevpilot-road";
 import { buildTown, EGO_LANE_X, TrafficSystem } from "./world";
 import { PerceptionViz } from "./perception-viz";
+import { SensorAdapter } from "./sensor-adapter";
 
 const MANEUVER: Record<number, string> = {
   0: "Continue straight",
@@ -22,12 +23,14 @@ export interface DemoOptions {
   height?: number;
   plain?: boolean;
   procedural?: boolean;
+  proceduralTraffic?: boolean;
 }
 
 export class JevTownDemo {
   width: number;
   height: number;
   plain: boolean;
+  proceduralTraffic: boolean;
   stepIndex = 0;
   distance = 0;
   speedKmh = 40;
@@ -40,6 +43,7 @@ export class JevTownDemo {
   traffic: TrafficSystem;
   car: THREE.Group;
   perception: PerceptionViz;
+  sensor: SensorAdapter;
   vectors: PlaybackPathVectors;
   ready: Promise<void>;
   private _camTarget = new THREE.Vector3();
@@ -64,6 +68,9 @@ export class JevTownDemo {
     this.width = options.width ?? 1280;
     this.height = options.height ?? 720;
     this.plain = options.plain ?? false;
+    this.proceduralTraffic =
+      options.proceduralTraffic ??
+      new URLSearchParams(location.search).get("proceduralTraffic") === "1";
 
     if (this.plain) document.body.classList.add("plain-mode");
 
@@ -85,6 +92,7 @@ export class JevTownDemo {
     this.scene.add(this.car);
 
     this.perception = new PerceptionViz(this.scene);
+    this.sensor = new SensorAdapter();
     this.perception.setVisible(!this.plain);
     this.vectors = new PlaybackPathVectors(this.scene, document.getElementById("vector-labels")!);
     this.vectors.setVisible(!this.plain);
@@ -96,7 +104,8 @@ export class JevTownDemo {
 
     const playerGroup = this.car;
     const skipHeroModel =
-      options.procedural ?? new URLSearchParams(location.search).get("procedural") === "1";
+      options.procedural ??
+      (this.proceduralTraffic || new URLSearchParams(location.search).get("procedural") === "1");
     const heroReady = skipHeroModel
       ? Promise.resolve()
       : loadHeroCar()
@@ -115,11 +124,16 @@ export class JevTownDemo {
           })
           .catch((error) => console.warn("Model Y unavailable, keeping procedural ego", error));
 
-    this.ready = Promise.all([heroReady, loadTrafficFleet()])
-      .then(() => {
-        this.traffic.spawnInitial();
-      })
-      .catch((error) => console.warn("Traffic GLB fleet unavailable", error));
+    const trafficReady = this.proceduralTraffic
+      ? Promise.resolve()
+      : loadTrafficFleet().catch((e) => {
+          console.warn("Traffic GLB fleet unavailable, using procedural NPCs", e);
+          return null;
+        });
+
+    this.ready = Promise.all([heroReady, trafficReady]).then(() => {
+      this.traffic.spawnInitial(this.proceduralTraffic);
+    });
   }
 
   private _bindHud() {
@@ -234,7 +248,8 @@ export class JevTownDemo {
     this._updateChaseCamera();
 
     if (!this.plain) {
-      this.perception.update(this.car, [this.car, ...actors]);
+      const sensorFrame = this.sensor.synthesize(this.car, [this.car, ...actors]);
+      this.perception.update(this.car, sensorFrame);
       this.vectors.update(this.car, this.camera, this.width, this.height, dt, this.action, probs);
 
       this.hud.maneuver.textContent = MANEUVER[this.action];
@@ -248,7 +263,6 @@ export class JevTownDemo {
         btn.classList.toggle("selected", idx === this.action),
       );
 
-      const nearby = actors.filter((a: THREE.Object3D) => a.position.distanceTo(this.car.position) < 40).length;
       this._renderJson({
         step: this.stepIndex,
         town: "Town03",
@@ -256,7 +270,7 @@ export class JevTownDemo {
         maneuver: MANEUVER[this.action],
         action: { index: this.action, label: LABELS[this.action] },
         vehicle: { speed_kmh: +this.speedKmh.toFixed(1), speed_limit_kmh: 50 },
-        perception: { tracks: nearby, lidar_points: 720, scanner: "local-sim" },
+        perception: this.sensor.frameStats(sensorFrame),
         q_values: Object.fromEntries(q.map((v, i) => [String(i), +v.toFixed(3)])),
         probabilities: Object.fromEntries(probs.map((v, i) => [String(i), +v.toFixed(3)])),
       });

@@ -12,9 +12,30 @@ export function createEgoVehicle() {
   return detailedCar("#e2e5e9");
 }
 
+const NPC_FALLBACK_COLORS = ["#c0392b", "#2980b9", "#27ae60", "#8e44ad", "#d35400", "#16a085"];
+
 /** Licensed GLB NPC fleet — NOT Model Y. Ghost = kinematic clone, NOT mesh opacity. */
 export function createNpcVehicle(modelId: TrafficModelId) {
   return cloneTrafficVehicle(modelId);
+}
+
+/** Procedural NPC — no GLB (headless capture / fleet-unavailable fallback). */
+export function createProceduralNpcVehicle(modelId: TrafficModelId) {
+  const idx = Math.abs(modelId.split("").reduce((a, c) => a + c.charCodeAt(0), 0));
+  const car = detailedCar(NPC_FALLBACK_COLORS[idx % NPC_FALLBACK_COLORS.length]);
+  car.userData.kind = "vehicle";
+  car.userData.label = modelId;
+  car.userData.modelId = modelId;
+  return car;
+}
+
+/** Kenney GLB when loaded, else procedural. */
+export function createNpcVehicleFallback(modelId: TrafficModelId) {
+  try {
+    return createNpcVehicle(modelId);
+  } catch {
+    return createProceduralNpcVehicle(modelId);
+  }
 }
 
 export { loadTrafficFleet };

@@ -38,9 +38,10 @@ Reference demo: [standardagents/jevpilot](https://github.com/standardagents/jevp
 
 Before commercial redistribution beyond portfolio demo, confirm application-code terms with Standard Agents if required.
 
-## Not included (perception gate)
+## Perception overlay (PR #114)
 
-- Real sensor meshes, CARLA episode streaming (`docs/python-three-shim.md` — documented only)
+- **Synthetic sensor adapter** (`src/playback/sensor-adapter.ts`): structured LiDAR wedge, proximity zones, persistent track IDs — derived from traffic actor poses (not CARLA sensor stream).
+- CARLA live sensor streaming remains future work (`docs/python-three-shim.md`).
 
 ## Authorship
 
