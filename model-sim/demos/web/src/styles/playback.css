@@ -9,8 +9,77 @@ body.plain-mode .topbar,
 body.plain-mode .navigation-hud,
 body.plain-mode #json-dialog,
 body.plain-mode .bottom-hud,
-body.plain-mode #vector-labels {
+body.plain-mode #vector-labels,
+body.plain-mode #honesty-banner {
   display: none !important;
+}
+
+/* Headless capture: solid HUD panels (backdrop-filter hangs Playwright screenshots). */
+body.capture-mode .glass,
+body.capture-mode #json-dialog {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: #fffffff2 !important;
+}
+
+/* Portfolio clip: no maintainer honesty sticker. PR body + README keep the facts. */
+body.capture-mode #honesty-banner,
+body.capture-mode #json-dialog,
+body.capture-mode #json-description {
+  display: none !important;
+}
+
+body.capture-mode #json-content {
+  max-height: 300px;
+  overflow: auto;
+}
+
+body.capture-mode #app canvas {
+  display: block;
+}
+
+/* Selected candidate + brake maneuver — make BRAKE / BRK obvious in proofs. */
+.candidate-button.selected {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 650;
+}
+
+body.is-braking #next-maneuver,
+body.is-braking #context-message {
+  color: var(--accent);
+}
+
+#honesty-banner {
+  position: fixed;
+  left: 27px;
+  top: 80px;
+  z-index: 6;
+  width: min(430px, calc(100% - 54px));
+  padding: 10px 12px;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none;
+}
+
+#honesty-banner strong {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: -0.2px;
+}
+
+#honesty-banner span {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #4b5058;
+}
+
+#honesty-banner code {
+  font: 11px/1.4 ui-monospace, monospace;
+  color: #171a20;
 }
 
 #json-dialog {

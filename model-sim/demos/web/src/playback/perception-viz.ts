@@ -1,18 +1,27 @@
-// @ts-nocheck — legacy stylized viz; perception mesh work HARD blocked
 import * as THREE from "three";
+import { PROXIMITY_RADII, type SensorFrame } from "./sensor-adapter";
 
-const BOX_COLORS = {
-  vehicle: 0x00c2ff,
-  pedestrian: 0xffcc33,
-};
+const PROXIMITY_COLORS = { clear: 0x2ecc71, warn: 0xf1c40f, threat: 0xe74c3c };
+/** Display radii (m) — shared with SensorAdapter. */
+const PROXIMITY_DISPLAY = PROXIMITY_RADII;
 
 export class PerceptionViz {
-  constructor(scene) {
-    this.scene = scene;
+  root: THREE.Group;
+  boxGroup: THREE.Group;
+  points: THREE.Points;
+  proximityRings: THREE.Mesh[];
+  scanWedge: THREE.Mesh;
+  scanRing: THREE.Mesh;
+  threatArc: THREE.Mesh;
+  private boxes = new Map<string, THREE.BoxHelper>();
+  private _pointCount = 720;
+  private _threatZ = 12;
+
+  constructor(scene: THREE.Scene) {
     this.root = new THREE.Group();
+    this.boxGroup = new THREE.Group();
     scene.add(this.root);
-    this.boxes = new Map();
-    this._pointCount = 720;
+    scene.add(this.boxGroup);
 
     const positions = new Float32Array(this._pointCount * 3);
     const colors = new Float32Array(this._pointCount * 3);
@@ -22,130 +31,181 @@ export class PerceptionViz {
     this.points = new THREE.Points(
       geo,
       new THREE.PointsMaterial({
-        size: 0.028,
+        // Pixel-sized points (SwiftShader drops attenuated 3D point size).
+        size: 6,
         vertexColors: true,
         transparent: true,
-        opacity: 0.32,
+        opacity: 0.95,
         depthWrite: false,
-        sizeAttenuation: true,
+        depthTest: true,
+        sizeAttenuation: false,
       }),
     );
-    this.points.renderOrder = 2;
+    this.points.renderOrder = 3;
     this.root.add(this.points);
 
+    // Forward arc on the pavement — never a disc through the ego body.
     this.scanRing = new THREE.Mesh(
-      new THREE.RingGeometry(1.8, 2.05, 64),
+      new THREE.RingGeometry(3.2, 3.55, 48, 1, Math.PI / 2 - 0.85, 1.7),
       new THREE.MeshBasicMaterial({
         color: 0x38bcd6,
         transparent: true,
-        opacity: 0.35,
+        opacity: 0.34,
         side: THREE.DoubleSide,
         depthWrite: false,
+        depthTest: true,
       }),
     );
     this.scanRing.rotation.x = -Math.PI / 2;
-    this.scanRing.position.y = 0.11;
+    this.scanRing.position.set(0, 0.08, 0);
     this.root.add(this.scanRing);
 
-    // Forward lidar wedge (not a full circle — avoids "snow in the sky")
+    this.proximityRings = PROXIMITY_DISPLAY.map((radius, i) => {
+      const band = 1.35;
+      // Forward 170° arc (chase cam never sees the rear half of a 12–38 m circle).
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(radius - band, radius, 64, 1, Math.PI / 2 - 0.85, 1.7),
+        new THREE.MeshBasicMaterial({
+          color: 0x2ecc71,
+          transparent: true,
+          opacity: 0.28,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+          depthTest: true,
+        }),
+      );
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.y = 0.24 + i * 0.03;
+      this.root.add(ring);
+      return ring;
+    });
+
     this.scanWedge = new THREE.Mesh(
-      new THREE.CircleGeometry(16, 32, -0.55, 1.1),
+      new THREE.CircleGeometry(14, 32, -0.5, 1.0),
       new THREE.MeshBasicMaterial({
         color: 0x007aff,
         transparent: true,
-        opacity: 0.07,
+        opacity: 0.1,
         side: THREE.DoubleSide,
         depthWrite: false,
+        depthTest: true,
       }),
     );
     this.scanWedge.rotation.x = -Math.PI / 2;
     this.scanWedge.rotation.z = Math.PI / 2;
-    this.scanWedge.position.set(0, 0.1, -1.5);
+    this.scanWedge.position.set(0, 0.13, -1.2);
     this.root.add(this.scanWedge);
-    this._phase = 0;
+
+    this.threatArc = new THREE.Mesh(
+      new THREE.RingGeometry(0.8, 1.6, 24, 1, -0.3, 0.6),
+      new THREE.MeshBasicMaterial({
+        color: 0xe74c3c,
+        transparent: true,
+        opacity: 0.22,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        depthTest: true,
+      }),
+    );
+    this.threatArc.rotation.x = -Math.PI / 2;
+    this.threatArc.position.set(0, 0.15, -8);
+    this.root.add(this.threatArc);
   }
 
-  setVisible(visible) {
+  setVisible(visible: boolean) {
     this.root.visible = visible;
+    this.boxGroup.visible = visible;
     for (const helper of this.boxes.values()) {
       helper.visible = visible;
     }
   }
 
-  _refreshLidarPoints(actors) {
-    const pos = this.points.geometry.attributes.position;
-    const col = this.points.geometry.attributes.color;
-    let index = 0;
-
-    // Ground returns in forward wedge (road scan)
-    while (index < this._pointCount * 0.75) {
-      const ahead = 3 + Math.random() * 34;
-      const lateral = (Math.random() - 0.5) * 8.5;
-      const y = 0.06 + Math.random() * 0.25;
-      pos.setXYZ(index, lateral, y, -ahead);
-      const intensity = 0.45 + (1 - ahead / 38) * 0.4;
-      col.setXYZ(index, 0.15 * intensity, 0.75 * intensity, 0.95 * intensity);
-      index += 1;
-    }
-
-    // Returns on tracked actors (detection-aligned points)
-    for (const actor of actors) {
-      if (index >= this._pointCount) break;
-      const local = actor.position.clone().sub(this.root.position);
-      local.applyAxisAngle(new THREE.Vector3(0, 1, 0), -this.root.rotation.y);
-      if (local.z > -2) continue;
-      const samples = actor.userData.kind === "vehicle" ? 28 : 12;
-      for (let s = 0; s < samples && index < this._pointCount; s++) {
-        pos.setXYZ(
-          index,
-          local.x + (Math.random() - 0.5) * 1.6,
-          0.4 + Math.random() * 1.2,
-          local.z + (Math.random() - 0.5) * 2.0,
-        );
-        col.setXYZ(index, 0.2, 0.85, 0.95);
-        index += 1;
-      }
-    }
-
-    while (index < this._pointCount) {
-      pos.setXYZ(index, 0, -100, 0);
-      col.setXYZ(index, 0, 0, 0);
-      index += 1;
+  private _applyLidarPoints(frame: SensorFrame) {
+    const pos = this.points.geometry.attributes.position as THREE.BufferAttribute;
+    const col = this.points.geometry.attributes.color as THREE.BufferAttribute;
+    const pts = frame.lidarPoints;
+    for (let i = 0; i < this._pointCount; i++) {
+      const p = pts[i];
+      pos.setXYZ(i, p.x, Math.max(p.y, 0.4), p.z);
+      col.setXYZ(i, p.r, p.g, p.b);
     }
     pos.needsUpdate = true;
     col.needsUpdate = true;
   }
 
-  update(ego, actors) {
+  private _updateProximityRings(frame: SensorFrame) {
+    const zones = frame.proximityZones;
+    this.proximityRings.forEach((ring, i) => {
+      const zone = zones[i] ?? zones.find((z) => Math.abs(z.radius - PROXIMITY_DISPLAY[i]) < 1);
+      if (!zone) return;
+      const mat = ring.material as THREE.MeshBasicMaterial;
+      const t = zone.threat;
+      const color = new THREE.Color();
+      if (t < 0.35) {
+        color.setHex(PROXIMITY_COLORS.clear);
+      } else if (t < 0.7) {
+        color.lerpColors(
+          new THREE.Color(PROXIMITY_COLORS.clear),
+          new THREE.Color(PROXIMITY_COLORS.warn),
+          (t - 0.35) / 0.35,
+        );
+      } else {
+        color.lerpColors(
+          new THREE.Color(PROXIMITY_COLORS.warn),
+          new THREE.Color(PROXIMITY_COLORS.threat),
+          (t - 0.7) / 0.3,
+        );
+      }
+      mat.color.copy(color);
+      mat.opacity = 0.32 + t * 0.38;
+    });
+
+    const close = Number.isFinite(frame.closestThreatM) ? frame.closestThreatM : 50;
+    const targetZ = -Math.min(Math.max(close, 6), 36);
+    this._threatZ += (targetZ - this._threatZ) * 0.12;
+    this.threatArc.position.z = this._threatZ;
+    const threatMat = this.threatArc.material as THREE.MeshBasicMaterial;
+    threatMat.opacity = close < 18 ? 0.28 : 0.1;
+  }
+
+  update(ego: THREE.Object3D, frame: SensorFrame) {
     this.root.position.copy(ego.position);
     this.root.rotation.y = ego.rotation.y;
-    this._phase += 0.05;
-    this.scanRing.rotation.z = this._phase;
-    this.scanWedge.rotation.z = Math.PI / 2 + this._phase * 0.4;
 
-    const tracked = actors.filter((a) => a !== ego);
-    this._refreshLidarPoints(tracked);
+    this.scanRing.rotation.z = frame.scannerPhase;
+    this.scanWedge.rotation.z = Math.PI / 2 + frame.scannerPhase * 0.25;
 
-    const seen = new Set();
-    for (const actor of tracked) {
-      const dist = actor.position.distanceTo(ego.position);
-      if (dist > 50) continue;
-      seen.add(actor.uuid);
-      const color = BOX_COLORS[actor.userData.kind] ?? 0xffffff;
-      if (!this.boxes.has(actor.uuid)) {
-        const helper = new THREE.BoxHelper(actor, color);
-        helper.material.transparent = true;
-        helper.material.opacity = 0.95;
-        helper.renderOrder = 7;
-        this.scene.add(helper);
-        this.boxes.set(actor.uuid, helper);
+    this._applyLidarPoints(frame);
+    this._updateProximityRings(frame);
+
+    const seen = new Set<string>();
+    for (const track of frame.tracks) {
+      const pos = track.object.position;
+      if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) continue;
+
+      seen.add(track.object.uuid);
+      const color = track.color;
+      if (!this.boxes.has(track.object.uuid)) {
+        const helper = new THREE.BoxHelper(track.object, color);
+        const mat = helper.material as THREE.LineBasicMaterial;
+        mat.transparent = true;
+        mat.opacity = 0.88;
+        mat.depthTest = true;
+        mat.depthWrite = false;
+        mat.linewidth = 2;
+        helper.renderOrder = 8;
+        this.boxGroup.add(helper);
+        this.boxes.set(track.object.uuid, helper);
       } else {
-        this.boxes.get(actor.uuid).setFromObject(actor);
+        const helper = this.boxes.get(track.object.uuid)!;
+        helper.setFromObject(track.object);
+        (helper.material as THREE.LineBasicMaterial).color.setHex(color);
       }
     }
+
     for (const [uuid, helper] of this.boxes) {
       if (!seen.has(uuid)) {
-        this.scene.remove(helper);
+        this.boxGroup.remove(helper);
         helper.geometry.dispose();
         this.boxes.delete(uuid);
       }
@@ -154,7 +214,7 @@ export class PerceptionViz {
 
   dispose() {
     for (const helper of this.boxes.values()) {
-      this.scene.remove(helper);
+      this.boxGroup.remove(helper);
       helper.geometry.dispose();
     }
     this.boxes.clear();

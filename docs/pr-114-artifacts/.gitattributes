@@ -1,0 +1,5 @@
+# Belt-and-suspenders: this tree is proof media, never text/eol-normalized.
+* -text -eol
+*.png -text -diff -merge -eol
+*.gif -text -diff -merge -eol
+*.mp4 -text -diff -merge -eol

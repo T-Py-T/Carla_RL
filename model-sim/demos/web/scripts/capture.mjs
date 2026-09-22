@@ -38,6 +38,8 @@ function contentType(filePath) {
   if (filePath.endsWith(".png")) return "image/png";
   if (filePath.endsWith(".glb")) return "model/gltf-binary";
   if (filePath.endsWith(".wasm")) return "application/wasm";
+  if (filePath.endsWith(".jpg") || filePath.endsWith(".jpeg")) return "image/jpeg";
+  if (filePath.endsWith(".webp")) return "image/webp";
   return "application/octet-stream";
 }
 
@@ -76,7 +78,13 @@ async function main() {
   const { server, port } = await startStaticServer();
   const browser = await puppeteer.launch({
     headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--use-gl=angle", "--use-angle=swiftshader"],
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--use-gl=angle",
+      "--use-angle=swiftshader",
+      "--enable-unsafe-swiftshader",
+    ],
   });
 
   try {
@@ -86,7 +94,7 @@ async function main() {
     // Before: procedural detailedCar placeholder (no Model Y GLB), plain chase cam.
     await page.goto(
       `http://127.0.0.1:${port}/index.html?w=${args.width}&h=${args.height}&plain=1&procedural=1`,
-      { waitUntil: "networkidle0" },
+      { waitUntil: "load", timeout: 60000 },
     );
     await page.waitForFunction(() => typeof window.renderPlainFrame === "function");
     await page.evaluate(async () => {
@@ -100,7 +108,7 @@ async function main() {
     // Hero plain: Model Y GLB loaded, chase cam, no HUD/paths.
     await page.goto(
       `http://127.0.0.1:${port}/index.html?w=${args.width}&h=${args.height}&plain=1`,
-      { waitUntil: "networkidle0" },
+      { waitUntil: "load", timeout: 60000 },
     );
     await page.waitForFunction(() => typeof window.renderPlainFrame === "function");
     await page.evaluate(async () => {
@@ -114,7 +122,8 @@ async function main() {
 
     // Rollout: full JevPilot HUD + candidate path ribbons.
     await page.goto(`http://127.0.0.1:${port}/index.html?w=${args.width}&h=${args.height}`, {
-      waitUntil: "networkidle0",
+      waitUntil: "load",
+      timeout: 60000,
     });
     await page.waitForFunction(() => typeof window.stepSimulation === "function");
     await page.evaluate(() => window.waitForDemoReady());

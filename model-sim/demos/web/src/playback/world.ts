@@ -2,10 +2,15 @@
 import * as THREE from "three";
 import { buildTownRoadNetwork } from "../vendor/jevpilot/jevpilot-road";
 import { placeStreetLamps } from "../vendor/jevpilot/scenery-assets";
-import { createNpcVehicle, createPedestrian } from "./ego";
+import { createOpaqueSedan, createNpcVehicleFallback, createPedestrian, createProceduralNpcVehicle } from "./ego";
 
-const MIN_VEHICLE_GAP = 9.5;
-const MIN_SPAWN_AHEAD = 14;
+const MIN_VEHICLE_GAP = 12;
+const MIN_SPAWN_AHEAD = 16;
+/** Half-lengths used for bumper-to-bumper gap (Model Y 4.75 m, NPC ~4.2 m). */
+export const EGO_HALF_LENGTH = 2.4;
+export const NPC_HALF_LENGTH = 2.2;
+/** Bumper must stay at least this far from the lead mesh. */
+export const BUMPER_CLEAR_M = 2.8;
 /** Four-lane one-way main road (−Z travel) — 3 m lanes across 12 m pavement. */
 export const ONE_WAY_LANE_X = [-4.5, -1.5, 1.5, 4.5];
 export const EGO_LANE_X = ONE_WAY_LANE_X[1];
@@ -46,11 +51,13 @@ export function buildTown(scene) {
     intersection: { cx: 0, cz: -35, offset: 0 },
   });
 
-  // Poly Haven CC0 street_lamp_01 — JevPilot scenery-assets.js placement along main + cross roads.
-  void placeStreetLamps(scene, [
-    { ax: 0, az: -140, bx: 0, bz: 140, length: 280 },
-    { ax: -35, az: -35, bx: 35, bz: -35, length: 70 },
-  ]);
+  // Skip async GLB street lamps during headless capture (avoids GL stalls + NaN bounds).
+  if (new URLSearchParams(location.search).get("capture") !== "1") {
+    void placeStreetLamps(scene, [
+      { ax: 0, az: -140, bx: 0, bz: 140, length: 280 },
+      { ax: -35, az: -35, bx: 35, bz: -35, length: 70 },
+    ]);
+  }
 
   const palette = ["#8d9cab", "#7f93a3", "#6d8494", "#95a8b8", "#566878"];
   for (let block = 0; block < 18; block++) {
@@ -119,24 +126,27 @@ export class TrafficSystem {
     this.actors = [];
   }
 
-  spawnInitial() {
+  spawnInitial(proceduralTraffic = false) {
     if (this.actors.length) return;
-    this._spawnInitial();
+    this._spawnInitial(proceduralTraffic);
   }
 
-  _spawnInitial() {
+  _spawnInitial(proceduralTraffic = false) {
     // Research CC shortlist — Kenney Car Kit + Khronos + OGA UAZ (NOT Model Y).
     // After `npm run fetch:sketchfab-traffic`, swap in SKETCHFAB_TRAFFIC_MODELS ids for mixed fleet.
     // All NPC vehicles ahead in parallel one-way lanes — slow lead in ego lane for braking demo.
+    // In-lane lead is the only near car. Adjacent traffic stays far enough
+    // that a 3/4 chase cam cannot stack them on the ego (the last clip's
+    // "dark sedan pierce" was a depthTest=false box drawn through the hull).
     const specs = [
-      { type: "vehicle", x: EGO_LANE_X, z: -8.5, speed: 0.022, modelId: "kenney-sedan" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -18, speed: 0.075, modelId: "kenney-hatchback-sports" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[2], z: -26, speed: 0.068, modelId: "kenney-van" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[3], z: -34, speed: 0.072, modelId: "kenney-firetruck" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -48, speed: 0.08, modelId: "kenney-truck" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[2], z: -58, speed: 0.07, modelId: "kenney-delivery" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[3], z: -70, speed: 0.065, modelId: "khronos-milk-truck" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -82, speed: 0.06, modelId: "oga-uaz-truck" },
+      { type: "vehicle", x: EGO_LANE_X, z: -26, speed: 0, modelId: "lead-sedan", color: "#1a3d66" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -70, speed: 0.04, modelId: "kenney-hatchback-sports" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[2], z: -78, speed: 0.038, modelId: "kenney-van" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[3], z: -88, speed: 0.036, modelId: "kenney-firetruck" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -100, speed: 0.035, modelId: "kenney-truck" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[2], z: -112, speed: 0.034, modelId: "kenney-delivery" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[3], z: -124, speed: 0.032, modelId: "khronos-milk-truck" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -136, speed: 0.03, modelId: "oga-uaz-truck" },
       { type: "pedestrian", x: -9, z: -22, speed: 0.025, lane: 1 },
       { type: "pedestrian", x: 9.2, z: -40, speed: 0.02, lane: -1 },
       { type: "pedestrian", x: -9, z: -58, speed: 0.018, lane: 1 },
@@ -144,7 +154,11 @@ export class TrafficSystem {
     for (const spec of specs) {
       const mesh =
         spec.type === "vehicle"
-          ? createNpcVehicle(spec.modelId)
+          ? spec.color
+            ? createOpaqueSedan(spec.color, spec.modelId)
+            : proceduralTraffic
+              ? createProceduralNpcVehicle(spec.modelId)
+              : createNpcVehicleFallback(spec.modelId)
           : createPedestrian(spec.lane > 0 ? "#548975" : "#c27d55");
       mesh.position.set(spec.x, 0, spec.z);
       if (spec.type === "vehicle") mesh.rotation.y = 0;
@@ -183,16 +197,30 @@ export class TrafficSystem {
     }
   }
 
-  _leadGap(ego) {
-    let minGap = Infinity;
+  /** Bumper-to-bumper gap to the in-lane lead (negative = intersecting). */
+  _leadInfo(ego) {
+    let minBumper = Infinity;
+    let leadZ = null;
+    let leadMesh = null;
     for (const actor of this.actors) {
       if (actor.kind !== "vehicle") continue;
-      const gap = this._gapToEgo(actor.mesh, ego);
-      if (gap < 4 || gap > 120) continue;
+      const centerGap = this._gapToEgo(actor.mesh, ego);
+      // Keep a closing / overlapping lead in-lane so playback braking never drops out
+      // (the old `gap < 4` skip released the brake and let ego drive through).
+      if (centerGap > 120 || centerGap < -8) continue;
       if (!this._laneOverlap(actor.mesh.position.x, ego.position.x)) continue;
-      minGap = Math.min(minGap, gap);
+      const bumper = centerGap - EGO_HALF_LENGTH - NPC_HALF_LENGTH;
+      if (bumper < minBumper) {
+        minBumper = bumper;
+        leadZ = actor.mesh.position.z;
+        leadMesh = actor.mesh;
+      }
     }
-    return minGap;
+    return {
+      leadGap: minBumper === Infinity ? Infinity : minBumper,
+      leadZ,
+      leadMesh,
+    };
   }
 
   step(ego, tick = 0) {
@@ -221,9 +249,12 @@ export class TrafficSystem {
       }
     }
 
+    const lead = this._leadInfo(ego);
     return {
       actors: this.actors.map((a) => a.mesh),
-      leadGap: this._leadGap(ego),
+      leadGap: lead.leadGap,
+      leadZ: lead.leadZ,
+      leadMesh: lead.leadMesh,
     };
   }
 }

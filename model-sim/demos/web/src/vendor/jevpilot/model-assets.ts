@@ -17,7 +17,12 @@ export async function loadHeroCar() {
   carAsset ||= (async () => {
     const decoder = new DRACOLoader().setDecoderPath("/draco/");
     const loader = new GLTFLoader().setDRACOLoader(decoder);
-    const { scene } = await loader.loadAsync("/models/model-y/model-y.glb");
+    const { scene } = await Promise.race([
+      loader.loadAsync("/models/model-y/model-y.glb"),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("Model Y GLB load timed out")), 20000);
+      }),
+    ]);
     decoder.dispose();
 
     const paint = physical("model-y-paint", {
@@ -32,23 +37,23 @@ export async function loadHeroCar() {
       metalness: 0.9,
       roughness: 0.28,
     });
-    const glass = physical("model-y-glass", {
-      color: "#192530",
-      metalness: 0.25,
-      roughness: 0.08,
-      clearcoat: 1,
-      transparent: true,
-      opacity: 0.82,
-      depthWrite: false,
+    // Windows / lenses are DARK OPAQUE — never see-through body (portfolio bar).
+    const glass = physical("model-y-glass-opaque", {
+      color: "#151c24",
+      metalness: 0.35,
+      roughness: 0.22,
+      transparent: false,
+      opacity: 1,
+      depthWrite: true,
     });
     glass.name = "Glass";
-    const lenses = physical("model-y-light-lenses", {
-      color: "#eef4ff",
-      metalness: 0.05,
-      roughness: 0.1,
-      transparent: true,
-      opacity: 0.14,
-      depthWrite: false,
+    const lenses = physical("model-y-light-lenses-opaque", {
+      color: "#dce6f2",
+      metalness: 0.2,
+      roughness: 0.18,
+      transparent: false,
+      opacity: 1,
+      depthWrite: true,
     });
     const leather = physical("model-y-leather", {
       color: "#24282c",
@@ -95,7 +100,9 @@ export async function loadHeroCar() {
       batches.set(pivot, new Map());
     });
 
-    if (wheels.size !== 4) throw new Error("Model Y asset is missing an axle");
+    if (wheels.size !== 4) {
+      console.warn(`Model Y axle count ${wheels.size}; wheel spin disabled`);
+    }
 
     const rolling = new Set(["tires", "wheels", "brakedsk", "metal", "alum", "chrome"]);
     const calipers = new Set(["calipers", "calipers2"]);
@@ -109,6 +116,7 @@ export async function loadHeroCar() {
       const wheelName = `wheel_${center.z < 0 ? "f" : "r"}${center.x < 0 ? "l" : "r"}`;
       const candidate = wheels.get(wheelName);
       const atAxle =
+        !!candidate &&
         Math.abs(center.z - candidate.pivot.position.z) < 0.3 &&
         Math.abs(center.x - candidate.pivot.position.x) < 0.25 &&
         box.max.y < 0.8 &&
@@ -164,12 +172,18 @@ export async function loadHeroCar() {
     }
 
     scene.traverse((mesh) => mesh.geometry?.dispose());
+    hardenEgoMaterials(model);
+    const meshCount = countMeshes(model);
+    if (meshCount < 4) {
+      throw new Error(`Incomplete Model Y (${meshCount} meshes) — refusing ghost/wireframe body`);
+    }
     model.name = "tesla-model-y";
     model.userData.eyeHeight = 1.28;
     model.userData.eyeForward = 0.45;
-    model.userData.wheelbase = Math.abs(
-      wheels.get("wheel_fl").pivot.position.z - wheels.get("wheel_rl").pivot.position.z,
-    );
+    const fl = wheels.get("wheel_fl");
+    const rl = wheels.get("wheel_rl");
+    model.userData.wheelbase =
+      fl && rl ? Math.abs(fl.pivot.position.z - rl.pivot.position.z) : 2.8;
     model.userData.width = 1.9;
     model.userData.depth = 4.75;
     model.userData.sourcedModel = true;
@@ -197,4 +211,44 @@ export function updateHeroWheels(model, signedDistance, steering = 0) {
       ? -Math.atan((wheelbase * curvature) / (1 - wheel.position.x * curvature))
       : 0;
   }
+}
+
+function countMeshes(root: THREE.Object3D) {
+  let n = 0;
+  root.traverse((o) => {
+    if ((o as THREE.Mesh).isMesh) n += 1;
+  });
+  return n;
+}
+
+/** Body stays opaque for the full clip. Sensor overlays may be translucent; the car may not. */
+export function hardenEgoMaterials(root: THREE.Object3D) {
+  root.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh || !mesh.material) return;
+    const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    const next = list.map((src) => {
+      const mat = (src as THREE.Material).clone() as THREE.MeshPhysicalMaterial;
+      const name = `${mat.name || ""} ${src.name || ""}`.toLowerCase();
+      const wasGlass =
+        name.includes("glass") ||
+        name.includes("lens") ||
+        mat.transparent === true ||
+        (typeof mat.opacity === "number" && mat.opacity < 0.99) ||
+        (typeof mat.transmission === "number" && mat.transmission > 0);
+      if (wasGlass) {
+        mat.color?.set(name.includes("lens") || name.includes("light") ? "#dce6f2" : "#151c24");
+      }
+      mat.transparent = false;
+      mat.opacity = 1;
+      mat.depthWrite = true;
+      mat.depthTest = true;
+      if ("transmission" in mat) mat.transmission = 0;
+      if ("alphaTest" in mat) mat.alphaTest = 0;
+      mat.side = THREE.FrontSide;
+      return mat;
+    });
+    mesh.material = Array.isArray(mesh.material) ? next : next[0];
+    mesh.renderOrder = 0;
+  });
 }

@@ -7,14 +7,19 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "capture": "npm run build && node scripts/capture.mjs",
+    "capture:proof": "node scripts/capture-proof.mjs",
+    "undraco:modely": "node scripts/undraco-modely.mjs public/models/model-y/model-y.glb dist/models/model-y/model-y.glb",
+    "verify:proof": "node scripts/verify-artifacts.mjs",
     "fetch:sketchfab-traffic": "node scripts/sketchfab-fetch.mjs",
     "verify:sketchfab-traffic": "node scripts/sketchfab-verify.mjs"
   },
   "dependencies": {
+    "playwright": "^1.63.0",
     "three": "^0.172.0"
   },
   "devDependencies": {
     "@types/three": "^0.172.0",
+    "draco3dgltf": "^1.5.7",
     "puppeteer": "^24.6.0",
     "typescript": "^5.7.3",
     "vite": "^6.0.7"
