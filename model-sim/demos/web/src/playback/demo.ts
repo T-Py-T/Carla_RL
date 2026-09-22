@@ -6,14 +6,12 @@ import { auditOpaqueMaterials, createOpaqueModelY, loadTrafficFleet } from "./eg
 import { updateTrafficLights } from "../vendor/jevpilot/jevpilot-road";
 import {
   buildTown,
-  BUMPER_CLEAR_M,
-  EGO_HALF_LENGTH,
   EGO_LANE_X,
-  NPC_HALF_LENGTH,
   TrafficSystem,
 } from "./world";
 import { PerceptionViz } from "./perception-viz";
 import { SensorAdapter } from "./sensor-adapter";
+import { EgoController } from "./ego-controller";
 
 const MANEUVER: Record<number, string> = {
   0: "Continue straight",
@@ -59,9 +57,8 @@ export class JevTownDemo {
   private _heroCar: THREE.Group | null = null;
   private _lastPayload: Record<string, unknown> = {};
   private _lastFrameMs = performance.now();
-  /** Last TrafficSystem bumper leadGap (scripted playback input — not a learned policy). */
-  private _leadGap = Infinity;
-  private _leadZ: number | null = null;
+  /** Last fused sensor forward gap (control feedback — not TrafficSystem cheat). */
+  private _forwardGap = Infinity;
   private _overlap = false;
   private _bumperGap = Infinity;
   private _transparentMeshes = 0;
@@ -183,7 +180,7 @@ export class JevTownDemo {
     this._egoMeshCount = audit.meshCount;
   }
 
-  /** Product labels only — no “scripted / synthetic / not a model” on the clip. */
+  /** Product labels only — no maintainer honesty sticker on the clip. */
   private _applyCaptureHud() {
     const brand = document.querySelector<HTMLElement>(".topbar strong");
     const sub = document.querySelector<HTMLElement>(".topbar span");
@@ -218,21 +215,6 @@ export class JevTownDemo {
     });
   }
 
-  private _policy() {
-    const weave = Math.sin(this.stepIndex / 14) * 0.4;
-    const q = [
-      1.3 + Math.min(this.speedKmh / 36, 1.2),
-      0.42 + Math.max(weave, 0),
-      0.42 + Math.max(-weave, 0),
-      this.speedKmh > 54 ? 1.55 : -0.1,
-    ];
-    const exp = q.map((v) => Math.exp(v / 1.02));
-    const sum = exp.reduce((a, b) => a + b, 0);
-    const probs = exp.map((v) => v / sum);
-    const action = probs.indexOf(Math.max(...probs));
-    return { action, q, probs };
-  }
-
   private _renderJson(payload: Record<string, unknown>) {
     this._lastPayload = payload;
     const view =
@@ -242,6 +224,7 @@ export class JevTownDemo {
             action: payload.action,
             probabilities: payload.probabilities,
             perception: payload.perception,
+            control_loop: payload.control_loop,
             selected_path: LABELS[(payload.action as { index?: number })?.index ?? 0],
           }
         : payload;
@@ -295,78 +278,43 @@ export class JevTownDemo {
     const dt = now - this._lastFrameMs;
     this._lastFrameMs = now;
 
-    const { action, q, probs } = this._policy();
-    this.action = action;
     const traffic = this.traffic.step(this.car, this.stepIndex);
     const actors = traffic.actors;
-    const leadGap = traffic.leadGap ?? Infinity;
-    const leadZ = typeof traffic.leadZ === "number" ? traffic.leadZ : null;
-    this._leadGap = leadGap;
-    this._leadZ = leadZ;
-    this._bumperGap = leadGap;
 
-    // Scripted playback from bumper leadGap — NOT a learned / sensor closed-loop policy.
-    // Same #113-class curve in captureMode: pose the mesh, do not only paint HUD BRK.
-    let accel = this.action === 3 ? -3.0 : 1.2;
-    if (leadGap < 28) accel = Math.min(accel, -1.8);
-    if (leadGap < 20) {
-      accel = Math.min(accel, -2.8);
-      this.speedKmh = Math.min(this.speedKmh, Math.max(14, (leadGap - BUMPER_CLEAR_M) * 2.4));
-    }
-    if (leadGap < 14) {
-      accel = -5.0;
-      this.action = 3;
-      this.speedKmh = Math.min(this.speedKmh, Math.max(6, (leadGap - BUMPER_CLEAR_M) * 2.0));
-    }
-    if (leadGap < 8) {
-      accel = -8;
-      this.action = 3;
-      this.speedKmh = Math.min(this.speedKmh, Math.max(0, (leadGap - BUMPER_CLEAR_M) * 3.2));
-    }
+    // ── SENSE: synthesize sensor frame from scene actors (before control) ──
+    const sensorFrame = this.sensor.synthesize(this.car, [this.car, ...actors]);
+    const obs = EgoController.observe(sensorFrame, this.car);
+    this._forwardGap = obs.forwardGapM;
 
-    // Integrate speed first so this frame's pose uses the capped value.
-    this.speedKmh = Math.max(0, Math.min(65, this.speedKmh + accel * 0.085));
+    // ── DECIDE: longitudinal (+ minimal lateral) from fused observations ──
+    const decision = EgoController.decide(obs, this.speedKmh);
+    this.action = decision.action;
 
-    // Steer AFTER the BRAKE override — policy LEFT/RIGHT must not yaw the hull
-    // into the adjacent dark sedan / red pickup while HUD says BRK.
-    const steer =
-      this.action === 3
-        ? 0
-        : ({ 0: 0, 1: -0.032, 2: 0.032, 3: 0 } as Record<number, number>)[this.action] ?? 0;
-    if (this.captureMode || this.action === 3) {
-      this.heading = 0;
-    } else {
-      this.heading += steer;
-    }
-
-    let delta = this.speedKmh / 3.6 / 10;
-    if (leadZ !== null) {
-      const stopZ = leadZ + NPC_HALF_LENGTH + EGO_HALF_LENGTH + BUMPER_CLEAR_M;
-      const nextZ = this.car.position.z - delta;
-      if (nextZ < stopZ) {
-        delta = Math.max(0, this.car.position.z - stopZ);
-        this.car.position.z = stopZ;
-        this.speedKmh = 0;
-        this.action = 3;
-      } else {
-        this.car.position.z = nextZ;
-      }
-    } else {
-      this.car.position.z -= delta;
-    }
-    this.distance += delta;
+    // ── ACTUATE: integrate speed / pose from decision + track bumper clamp ──
+    const result = EgoController.actuate(
+      this.car,
+      decision,
+      obs,
+      this.speedKmh,
+      this.heading,
+      this.captureMode,
+    );
+    this.speedKmh = result.speedKmh;
+    this.heading = result.heading;
+    this.action = result.action;
+    this.car.position.z = result.positionZ;
+    this.distance += result.delta;
     this.car.position.x = EGO_LANE_X;
     this.car.rotation.y = this.heading;
-    this._bumperGap = leadZ !== null
-      ? this.car.position.z - leadZ - EGO_HALF_LENGTH - NPC_HALF_LENGTH
-      : leadGap;
+    this._bumperGap = result.forwardGapM;
+
     this._overlap = this._meshOverlap(actors);
     const audit = auditOpaqueMaterials(this.car);
     this._transparentMeshes = audit.transparentMeshes;
     this._egoMeshCount = audit.meshCount;
 
     if (this._heroCar) {
-      updateHeroWheels(this._heroCar, delta, steer * 8);
+      updateHeroWheels(this._heroCar, result.delta, decision.steer * 8);
     }
 
     const lights = this.scene.userData.trafficLights;
@@ -375,9 +323,8 @@ export class JevTownDemo {
     this._updateChaseCamera();
 
     if (!this.plain) {
-      const sensorFrame = this.sensor.synthesize(this.car, [this.car, ...actors]);
       this.perception.update(this.car, sensorFrame);
-      this.vectors.update(this.car, this.camera, this.width, this.height, dt, this.action, probs);
+      this.vectors.update(this.car, this.camera, this.width, this.height, dt, this.action, decision.probs);
 
       this.hud.maneuver.textContent = MANEUVER[this.action];
       this.hud.distance.textContent = `${Math.round(this.distance)} m ahead`;
@@ -387,8 +334,8 @@ export class JevTownDemo {
         this.hud.state.textContent = "FSD";
         this.hud.context.textContent = "Model Y";
       } else {
-        this.hud.state.textContent = "Scripted playback";
-        this.hud.context.textContent = `${LABELS[this.action]} · leadGap (not a model)`;
+        this.hud.state.textContent = "FSD";
+        this.hud.context.textContent = `${LABELS[this.action]} · sensor feedback`;
       }
       this.hud.turnIcon.textContent = this.action === 1 ? "←" : this.action === 2 ? "→" : "↑";
       document.body.classList.toggle("is-braking", this.action === 3);
@@ -404,14 +351,15 @@ export class JevTownDemo {
         action: { index: this.action, label: LABELS[this.action] },
         vehicle: { speed_kmh: +this.speedKmh.toFixed(1), speed_limit_kmh: 50 },
         perception: this.sensor.frameStats(sensorFrame),
-        honesty: {
-          control: "scripted-leadGap",
-          sensor: "synthetic-adapter",
-          closed_loop: false,
-          later: "sensor→control, loaded model decisions, closed-loop RL",
+        control_loop: {
+          sense: "SensorAdapter.synthesize → controlObs",
+          decide: "EgoController.decide (rule-based, not RL checkpoint)",
+          actuate: "EgoController.actuate → pose/speed",
+          closed_loop: true,
+          loaded_policy: false,
         },
-        q_values: Object.fromEntries(q.map((v, i) => [String(i), +v.toFixed(3)])),
-        probabilities: Object.fromEntries(probs.map((v, i) => [String(i), +v.toFixed(3)])),
+        q_values: Object.fromEntries(decision.q.map((v, i) => [String(i), +v.toFixed(3)])),
+        probabilities: Object.fromEntries(decision.probs.map((v, i) => [String(i), +v.toFixed(3)])),
       });
     }
 
@@ -426,6 +374,7 @@ export class JevTownDemo {
   /** Headless capture telemetry. */
   motionSample() {
     const perception = this._lastPayload.perception as { tracks?: unknown[] } | undefined;
+    const controlLoop = this._lastPayload.control_loop as { closed_loop?: boolean } | undefined;
     return {
       egoZ: this.car.position.z,
       egoX: this.car.position.x,
@@ -435,7 +384,9 @@ export class JevTownDemo {
       speedKmh: this.speedKmh,
       action: this.action,
       leadGap: this._bumperGap,
+      forwardGap: this._forwardGap,
       bumperGap: this._bumperGap,
+      closedLoop: controlLoop?.closed_loop ?? false,
       overlap: this._overlap,
       transparentMeshes: this._transparentMeshes,
       egoMeshCount: this._egoMeshCount,

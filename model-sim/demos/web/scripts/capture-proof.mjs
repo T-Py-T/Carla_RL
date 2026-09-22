@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * PR #114 proof capture — Playwright viewport / canvas, no Cursor IDE chrome.
+ * PR #115 proof capture — Playwright viewport / canvas, no Cursor IDE chrome.
  *
  * Motion frames are Playwright viewport screenshots (HTML HUD + canvas,
  * no Cursor chrome). capture-mode disables backdrop-filter so sequential
@@ -23,7 +23,7 @@ import { verifyArtifactDir, assertPngSignature } from "./verify-artifacts.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const webRoot = path.resolve(__dirname, "..");
 const root = path.join(webRoot, "dist");
-const outDir = process.argv[2] ?? path.resolve(webRoot, "../../../docs/pr-114-artifacts");
+const outDir = process.argv[2] ?? path.resolve(webRoot, "../../../docs/pr-115-artifacts");
 const PORT = process.env.CAPTURE_PORT || process.argv[3] || "";
 const WIDTH = 1280;
 const HEIGHT = 720;
@@ -184,7 +184,7 @@ async function main() {
   }
 
   fs.mkdirSync(outDir, { recursive: true });
-  const framesDir = path.join(os.tmpdir(), "pr114-threejs-frames");
+  const framesDir = path.join(os.tmpdir(), "pr115-threejs-frames");
   fs.rmSync(framesDir, { recursive: true, force: true });
   fs.mkdirSync(framesDir, { recursive: true });
 
@@ -270,6 +270,7 @@ async function main() {
     let maxSpeed = first.speedKmh ?? 0;
     let minSpeed = first.speedKmh ?? 0;
     let sawBrake = first.action === 3;
+    let sawClosedLoop = first.closedLoop === true;
     let sawOverlap = !!first.overlap;
     let maxAbsHeading = Math.abs(first.heading ?? 0);
     let maxTransparent = first.transparentMeshes ?? 0;
@@ -292,6 +293,7 @@ async function main() {
         minSpeed = Math.min(minSpeed, motion.speedKmh);
       }
       if (motion.action === 3) sawBrake = true;
+      if (motion.closedLoop === true) sawClosedLoop = true;
       if (motion.overlap) sawOverlap = true;
       maxAbsHeading = Math.max(maxAbsHeading, Math.abs(motion.heading ?? 0));
       maxTransparent = Math.max(maxTransparent, motion.transparentMeshes ?? 0);
@@ -308,8 +310,9 @@ async function main() {
     console.log(
       `egoZ ${firstZ.toFixed(2)} → ${lastZ.toFixed(2)}, unique viewport hashes ${hashes.size}/${FRAMES}, ` +
         `speed ${maxSpeed.toFixed(1)}→${minSpeed.toFixed(1)}, minBumper=${minLeadGap.toFixed(2)}, ` +
-        `brake=${sawBrake} overlap=${sawOverlap} |heading|=${maxAbsHeading.toFixed(3)}`,
+        `brake=${sawBrake} closedLoop=${sawClosedLoop} overlap=${sawOverlap} |heading|=${maxAbsHeading.toFixed(3)}`,
     );
+    if (!sawClosedLoop) throw new Error("Clip never ran sensor-feedback closed loop (closedLoop=false)");
     if (hashes.size < 16) throw new Error(`Too few unique frames: ${hashes.size}`);
     if (Math.abs(lastZ - firstZ) < 1.5) throw new Error("Insufficient ego motion");
     if (maxTransparent > 0) {

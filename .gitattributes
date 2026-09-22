@@ -17,6 +17,7 @@
 docs/pr-111-artifacts/** -text -eol
 docs/pr-car-asset-artifacts/** -text -eol
 docs/pr-114-artifacts/** -text -eol
+docs/pr-115-artifacts/** -text -eol
 
 model-sim/demos/web/models/** -text -eol
 model-sim/demos/web/draco/** -text -eol

@@ -1,0 +1,5 @@
+# PR #115 motion proofs — binary-safe (no CRLF / text conversion).
+* -text -eol
+*.png -text -diff -merge -eol
+*.gif -text -diff -merge -eol
+*.mp4 -text -diff -merge -eol
