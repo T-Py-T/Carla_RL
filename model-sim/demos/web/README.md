@@ -27,6 +27,6 @@ npm run capture:proof
 npm run verify:proof
 ```
 
-URL flags: `?capture=1` (solid HUD for screenshots), `?proceduralTraffic=1` (generic NPC fallback), `?plain=1` (no overlay/HUD). **Do not pass `procedural=1` unless you intentionally skip the Model Y GLB.**
+URL flags: `?capture=1` (solid HUD for screenshots; opaque Model Y hull + snapped chase cam + bumper clamp), `?proceduralTraffic=1` (generic NPC fallback), `?plain=1` (no overlay/HUD). **Do not pass `procedural=1` unless you intentionally skip the Model Y mesh.**
 
-Headless Chromium cannot instantiate the bundled Draco WASM, so `capture:proof` decompresses a Model Y GLB into `dist/` before screenshots. Interactive browsers still load `public/models/model-y/model-y.glb`.
+Headless Chromium cannot instantiate the bundled Draco WASM, and the Node undraco path yields a ~20-mesh ghost (whole-body translucent). `capture=1` therefore mounts `createOpaqueModelY()` for the full clip — body stays opaque; sensor fans/rings may be translucent. Interactive browsers still load `public/models/model-y/model-y.glb` and run `hardenEgoMaterials()`. Ego pose/brake is **scripted** from bumper `leadGap` (the mesh actually stops short of the lead). Not closed-loop.

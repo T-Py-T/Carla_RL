@@ -14,11 +14,15 @@ declare global {
     captureCanvasPng: () => string | null;
     demoMotionSample: () => {
       egoZ: number;
+      egoX: number;
+      heading: number;
       step: number;
       tracks: number;
       speedKmh: number;
       action: number;
       leadGap: number;
+      bumperGap: number;
+      overlap: boolean;
       egoModel: string;
     };
   }
@@ -70,10 +74,14 @@ window.captureCanvasPng = () => {
 window.demoMotionSample = () =>
   window.demo?.motionSample() ?? {
     egoZ: 0,
+    egoX: 0,
+    heading: 0,
     step: 0,
     tracks: 0,
     speedKmh: 0,
     action: 0,
     leadGap: Infinity,
+    bumperGap: Infinity,
+    overlap: false,
     egoModel: "none",
   };

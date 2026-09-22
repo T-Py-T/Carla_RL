@@ -2,9 +2,16 @@ import * as THREE from "three";
 import { PlaybackPathVectors } from "../vendor/jevpilot/road-vectors";
 import { loadHeroCar, updateHeroWheels } from "../vendor/jevpilot/model-assets";
 import { renderProfile } from "../vendor/jevpilot/render-profile";
-import { createEgoVehicle, loadTrafficFleet } from "./ego";
+import { createOpaqueModelY, loadTrafficFleet } from "./ego";
 import { updateTrafficLights } from "../vendor/jevpilot/jevpilot-road";
-import { buildTown, EGO_LANE_X, TrafficSystem } from "./world";
+import {
+  buildTown,
+  BUMPER_CLEAR_M,
+  EGO_HALF_LENGTH,
+  EGO_LANE_X,
+  NPC_HALF_LENGTH,
+  TrafficSystem,
+} from "./world";
 import { PerceptionViz } from "./perception-viz";
 import { SensorAdapter } from "./sensor-adapter";
 
@@ -52,8 +59,11 @@ export class JevTownDemo {
   private _heroCar: THREE.Group | null = null;
   private _lastPayload: Record<string, unknown> = {};
   private _lastFrameMs = performance.now();
-  /** Last TrafficSystem.leadGap (scripted playback input — not a learned policy). */
+  /** Last TrafficSystem bumper leadGap (scripted playback input — not a learned policy). */
   private _leadGap = Infinity;
+  private _leadZ: number | null = null;
+  private _overlap = false;
+  private _bumperGap = Infinity;
   private hud!: {
     maneuver: HTMLElement;
     distance: HTMLElement;
@@ -85,7 +95,8 @@ export class JevTownDemo {
     this.renderer = new THREE.WebGLRenderer({
       antialias: renderProfile.antialias,
       preserveDrawingBuffer: true,
-      logarithmicDepthBuffer: true,
+      // Log depth + MeshPhysical glass reads as a whole-body ghost in SwiftShader.
+      logarithmicDepthBuffer: !this.captureMode,
     });
     this.renderer.setSize(this.width, this.height, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -94,9 +105,10 @@ export class JevTownDemo {
 
     buildTown(this.scene);
     this.traffic = new TrafficSystem(this.scene);
-    this.car = createEgoVehicle();
+    this.car = new THREE.Group();
     this.car.position.set(EGO_LANE_X, 0, 0);
     this.scene.add(this.car);
+    this._installOpaqueEgo();
 
     this.perception = new PerceptionViz(this.scene);
     this.sensor = new SensorAdapter();
@@ -106,14 +118,17 @@ export class JevTownDemo {
     this._bindHud();
     this._bindTabs();
 
-    this._camPos.set(0, 3.2, 8.5);
-    this._camTarget.set(0, 1.0, -12);
+    this._camPos.set(EGO_LANE_X, 2.55, 7.4);
+    this._camTarget.set(EGO_LANE_X, 0.95, -14);
 
     const playerGroup = this.car;
-    // Ego is Tesla Model Y only. `procedural=1` is a headless fallback — do not
-    // skip the GLB just because NPC traffic is procedural.
+    // Capture never mounts the Draco GLB / undraco ghost — that swap is what
+    // turned the body translucent ~1s into the clip. Interactive browsers may
+    // still replace the opaque hull with a hardened Model Y GLB.
     const skipHeroModel =
-      options.procedural === true || new URLSearchParams(location.search).get("procedural") === "1";
+      this.captureMode ||
+      options.procedural === true ||
+      new URLSearchParams(location.search).get("procedural") === "1";
     const heroReady = skipHeroModel
       ? Promise.resolve()
       : loadHeroCar()
@@ -130,7 +145,7 @@ export class JevTownDemo {
             playerGroup.userData.eyeHeight = model.userData.eyeHeight;
             playerGroup.userData.eyeForward = model.userData.eyeForward;
           })
-          .catch((error) => console.warn("Model Y unavailable, keeping procedural ego", error));
+          .catch((error) => console.warn("Model Y GLB unavailable, keeping opaque hull", error));
 
     const trafficReady = this.proceduralTraffic
       ? Promise.resolve()
@@ -142,6 +157,18 @@ export class JevTownDemo {
     this.ready = Promise.all([heroReady, trafficReady]).then(() => {
       this.traffic.spawnInitial(this.proceduralTraffic);
     });
+  }
+
+  private _installOpaqueEgo() {
+    const model = createOpaqueModelY();
+    this.car.clear();
+    this.car.add(model);
+    this._heroCar = model;
+    this.car.userData.sourcedModel = true;
+    this.car.userData.eyeHeight = model.userData.eyeHeight;
+    this.car.userData.eyeForward = model.userData.eyeForward;
+    this.car.userData.depth = model.userData.depth;
+    this.car.userData.width = model.userData.width;
   }
 
   private _bindHud() {
@@ -205,16 +232,34 @@ export class JevTownDemo {
   }
 
   private _updateChaseCamera() {
-    const back = new THREE.Vector3(0, 2.85, 8.2);
+    const back = new THREE.Vector3(0, 2.55, 7.4);
     back.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.car.rotation.y);
     const desired = this.car.position.clone().add(back);
-    this._camPos.lerp(desired, 0.12);
-    this.camera.position.copy(this._camPos);
-
-    const look = new THREE.Vector3(0, 0.9, -16);
+    const look = new THREE.Vector3(0, 0.95, -14);
     look.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.car.rotation.y);
-    this._camTarget.lerp(this.car.position.clone().add(look), 0.15);
+    const lookTarget = this.car.position.clone().add(look);
+    if (this.captureMode || this.stepIndex < 2) {
+      this._camPos.copy(desired);
+      this._camTarget.copy(lookTarget);
+    } else {
+      this._camPos.lerp(desired, 0.2);
+      this._camTarget.lerp(lookTarget, 0.24);
+    }
+    this.camera.position.copy(this._camPos);
     this.camera.lookAt(this._camTarget);
+  }
+
+  private _meshOverlap(actors: THREE.Object3D[]) {
+    this.car.updateMatrixWorld(true);
+    const egoBox = new THREE.Box3().setFromObject(this.car);
+    let overlap = false;
+    for (const mesh of actors) {
+      if (mesh.userData.kind === "pedestrian") continue;
+      mesh.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(mesh);
+      if (!box.isEmpty() && egoBox.intersectsBox(box)) overlap = true;
+    }
+    return overlap;
   }
 
   step() {
@@ -224,36 +269,70 @@ export class JevTownDemo {
 
     const { action, q, probs } = this._policy();
     this.action = action;
-    const steer = ({ 0: 0, 1: -0.032, 2: 0.032, 3: 0 } as Record<number, number>)[action] ?? 0;
     const traffic = this.traffic.step(this.car, this.stepIndex);
     const actors = traffic.actors;
     const leadGap = traffic.leadGap ?? Infinity;
+    const leadZ = typeof traffic.leadZ === "number" ? traffic.leadZ : null;
     this._leadGap = leadGap;
+    this._leadZ = leadZ;
+    this._bumperGap = leadGap;
 
-    // Scripted playback from TrafficSystem.leadGap — NOT a learned / sensor closed-loop policy.
-    // Same #113-class curve in captureMode (no weaker floor / no skipped BRAKE HUD).
-    let accel = action === 3 ? -3.0 : 1.2;
-    if (leadGap < 24) {
-      accel = Math.min(accel, -2.0);
-      this.speedKmh = Math.min(this.speedKmh, Math.max(8, (leadGap - 4) * 2.6));
+    // Scripted playback from bumper leadGap — NOT a learned / sensor closed-loop policy.
+    // Same #113-class curve in captureMode: pose the mesh, do not only paint HUD BRK.
+    let accel = this.action === 3 ? -3.0 : 1.2;
+    if (leadGap < 28) accel = Math.min(accel, -1.8);
+    if (leadGap < 20) {
+      accel = Math.min(accel, -2.8);
+      this.speedKmh = Math.min(this.speedKmh, Math.max(14, (leadGap - BUMPER_CLEAR_M) * 2.4));
     }
     if (leadGap < 14) {
-      accel = -4.5;
+      accel = -5.0;
       this.action = 3;
+      this.speedKmh = Math.min(this.speedKmh, Math.max(6, (leadGap - BUMPER_CLEAR_M) * 2.0));
     }
-    // Hold short of the lead so ego cannot pierce once gap drops below the 8 km/h floor.
     if (leadGap < 8) {
       accel = -8;
-      this.speedKmh = Math.min(this.speedKmh, Math.max(0, (leadGap - 6) * 4));
       this.action = 3;
+      this.speedKmh = Math.min(this.speedKmh, Math.max(0, (leadGap - BUMPER_CLEAR_M) * 3.2));
     }
 
-    const delta = this.speedKmh / 3.6 / 10;
+    // Integrate speed first so this frame's pose uses the capped value.
     this.speedKmh = Math.max(0, Math.min(65, this.speedKmh + accel * 0.085));
-    this.heading += steer;
+
+    // Steer AFTER the BRAKE override — policy LEFT/RIGHT must not yaw the hull
+    // into the adjacent dark sedan / red pickup while HUD says BRK.
+    const steer =
+      this.action === 3
+        ? 0
+        : ({ 0: 0, 1: -0.032, 2: 0.032, 3: 0 } as Record<number, number>)[this.action] ?? 0;
+    if (this.captureMode || this.action === 3) {
+      this.heading = 0;
+    } else {
+      this.heading += steer;
+    }
+
+    let delta = this.speedKmh / 3.6 / 10;
+    if (leadZ !== null) {
+      const stopZ = leadZ + NPC_HALF_LENGTH + EGO_HALF_LENGTH + BUMPER_CLEAR_M;
+      const nextZ = this.car.position.z - delta;
+      if (nextZ < stopZ) {
+        delta = Math.max(0, this.car.position.z - stopZ);
+        this.car.position.z = stopZ;
+        this.speedKmh = 0;
+        this.action = 3;
+      } else {
+        this.car.position.z = nextZ;
+      }
+    } else {
+      this.car.position.z -= delta;
+    }
     this.distance += delta;
-    this.car.position.z -= delta;
+    this.car.position.x = EGO_LANE_X;
     this.car.rotation.y = this.heading;
+    this._bumperGap = leadZ !== null
+      ? this.car.position.z - leadZ - EGO_HALF_LENGTH - NPC_HALF_LENGTH
+      : leadGap;
+    this._overlap = this._meshOverlap(actors);
 
     if (this._heroCar) {
       updateHeroWheels(this._heroCar, delta, steer * 8);
@@ -313,11 +392,15 @@ export class JevTownDemo {
     const perception = this._lastPayload.perception as { tracks?: unknown[] } | undefined;
     return {
       egoZ: this.car.position.z,
+      egoX: this.car.position.x,
+      heading: this.heading,
       step: this.stepIndex,
       tracks: perception?.tracks?.length ?? 0,
       speedKmh: this.speedKmh,
       action: this.action,
-      leadGap: this._leadGap,
+      leadGap: this._bumperGap,
+      bumperGap: this._bumperGap,
+      overlap: this._overlap,
       egoModel: this._heroCar?.name ?? "procedural-placeholder",
     };
   }

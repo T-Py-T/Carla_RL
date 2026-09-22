@@ -4,8 +4,13 @@ import { buildTownRoadNetwork } from "../vendor/jevpilot/jevpilot-road";
 import { placeStreetLamps } from "../vendor/jevpilot/scenery-assets";
 import { createNpcVehicleFallback, createPedestrian, createProceduralNpcVehicle } from "./ego";
 
-const MIN_VEHICLE_GAP = 9.5;
-const MIN_SPAWN_AHEAD = 14;
+const MIN_VEHICLE_GAP = 12;
+const MIN_SPAWN_AHEAD = 16;
+/** Half-lengths used for bumper-to-bumper gap (Model Y 4.75 m, NPC ~4.2 m). */
+export const EGO_HALF_LENGTH = 2.4;
+export const NPC_HALF_LENGTH = 2.2;
+/** Bumper must stay at least this far from the lead mesh. */
+export const BUMPER_CLEAR_M = 2.8;
 /** Four-lane one-way main road (−Z travel) — 3 m lanes across 12 m pavement. */
 export const ONE_WAY_LANE_X = [-4.5, -1.5, 1.5, 4.5];
 export const EGO_LANE_X = ONE_WAY_LANE_X[1];
@@ -130,15 +135,17 @@ export class TrafficSystem {
     // Research CC shortlist — Kenney Car Kit + Khronos + OGA UAZ (NOT Model Y).
     // After `npm run fetch:sketchfab-traffic`, swap in SKETCHFAB_TRAFFIC_MODELS ids for mixed fleet.
     // All NPC vehicles ahead in parallel one-way lanes — slow lead in ego lane for braking demo.
+    // Adjacent-lane NPCs stay well ahead so a long Model Y cannot occupy the
+    // same space as the dark hatch / red truck during the capture clip.
     const specs = [
-      { type: "vehicle", x: EGO_LANE_X, z: -16, speed: 0.02, modelId: "kenney-sedan" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -18, speed: 0.075, modelId: "kenney-hatchback-sports" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[2], z: -26, speed: 0.068, modelId: "kenney-van" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[3], z: -34, speed: 0.072, modelId: "kenney-firetruck" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -48, speed: 0.08, modelId: "kenney-truck" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[2], z: -58, speed: 0.07, modelId: "kenney-delivery" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[3], z: -70, speed: 0.065, modelId: "khronos-milk-truck" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -82, speed: 0.06, modelId: "oga-uaz-truck" },
+      { type: "vehicle", x: EGO_LANE_X, z: -20, speed: 0.008, modelId: "kenney-sedan" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -40, speed: 0.055, modelId: "kenney-hatchback-sports" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[2], z: -46, speed: 0.05, modelId: "kenney-van" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[3], z: -58, speed: 0.048, modelId: "kenney-firetruck" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -74, speed: 0.05, modelId: "kenney-truck" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[2], z: -86, speed: 0.046, modelId: "kenney-delivery" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[3], z: -98, speed: 0.044, modelId: "khronos-milk-truck" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -110, speed: 0.042, modelId: "oga-uaz-truck" },
       { type: "pedestrian", x: -9, z: -22, speed: 0.025, lane: 1 },
       { type: "pedestrian", x: 9.2, z: -40, speed: 0.02, lane: -1 },
       { type: "pedestrian", x: -9, z: -58, speed: 0.018, lane: 1 },
@@ -187,18 +194,30 @@ export class TrafficSystem {
     }
   }
 
-  _leadGap(ego) {
-    let minGap = Infinity;
+  /** Bumper-to-bumper gap to the in-lane lead (negative = intersecting). */
+  _leadInfo(ego) {
+    let minBumper = Infinity;
+    let leadZ = null;
+    let leadMesh = null;
     for (const actor of this.actors) {
       if (actor.kind !== "vehicle") continue;
-      const gap = this._gapToEgo(actor.mesh, ego);
+      const centerGap = this._gapToEgo(actor.mesh, ego);
       // Keep a closing / overlapping lead in-lane so playback braking never drops out
       // (the old `gap < 4` skip released the brake and let ego drive through).
-      if (gap > 120) continue;
+      if (centerGap > 120 || centerGap < -8) continue;
       if (!this._laneOverlap(actor.mesh.position.x, ego.position.x)) continue;
-      minGap = Math.min(minGap, Math.max(0, gap));
+      const bumper = centerGap - EGO_HALF_LENGTH - NPC_HALF_LENGTH;
+      if (bumper < minBumper) {
+        minBumper = bumper;
+        leadZ = actor.mesh.position.z;
+        leadMesh = actor.mesh;
+      }
     }
-    return minGap;
+    return {
+      leadGap: minBumper === Infinity ? Infinity : minBumper,
+      leadZ,
+      leadMesh,
+    };
   }
 
   step(ego, tick = 0) {
@@ -227,9 +246,12 @@ export class TrafficSystem {
       }
     }
 
+    const lead = this._leadInfo(ego);
     return {
       actors: this.actors.map((a) => a.mesh),
-      leadGap: this._leadGap(ego),
+      leadGap: lead.leadGap,
+      leadZ: lead.leadZ,
+      leadMesh: lead.leadMesh,
     };
   }
 }

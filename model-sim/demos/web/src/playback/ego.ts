@@ -12,6 +12,55 @@ export function createEgoVehicle() {
   return detailedCar("#e2e5e9");
 }
 
+/**
+ * Capture-safe Model Y: crossover proportions, MeshStandardMaterial, no
+ * transmission / glass opacity. Headless Chromium cannot decode the Draco
+ * GLB; the undraco 20-mesh ghost is refused. Interactive browsers still
+ * load the real GLB via loadHeroCar() + hardenEgoMaterials().
+ */
+export function createOpaqueModelY() {
+  const car = detailedCar("#e1e4e8");
+  const lengthScale = 4.75 / 4.16;
+  car.scale.set(1.04, 1.18, lengthScale);
+  car.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh || !mesh.material) return;
+    const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    const next = list.map((src) => {
+      const phys = src as THREE.MeshPhysicalMaterial;
+      const name = `${phys.name || ""}`.toLowerCase();
+      const glass = name.includes("glass") || phys.transparent === true || (phys.opacity ?? 1) < 0.99;
+      const lens = name.includes("light") || name.includes("lens") || name.includes("head") || name.includes("tail");
+      return new THREE.MeshStandardMaterial({
+        name: glass ? "model-y-glass-opaque" : phys.name || "model-y-body-opaque",
+        color: glass ? (lens ? "#dce6f2" : "#151c24") : phys.color?.clone() ?? new THREE.Color("#e1e4e8"),
+        metalness: glass ? 0.22 : Math.min(phys.metalness ?? 0.35, 0.55),
+        roughness: glass ? 0.28 : Math.max(phys.roughness ?? 0.32, 0.22),
+        emissive: phys.emissive?.clone() ?? new THREE.Color(0x000000),
+        emissiveIntensity: phys.emissiveIntensity ?? 0,
+        transparent: false,
+        opacity: 1,
+        depthWrite: true,
+        depthTest: true,
+        side: THREE.FrontSide,
+      });
+    });
+    mesh.material = Array.isArray(mesh.material) ? next : next[0];
+    mesh.renderOrder = 0;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+  });
+  car.name = "tesla-model-y";
+  car.userData.eyeHeight = 1.28;
+  car.userData.eyeForward = 0.45;
+  car.userData.wheelbase = 2.89;
+  car.userData.width = 1.98;
+  car.userData.depth = 4.75;
+  car.userData.sourcedModel = true;
+  car.userData.opaqueHull = true;
+  return car;
+}
+
 const NPC_FALLBACK_COLORS = ["#c0392b", "#2980b9", "#27ae60", "#8e44ad", "#d35400", "#16a085"];
 
 /** Licensed GLB NPC fleet — NOT Model Y. Ghost = kinematic clone, NOT mesh opacity. */

@@ -34,7 +34,8 @@ const WARMUP_START = 2;
 const STILL_WARMUP = 36;
 const PLAIN_WARMUP = 16;
 const STEPS_PER_FRAME = 2;
-const MIN_LEAD_GAP_M = 4;
+/** Bumper-to-bumper — meshes must stay clear, not just a HUD number. */
+const MIN_LEAD_GAP_M = 2.5;
 
 function contentType(filePath) {
   if (filePath.endsWith(".css")) return "text/css";
@@ -176,16 +177,8 @@ async function main() {
       const build = spawnSync("npm", ["run", "build"], { cwd: webRoot, stdio: "inherit" });
       if (build.status !== 0) throw new Error("vite build failed");
     }
-    // Headless Chromium rejects the bundled Draco WASM; serve an uncompressed Model Y.
-    const srcGlb = path.join(webRoot, "public/models/model-y/model-y.glb");
-    const distGlb = path.join(root, "models/model-y/model-y.glb");
-    const undraco = spawnSync("node", [path.join(webRoot, "scripts/undraco-modely.mjs"), srcGlb, distGlb], {
-      encoding: "utf8",
-    });
-    if (undraco.status !== 0) {
-      throw new Error(`Model Y undraco failed:\n${undraco.stderr || undraco.stdout}`);
-    }
-    process.stdout.write(undraco.stdout || "");
+    // Do NOT undraco the Model Y into dist — the 20-mesh ghost is whole-body
+    // translucent and oversized. capture=1 mounts createOpaqueModelY() instead.
     server = await startStaticServer();
     port = server.address().port;
   }
@@ -234,13 +227,20 @@ async function main() {
     console.log(
       `  fsd egoZ=${stillMotion.egoZ.toFixed(2)} tracks=${stillMotion.tracks} ` +
         `speed=${stillMotion.speedKmh?.toFixed?.(1) ?? "?"} action=${stillMotion.action} ` +
-        `leadGap=${Number.isFinite(stillMotion.leadGap) ? stillMotion.leadGap.toFixed(2) : "inf"}`,
+        `bumper=${Number.isFinite(stillMotion.bumperGap) ? stillMotion.bumperGap.toFixed(2) : "inf"} ` +
+        `overlap=${stillMotion.overlap}`,
     );
     if (stillMotion.egoModel !== "tesla-model-y") {
       throw new Error(`Ego must be Tesla Model Y, got ${stillMotion.egoModel}`);
     }
     if (stillMotion.action !== 3) {
       throw new Error(`after still must show BRAKE (action=3), got ${stillMotion.action}`);
+    }
+    if (stillMotion.overlap) {
+      throw new Error("after still: ego mesh intersects a lead / NPC mesh");
+    }
+    if (Number.isFinite(stillMotion.bumperGap) && stillMotion.bumperGap < MIN_LEAD_GAP_M) {
+      throw new Error(`after still bumperGap ${stillMotion.bumperGap.toFixed(2)} m < ${MIN_LEAD_GAP_M}`);
     }
     await pageStill.close();
 
@@ -258,10 +258,14 @@ async function main() {
     const hashes = new Set();
     let lastZ = first.egoZ;
     let firstZ = first.egoZ;
-    let minLeadGap = Number.isFinite(first.leadGap) ? first.leadGap : Infinity;
+    let minLeadGap = Number.isFinite(first.bumperGap ?? first.leadGap)
+      ? (first.bumperGap ?? first.leadGap)
+      : Infinity;
     let maxSpeed = first.speedKmh ?? 0;
     let minSpeed = first.speedKmh ?? 0;
     let sawBrake = first.action === 3;
+    let sawOverlap = !!first.overlap;
+    let maxAbsHeading = Math.abs(first.heading ?? 0);
 
     for (let i = 0; i < FRAMES; i++) {
       const motion = await page.evaluate((steps) => {
@@ -274,17 +278,20 @@ async function main() {
       hashes.add(sha256(buf));
       lastZ = motion.egoZ;
       if (i === 0) firstZ = motion.egoZ;
-      if (Number.isFinite(motion.leadGap)) minLeadGap = Math.min(minLeadGap, motion.leadGap);
+      const gap = motion.bumperGap ?? motion.leadGap;
+      if (Number.isFinite(gap)) minLeadGap = Math.min(minLeadGap, gap);
       if (Number.isFinite(motion.speedKmh)) {
         maxSpeed = Math.max(maxSpeed, motion.speedKmh);
         minSpeed = Math.min(minSpeed, motion.speedKmh);
       }
       if (motion.action === 3) sawBrake = true;
+      if (motion.overlap) sawOverlap = true;
+      maxAbsHeading = Math.max(maxAbsHeading, Math.abs(motion.heading ?? 0));
       if (i % 12 === 0) {
         console.log(
           `  frame ${i}: egoZ=${motion.egoZ.toFixed(2)} speed=${motion.speedKmh?.toFixed?.(1)} ` +
-            `action=${motion.action} leadGap=${Number.isFinite(motion.leadGap) ? motion.leadGap.toFixed(2) : "inf"} ` +
-            `unique=${hashes.size}`,
+            `action=${motion.action} bumper=${Number.isFinite(gap) ? gap.toFixed(2) : "inf"} ` +
+            `overlap=${motion.overlap} unique=${hashes.size}`,
         );
       }
     }
@@ -292,16 +299,24 @@ async function main() {
 
     console.log(
       `egoZ ${firstZ.toFixed(2)} → ${lastZ.toFixed(2)}, unique viewport hashes ${hashes.size}/${FRAMES}, ` +
-        `speed ${maxSpeed.toFixed(1)}→${minSpeed.toFixed(1)}, minLeadGap=${minLeadGap.toFixed(2)}, brake=${sawBrake}`,
+        `speed ${maxSpeed.toFixed(1)}→${minSpeed.toFixed(1)}, minBumper=${minLeadGap.toFixed(2)}, ` +
+        `brake=${sawBrake} overlap=${sawOverlap} |heading|=${maxAbsHeading.toFixed(3)}`,
     );
     if (hashes.size < 16) throw new Error(`Too few unique frames: ${hashes.size}`);
     if (Math.abs(lastZ - firstZ) < 1.5) throw new Error("Insufficient ego motion");
+    if (sawOverlap) throw new Error("Drive-through: ego AABB intersected a lead / NPC mesh");
     if (minLeadGap < MIN_LEAD_GAP_M) {
-      throw new Error(`Drive-through: min leadGap ${minLeadGap.toFixed(2)} m < ${MIN_LEAD_GAP_M}`);
+      throw new Error(`Drive-through: min bumperGap ${minLeadGap.toFixed(2)} m < ${MIN_LEAD_GAP_M}`);
     }
     if (!sawBrake) throw new Error("Clip never selected BRAKE / Slow for hazard (action=3)");
+    if (minSpeed > 1.5) {
+      throw new Error(`Clip never reached a visible stop (${maxSpeed.toFixed(1)} → ${minSpeed.toFixed(1)})`);
+    }
     if (maxSpeed - minSpeed < 6) {
       throw new Error(`Speed did not drop enough for a visible slow (${maxSpeed.toFixed(1)} → ${minSpeed.toFixed(1)})`);
+    }
+    if (maxAbsHeading > 0.05) {
+      throw new Error(`Ego yawed out of lane during capture (heading ${maxAbsHeading.toFixed(3)} rad)`);
     }
 
     const t0 = path.join(outDir, "motion_t0.png");
