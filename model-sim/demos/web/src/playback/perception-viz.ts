@@ -1,9 +1,9 @@
 import * as THREE from "three";
-import type { SensorFrame } from "./sensor-adapter";
+import { PROXIMITY_RADII, type SensorFrame } from "./sensor-adapter";
 
 const PROXIMITY_COLORS = { clear: 0x2ecc71, warn: 0xf1c40f, threat: 0xe74c3c };
-/** Display radii (m) — three bands to avoid stacked-ring z-fight. */
-const PROXIMITY_DISPLAY = [12, 24, 38];
+/** Display radii (m) — shared with SensorAdapter. */
+const PROXIMITY_DISPLAY = PROXIMITY_RADII;
 
 export class PerceptionViz {
   root: THREE.Group;
@@ -31,13 +31,15 @@ export class PerceptionViz {
     this.points = new THREE.Points(
       geo,
       new THREE.PointsMaterial({
-        size: 0.038,
+        // Pixel-sized points (SwiftShader drops attenuated 3D point size).
+        size: 6,
         vertexColors: true,
         transparent: true,
-        opacity: 0.52,
+        opacity: 0.95,
         depthWrite: false,
         depthTest: true,
-        sizeAttenuation: true,
+        sizeAttenuation: false,
+        blending: THREE.AdditiveBlending,
       }),
     );
     this.points.renderOrder = 3;
@@ -59,23 +61,22 @@ export class PerceptionViz {
     this.root.add(this.scanRing);
 
     this.proximityRings = PROXIMITY_DISPLAY.map((radius, i) => {
-      const band = 0.35;
+      const band = 1.35;
+      // Forward 170° arc (chase cam never sees the rear half of a 12–38 m circle).
       const ring = new THREE.Mesh(
-        new THREE.RingGeometry(radius - band, radius, 64),
+        new THREE.RingGeometry(radius - band, radius, 64, 1, Math.PI / 2 - 0.85, 1.7),
         new THREE.MeshBasicMaterial({
           color: 0x2ecc71,
           transparent: true,
-          opacity: 0.1,
+          opacity: 0.42,
           side: THREE.DoubleSide,
           depthWrite: false,
           depthTest: false,
-          polygonOffset: true,
-          polygonOffsetFactor: -2,
-          polygonOffsetUnits: -2,
+          blending: THREE.AdditiveBlending,
         }),
       );
       ring.rotation.x = -Math.PI / 2;
-      ring.position.y = 0.14 + i * 0.008;
+      ring.position.y = 0.24 + i * 0.03;
       this.root.add(ring);
       return ring;
     });
@@ -85,7 +86,7 @@ export class PerceptionViz {
       new THREE.MeshBasicMaterial({
         color: 0x007aff,
         transparent: true,
-        opacity: 0.05,
+        opacity: 0.16,
         side: THREE.DoubleSide,
         depthWrite: false,
         depthTest: false,
@@ -126,7 +127,7 @@ export class PerceptionViz {
     const pts = frame.lidarPoints;
     for (let i = 0; i < this._pointCount; i++) {
       const p = pts[i];
-      pos.setXYZ(i, p.x, Math.max(p.y, 0.18), p.z);
+      pos.setXYZ(i, p.x, Math.max(p.y, 0.4), p.z);
       col.setXYZ(i, p.r, p.g, p.b);
     }
     pos.needsUpdate = true;
@@ -136,8 +137,7 @@ export class PerceptionViz {
   private _updateProximityRings(frame: SensorFrame) {
     const zones = frame.proximityZones;
     this.proximityRings.forEach((ring, i) => {
-      const targetRadius = PROXIMITY_DISPLAY[i];
-      const zone = zones.find((z) => Math.abs(z.radius - targetRadius) < 8) ?? zones[i];
+      const zone = zones[i] ?? zones.find((z) => Math.abs(z.radius - PROXIMITY_DISPLAY[i]) < 1);
       if (!zone) return;
       const mat = ring.material as THREE.MeshBasicMaterial;
       const t = zone.threat;
@@ -158,7 +158,7 @@ export class PerceptionViz {
         );
       }
       mat.color.copy(color);
-      mat.opacity = 0.06 + t * 0.18;
+      mat.opacity = 0.32 + t * 0.38;
     });
 
     const close = Number.isFinite(frame.closestThreatM) ? frame.closestThreatM : 50;

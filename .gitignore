@@ -144,6 +144,9 @@ __pycache__/
 .ruff_cache/
 .secrets
 
+# Headless capture scratch (final PNG/GIF/MP4 in docs/pr-*-artifacts stay tracked)
+docs/pr-114-artifacts/threejs_frames/
+
 # Generated / local model artifacts (binary blobs, not source of truth)
 *.pt
 *.pth

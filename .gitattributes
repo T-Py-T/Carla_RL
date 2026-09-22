@@ -1,18 +1,22 @@
 # Force LF for all files
 * text eol=lf
 
-# PR proof binaries — must stay binary (avoid LF corruption)
-docs/pr-111-artifacts/** -text
-docs/pr-111-artifacts/*.png binary
-docs/pr-111-artifacts/*.gif binary
-docs/pr-111-artifacts/*.mp4 binary
+# Media / proof binaries — never apply text or EOL conversion.
+# `* text eol=lf` above will strip 0x0D and corrupt H.264 / GIF LZW / PNG signatures
+# unless these attributes unset both `text` and `eol`.
+*.png -text -diff -merge -eol
+*.gif -text -diff -merge -eol
+*.mp4 -text -diff -merge -eol
+*.jpg -text -diff -merge -eol
+*.jpeg -text -diff -merge -eol
+*.webp -text -diff -merge -eol
+*.glb -text -diff -merge -eol
+*.wasm -text -diff -merge -eol
 
-docs/pr-car-asset-artifacts/** -text
-docs/pr-car-asset-artifacts/*.png binary
-docs/pr-car-asset-artifacts/*.gif binary
-docs/pr-car-asset-artifacts/*.mp4 binary
+# PR proof trees (explicit, in case a future catch-all rule changes)
+docs/pr-111-artifacts/** -text -eol
+docs/pr-car-asset-artifacts/** -text -eol
+docs/pr-114-artifacts/** -text -eol
 
-model-sim/demos/web/models/** -text
-model-sim/demos/web/models/*.glb binary
-model-sim/demos/web/draco/** -text
-model-sim/demos/web/draco/*.wasm binary
+model-sim/demos/web/models/** -text -eol
+model-sim/demos/web/draco/** -text -eol

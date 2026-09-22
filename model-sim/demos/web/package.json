@@ -7,6 +7,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "capture": "npm run build && node scripts/capture.mjs",
+    "capture:proof": "node scripts/capture-proof.mjs",
+    "verify:proof": "node scripts/verify-artifacts.mjs",
     "fetch:sketchfab-traffic": "node scripts/sketchfab-fetch.mjs",
     "verify:sketchfab-traffic": "node scripts/sketchfab-verify.mjs"
   },

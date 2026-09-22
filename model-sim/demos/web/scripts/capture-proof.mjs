@@ -1,28 +1,35 @@
 #!/usr/bin/env node
 /**
- * PR proof capture — Playwright viewport screenshots against Vite/static dist.
- * Uses a fresh page per animation frame (Playwright hangs on 2nd screenshot otherwise).
- * No Cursor IDE chrome.
+ * PR #114 proof capture — Playwright viewport / canvas, no Cursor IDE chrome.
+ *
+ * Motion frames come from canvas.toDataURL on one page (Playwright's 2nd
+ * page.screenshot can hang). Before/after stills + t0/tmid/tend strip use
+ * a single screenshot per fresh page so the HUD is in the stills.
+ *
+ * Encode: libx264 yuv420p +faststart, then `ffmpeg -i out.mp4 -f null -`
+ * must succeed and start/mid/end SHA-256 hashes must be distinct.
  */
 import crypto from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { chromium } from "playwright";
+import { verifyArtifactDir, assertPngSignature } from "./verify-artifacts.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const webRoot = path.resolve(__dirname, "..");
 const root = path.join(webRoot, "dist");
-const outDir = process.argv[2] ?? path.resolve(webRoot, "../../docs/pr-114-artifacts");
+const outDir = process.argv[2] ?? path.resolve(webRoot, "../../../docs/pr-114-artifacts");
 const PORT = process.env.CAPTURE_PORT || process.argv[3] || "";
 const WIDTH = 1280;
 const HEIGHT = 720;
 const FRAMES = 48;
 const FPS = 12;
-const WARMUP_START = 22;
-const WARMUP_PER_FRAME = 2;
+const WARMUP_START = 24;
+const STEPS_PER_FRAME = 2;
 
 function contentType(filePath) {
   if (filePath.endsWith(".css")) return "text/css";
@@ -52,12 +59,23 @@ function startStaticServer() {
   });
 }
 
-function md5(buf) {
-  return crypto.createHash("md5").update(buf).digest("hex");
+function sha256(buf) {
+  return crypto.createHash("sha256").update(buf).digest("hex");
+}
+
+function dataUrlToBuffer(dataUrl) {
+  const comma = dataUrl.indexOf(",");
+  if (comma < 0) throw new Error("invalid data URL");
+  return Buffer.from(dataUrl.slice(comma + 1), "base64");
+}
+
+function writePng(filePath, buf) {
+  fs.writeFileSync(filePath, buf);
+  assertPngSignature(filePath);
 }
 
 async function warmupPage(page, url, steps) {
-  await page.goto(url, { waitUntil: "domcontentloaded" });
+  await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45000 });
   await page.waitForFunction(() => typeof window.stepSimulation === "function");
   return page.evaluate(async (n) => {
     await window.waitForDemoReady();
@@ -66,110 +84,193 @@ async function warmupPage(page, url, steps) {
   }, steps);
 }
 
+function encodeMp4(framesDir, mp4) {
+  const r = spawnSync(
+    "ffmpeg",
+    [
+      "-y",
+      "-framerate",
+      String(FPS),
+      "-i",
+      path.join(framesDir, "frame_%04d.png"),
+      "-c:v",
+      "libx264",
+      "-preset",
+      "medium",
+      "-crf",
+      "18",
+      "-pix_fmt",
+      "yuv420p",
+      "-movflags",
+      "+faststart",
+      "-vf",
+      "scale=trunc(iw/2)*2:trunc(ih/2)*2",
+      mp4,
+    ],
+    { encoding: "utf8" },
+  );
+  if (r.status !== 0) {
+    throw new Error(`ffmpeg MP4 encode failed:\n${r.stderr}`);
+  }
+  process.stdout.write(r.stderr || "");
+}
+
+function tryEncodeGif(framesDir, gif) {
+  const r = spawnSync(
+    "ffmpeg",
+    [
+      "-y",
+      "-framerate",
+      String(FPS),
+      "-i",
+      path.join(framesDir, "frame_%04d.png"),
+      "-vf",
+      "fps=10,scale=960:-1:flags=lanczos,split[s0][s1];[s0]palettegen=stats_mode=diff[p];[s1][p]paletteuse=dither=bayer:bayer_scale=3",
+      "-loop",
+      "0",
+      gif,
+    ],
+    { encoding: "utf8" },
+  );
+  if (r.status !== 0) {
+    console.warn("GIF encode failed; shipping MP4 + strip only.\n", r.stderr);
+    if (fs.existsSync(gif)) fs.unlinkSync(gif);
+    return false;
+  }
+  return true;
+}
+
+function makeStrip(t0, tmid, tend, stripPath) {
+  const r = spawnSync(
+    "ffmpeg",
+    [
+      "-y",
+      "-i",
+      t0,
+      "-i",
+      tmid,
+      "-i",
+      tend,
+      "-filter_complex",
+      "[0:v][1:v][2:v]hstack=inputs=3",
+      "-frames:v",
+      "1",
+      stripPath,
+    ],
+    { encoding: "utf8" },
+  );
+  if (r.status !== 0) throw new Error(`strip encode failed:\n${r.stderr}`);
+  assertPngSignature(stripPath);
+}
+
 async function main() {
   let server = null;
   let port = PORT;
   if (!port) {
-    if (!fs.existsSync(root)) spawnSync("npm", ["run", "build"], { cwd: webRoot, stdio: "inherit" });
+    if (!fs.existsSync(root)) {
+      const build = spawnSync("npm", ["run", "build"], { cwd: webRoot, stdio: "inherit" });
+      if (build.status !== 0) throw new Error("vite build failed");
+    }
     server = await startStaticServer();
     port = server.address().port;
   }
 
   fs.mkdirSync(outDir, { recursive: true });
-  const framesDir = path.join(outDir, "threejs_frames");
+  const framesDir = path.join(os.tmpdir(), "pr114-threejs-frames");
   fs.rmSync(framesDir, { recursive: true, force: true });
   fs.mkdirSync(framesDir, { recursive: true });
 
-  const browser = await chromium.launch({ headless: true });
-  const ctx = await browser.newContext({ viewport: { width: WIDTH, height: HEIGHT } });
+  const browser = await chromium.launch({
+    headless: true,
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--use-gl=angle",
+      "--use-angle=swiftshader",
+      "--enable-unsafe-swiftshader",
+      "--ignore-gpu-blocklist",
+    ],
+  });
+  const ctx = await browser.newContext({
+    viewport: { width: WIDTH, height: HEIGHT },
+    deviceScaleFactor: 1,
+  });
   const q = `w=${WIDTH}&h=${HEIGHT}&proceduralTraffic=1&procedural=1&capture=1`;
   const host = `http://127.0.0.1:${port}/index.html?${q}`;
 
   try {
-    console.log("before_plain_ego...");
+    console.log("before_plain_ego (viewport still)...");
     const pageBefore = await ctx.newPage();
-    const plainMotion = await warmupPage(pageBefore, `${host}&plain=1`, 18);
-    await pageBefore.screenshot({ path: path.join(outDir, "before_plain_ego.png"), type: "png", timeout: 30000 });
+    const plainMotion = await warmupPage(pageBefore, `${host}&plain=1`, 20);
+    const beforeBuf = await pageBefore.screenshot({ type: "png", timeout: 30000 });
+    writePng(path.join(outDir, "before_plain_ego.png"), beforeBuf);
     console.log(`  plain egoZ=${plainMotion.egoZ.toFixed(2)}`);
     await pageBefore.close();
 
-    console.log("after_fsd_overlay still...");
+    console.log("after_fsd_overlay (viewport still)...");
     const pageStill = await ctx.newPage();
-    const stillMotion = await warmupPage(pageStill, host, 44);
-    await pageStill.screenshot({ path: path.join(outDir, "after_fsd_overlay.png"), type: "png", timeout: 30000 });
+    const stillMotion = await warmupPage(pageStill, host, 56);
+    const afterBuf = await pageStill.screenshot({ type: "png", timeout: 30000 });
+    writePng(path.join(outDir, "after_fsd_overlay.png"), afterBuf);
     console.log(`  fsd egoZ=${stillMotion.egoZ.toFixed(2)} tracks=${stillMotion.tracks}`);
     await pageStill.close();
 
-    console.log(`rollout ${FRAMES} frames (fresh page each)...`);
+    console.log(`rollout ${FRAMES} canvas frames on one page...`);
+    const page = await ctx.newPage();
+    const first = await warmupPage(page, host, WARMUP_START);
     const hashes = new Set();
-    let firstZ = 0;
-    let lastZ = 0;
+    let lastZ = first.egoZ;
+    let firstZ = first.egoZ;
 
     for (let i = 0; i < FRAMES; i++) {
-      const steps = WARMUP_START + i * WARMUP_PER_FRAME;
-      const page = await ctx.newPage();
-      const motion = await warmupPage(page, host, steps);
-      const buf = await page.screenshot({ type: "png", timeout: 30000 });
-      fs.writeFileSync(path.join(framesDir, `frame_${String(i).padStart(4, "0")}.png`), buf);
-      hashes.add(md5(buf));
-      if (i === 0) firstZ = motion.egoZ;
+      const motion = await page.evaluate((steps) => {
+        for (let s = 0; s < steps; s++) window.stepSimulation();
+        const png = window.captureCanvasPng();
+        const sample = window.demoMotionSample();
+        return { png, ...sample };
+      }, STEPS_PER_FRAME);
+      if (!motion.png) throw new Error(`frame ${i}: captureCanvasPng returned null`);
+      const buf = dataUrlToBuffer(motion.png);
+      const framePath = path.join(framesDir, `frame_${String(i).padStart(4, "0")}.png`);
+      writePng(framePath, buf);
+      hashes.add(sha256(buf));
       lastZ = motion.egoZ;
+      if (i === 0) firstZ = motion.egoZ;
       if (i % 12 === 0) {
-        console.log(`  frame ${i}: steps=${steps} egoZ=${motion.egoZ.toFixed(2)} unique=${hashes.size}`);
+        console.log(`  frame ${i}: egoZ=${motion.egoZ.toFixed(2)} tracks=${motion.tracks} unique=${hashes.size}`);
       }
-      await page.close();
     }
+    await page.close();
 
-    console.log(`egoZ ${firstZ.toFixed(2)} → ${lastZ.toFixed(2)}, unique hashes ${hashes.size}/${FRAMES}`);
-    if (hashes.size < 10) throw new Error(`Too few unique frames: ${hashes.size}`);
+    console.log(`egoZ ${firstZ.toFixed(2)} → ${lastZ.toFixed(2)}, unique canvas hashes ${hashes.size}/${FRAMES}`);
+    if (hashes.size < 16) throw new Error(`Too few unique frames: ${hashes.size}`);
     if (Math.abs(lastZ - firstZ) < 2) throw new Error("Insufficient ego motion");
 
+    const t0 = path.join(outDir, "motion_t0.png");
+    const tmid = path.join(outDir, "motion_tmid.png");
+    const tend = path.join(outDir, "motion_tend.png");
+    fs.copyFileSync(path.join(framesDir, "frame_0000.png"), t0);
+    fs.copyFileSync(path.join(framesDir, `frame_${String(Math.floor((FRAMES - 1) / 2)).padStart(4, "0")}.png`), tmid);
+    fs.copyFileSync(path.join(framesDir, `frame_${String(FRAMES - 1).padStart(4, "0")}.png`), tend);
+    makeStrip(t0, tmid, tend, path.join(outDir, "motion_strip.png"));
+
     const mp4 = path.join(outDir, "fsd_town_playback_demo.mp4");
-    spawnSync(
-      "ffmpeg",
-      [
-        "-y",
-        "-framerate",
-        String(FPS),
-        "-i",
-        path.join(framesDir, "frame_%04d.png"),
-        "-c:v",
-        "libx264",
-        "-pix_fmt",
-        "yuv420p",
-        "-movflags",
-        "+faststart",
-        mp4,
-      ],
-      { stdio: "inherit" },
-    );
+    console.log("encode MP4 libx264 yuv420p +faststart...");
+    encodeMp4(framesDir, mp4);
 
     const gif = path.join(outDir, "fsd_town_playback_demo.gif");
-    spawnSync(
-      "ffmpeg",
-      [
-        "-y",
-        "-framerate",
-        String(FPS),
-        "-i",
-        path.join(framesDir, "frame_%04d.png"),
-        "-vf",
-        "fps=10,scale=960:-1:flags=lanczos,split[s0][s1];[s0]palettegen=stats_mode=diff[p];[s1][p]paletteuse",
-        "-loop",
-        "0",
-        gif,
-      ],
-      { stdio: "inherit" },
-    );
+    console.log("encode GIF (palette)...");
+    tryEncodeGif(framesDir, gif);
 
-    for (const name of [
-      "before_plain_ego.png",
-      "after_fsd_overlay.png",
-      "fsd_town_playback_demo.gif",
-      "fsd_town_playback_demo.mp4",
-    ]) {
+    console.log("verify artifacts...");
+    const result = verifyArtifactDir(outDir);
+    console.log(`  MP4 ${result.motion.frames} frames, 3 distinct hashes`);
+    for (const h of result.motion.hashes) console.log(`    n=${h.n} ${h.sha256}`);
+    console.log(`  GIF usable: ${result.gifOk}`);
+
+    for (const name of fs.readdirSync(outDir)) {
       const p = path.join(outDir, name);
-      console.log(`  ${name}: ${fs.statSync(p).size} bytes`);
+      if (fs.statSync(p).isFile()) console.log(`  ${name}: ${fs.statSync(p).size} bytes`);
     }
   } finally {
     await browser.close();

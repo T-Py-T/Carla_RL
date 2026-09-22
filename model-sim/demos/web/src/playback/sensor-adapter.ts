@@ -40,7 +40,8 @@ const TRACK_PALETTE = [
   0xff85c0, 0x7bed9f,
 ];
 
-const PROXIMITY_RADII = [10, 20, 30, 40, 50];
+/** Must match PerceptionViz display rings — three bands, no stacked z-fight. */
+export const PROXIMITY_RADII = [12, 24, 38];
 const LIDAR_BEAMS = 72;
 const LIDAR_MAX_RANGE = 48;
 const LIDAR_FOV = 1.15; // radians (~66° half-FOV each side)
@@ -100,7 +101,7 @@ export class SensorAdapter {
         const range = 4 + (r / (bins - 1)) * (LIDAR_MAX_RANGE - 4);
         const lx = sinA * range;
         const lz = -cosA * range;
-        const ly = 0.06 + (range / LIDAR_MAX_RANGE) * 0.18;
+        const ly = 0.35 + (range / LIDAR_MAX_RANGE) * 0.45;
         const intensity = 0.35 + (1 - range / LIDAR_MAX_RANGE) * 0.55;
         out[idx++] = {
           x: lx,
