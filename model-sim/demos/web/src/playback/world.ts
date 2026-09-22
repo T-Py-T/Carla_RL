@@ -46,11 +46,13 @@ export function buildTown(scene) {
     intersection: { cx: 0, cz: -35, offset: 0 },
   });
 
-  // Poly Haven CC0 street_lamp_01 — JevPilot scenery-assets.js placement along main + cross roads.
-  void placeStreetLamps(scene, [
-    { ax: 0, az: -140, bx: 0, bz: 140, length: 280 },
-    { ax: -35, az: -35, bx: 35, bz: -35, length: 70 },
-  ]);
+  // Skip async GLB street lamps during headless capture (avoids GL stalls + NaN bounds).
+  if (new URLSearchParams(location.search).get("capture") !== "1") {
+    void placeStreetLamps(scene, [
+      { ax: 0, az: -140, bx: 0, bz: 140, length: 280 },
+      { ax: -35, az: -35, bx: 35, bz: -35, length: 70 },
+    ]);
+  }
 
   const palette = ["#8d9cab", "#7f93a3", "#6d8494", "#95a8b8", "#566878"];
   for (let block = 0; block < 18; block++) {

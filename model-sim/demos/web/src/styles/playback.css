@@ -13,6 +13,23 @@ body.plain-mode #vector-labels {
   display: none !important;
 }
 
+/* Headless capture: solid HUD panels (backdrop-filter hangs Playwright screenshots). */
+body.capture-mode .glass,
+body.capture-mode #json-dialog {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: #fffffff2 !important;
+}
+
+body.capture-mode #json-content {
+  max-height: 300px;
+  overflow: auto;
+}
+
+body.capture-mode #app canvas {
+  display: block;
+}
+
 #json-dialog {
   position: fixed;
   right: 24px;

@@ -31,6 +31,7 @@ export class JevTownDemo {
   height: number;
   plain: boolean;
   proceduralTraffic: boolean;
+  captureMode: boolean;
   stepIndex = 0;
   distance = 0;
   speedKmh = 40;
@@ -71,14 +72,18 @@ export class JevTownDemo {
     this.proceduralTraffic =
       options.proceduralTraffic ??
       new URLSearchParams(location.search).get("proceduralTraffic") === "1";
+    this.captureMode =
+      new URLSearchParams(location.search).get("capture") === "1";
 
     if (this.plain) document.body.classList.add("plain-mode");
+    if (this.captureMode) document.body.classList.add("capture-mode");
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(52, this.width / this.height, 0.1, 400);
     this.renderer = new THREE.WebGLRenderer({
       antialias: renderProfile.antialias,
       preserveDrawingBuffer: true,
+      logarithmicDepthBuffer: true,
     });
     this.renderer.setSize(this.width, this.height, false);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -222,13 +227,16 @@ export class JevTownDemo {
     const leadGap = traffic.leadGap ?? Infinity;
 
     let accel = action === 3 ? -3.0 : 1.2;
-    if (leadGap < 24) {
-      accel = Math.min(accel, -2.0);
-      this.speedKmh = Math.min(this.speedKmh, Math.max(8, (leadGap - 4) * 2.6));
+    const brakeNear = this.captureMode ? 8 : 14;
+    const brakeFar = this.captureMode ? 16 : 24;
+    if (leadGap < brakeFar) {
+      accel = Math.min(accel, this.captureMode ? -1.2 : -2.0);
+      const floor = this.captureMode ? 14 : 8;
+      this.speedKmh = Math.min(this.speedKmh, Math.max(floor, (leadGap - 4) * (this.captureMode ? 1.8 : 2.6)));
     }
-    if (leadGap < 14) {
-      accel = -4.5;
-      this.action = 3;
+    if (leadGap < brakeNear) {
+      accel = this.captureMode ? -2.0 : -4.5;
+      if (!this.captureMode) this.action = 3;
     }
 
     const delta = this.speedKmh / 3.6 / 10;
@@ -282,5 +290,15 @@ export class JevTownDemo {
 
   render() {
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /** Headless capture telemetry. */
+  motionSample() {
+    const perception = this._lastPayload.perception as { tracks?: unknown[] } | undefined;
+    return {
+      egoZ: this.car.position.z,
+      step: this.stepIndex,
+      tracks: perception?.tracks?.length ?? 0,
+    };
   }
 }

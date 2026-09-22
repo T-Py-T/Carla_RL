@@ -1,12 +1,13 @@
 import * as THREE from "three";
 import type { SensorFrame } from "./sensor-adapter";
 
-const PROXIMITY_COLORS = [
-  { clear: 0x2ecc71, warn: 0xf1c40f, threat: 0xe74c3c },
-];
+const PROXIMITY_COLORS = { clear: 0x2ecc71, warn: 0xf1c40f, threat: 0xe74c3c };
+/** Display radii (m) — three bands to avoid stacked-ring z-fight. */
+const PROXIMITY_DISPLAY = [12, 24, 38];
 
 export class PerceptionViz {
   root: THREE.Group;
+  boxGroup: THREE.Group;
   points: THREE.Points;
   proximityRings: THREE.Mesh[];
   scanWedge: THREE.Mesh;
@@ -14,10 +15,13 @@ export class PerceptionViz {
   threatArc: THREE.Mesh;
   private boxes = new Map<string, THREE.BoxHelper>();
   private _pointCount = 720;
+  private _threatZ = 12;
 
   constructor(scene: THREE.Scene) {
     this.root = new THREE.Group();
+    this.boxGroup = new THREE.Group();
     scene.add(this.root);
+    scene.add(this.boxGroup);
 
     const positions = new Float32Array(this._pointCount * 3);
     const colors = new Float32Array(this._pointCount * 3);
@@ -27,85 +31,90 @@ export class PerceptionViz {
     this.points = new THREE.Points(
       geo,
       new THREE.PointsMaterial({
-        size: 0.055,
+        size: 0.038,
         vertexColors: true,
         transparent: true,
-        opacity: 0.62,
+        opacity: 0.52,
         depthWrite: false,
+        depthTest: true,
         sizeAttenuation: true,
       }),
     );
-    this.points.renderOrder = 2;
+    this.points.renderOrder = 3;
     this.root.add(this.points);
 
-    // Rotating scan ring at ego
     this.scanRing = new THREE.Mesh(
-      new THREE.RingGeometry(1.6, 1.9, 64),
+      new THREE.RingGeometry(1.4, 1.65, 48),
       new THREE.MeshBasicMaterial({
         color: 0x38bcd6,
         transparent: true,
-        opacity: 0.4,
+        opacity: 0.28,
         side: THREE.DoubleSide,
         depthWrite: false,
+        depthTest: false,
       }),
     );
     this.scanRing.rotation.x = -Math.PI / 2;
-    this.scanRing.position.y = 0.11;
+    this.scanRing.position.y = 0.16;
     this.root.add(this.scanRing);
 
-    // Proximity range rings (10/20/30/40/50 m)
-    this.proximityRings = [10, 20, 30, 40, 50].map((radius) => {
-      const inner = radius - 0.15;
+    this.proximityRings = PROXIMITY_DISPLAY.map((radius, i) => {
+      const band = 0.35;
       const ring = new THREE.Mesh(
-        new THREE.RingGeometry(inner, radius, 64),
+        new THREE.RingGeometry(radius - band, radius, 64),
         new THREE.MeshBasicMaterial({
           color: 0x2ecc71,
           transparent: true,
-          opacity: 0.12,
+          opacity: 0.1,
           side: THREE.DoubleSide,
           depthWrite: false,
+          depthTest: false,
+          polygonOffset: true,
+          polygonOffsetFactor: -2,
+          polygonOffsetUnits: -2,
         }),
       );
       ring.rotation.x = -Math.PI / 2;
-      ring.position.y = 0.09;
+      ring.position.y = 0.14 + i * 0.008;
       this.root.add(ring);
       return ring;
     });
 
-    // Forward lidar wedge (ground-plane coverage indicator)
     this.scanWedge = new THREE.Mesh(
-      new THREE.CircleGeometry(16, 32, -0.55, 1.1),
+      new THREE.CircleGeometry(14, 32, -0.5, 1.0),
       new THREE.MeshBasicMaterial({
         color: 0x007aff,
         transparent: true,
-        opacity: 0.1,
+        opacity: 0.05,
         side: THREE.DoubleSide,
         depthWrite: false,
+        depthTest: false,
       }),
     );
     this.scanWedge.rotation.x = -Math.PI / 2;
     this.scanWedge.rotation.z = Math.PI / 2;
-    this.scanWedge.position.set(0, 0.1, -1.5);
+    this.scanWedge.position.set(0, 0.13, -1.2);
     this.root.add(this.scanWedge);
 
-    // Closest-threat forward arc
     this.threatArc = new THREE.Mesh(
-      new THREE.CircleGeometry(1, 24, -0.35, 0.7),
+      new THREE.RingGeometry(0.8, 1.6, 24, 1, -0.3, 0.6),
       new THREE.MeshBasicMaterial({
         color: 0xe74c3c,
         transparent: true,
-        opacity: 0.25,
+        opacity: 0.2,
         side: THREE.DoubleSide,
         depthWrite: false,
+        depthTest: false,
       }),
     );
     this.threatArc.rotation.x = -Math.PI / 2;
-    this.threatArc.position.set(0, 0.12, -2);
+    this.threatArc.position.set(0, 0.15, -8);
     this.root.add(this.threatArc);
   }
 
   setVisible(visible: boolean) {
     this.root.visible = visible;
+    this.boxGroup.visible = visible;
     for (const helper of this.boxes.values()) {
       helper.visible = visible;
     }
@@ -117,7 +126,7 @@ export class PerceptionViz {
     const pts = frame.lidarPoints;
     for (let i = 0; i < this._pointCount; i++) {
       const p = pts[i];
-      pos.setXYZ(i, p.x, p.y, p.z);
+      pos.setXYZ(i, p.x, Math.max(p.y, 0.18), p.z);
       col.setXYZ(i, p.r, p.g, p.b);
     }
     pos.needsUpdate = true;
@@ -125,30 +134,39 @@ export class PerceptionViz {
   }
 
   private _updateProximityRings(frame: SensorFrame) {
-    const palette = PROXIMITY_COLORS[0];
-    frame.proximityZones.forEach((zone, i) => {
-      const ring = this.proximityRings[i];
-      if (!ring) return;
+    const zones = frame.proximityZones;
+    this.proximityRings.forEach((ring, i) => {
+      const targetRadius = PROXIMITY_DISPLAY[i];
+      const zone = zones.find((z) => Math.abs(z.radius - targetRadius) < 8) ?? zones[i];
+      if (!zone) return;
       const mat = ring.material as THREE.MeshBasicMaterial;
       const t = zone.threat;
       const color = new THREE.Color();
       if (t < 0.35) {
-        color.setHex(palette.clear);
+        color.setHex(PROXIMITY_COLORS.clear);
       } else if (t < 0.7) {
-        color.lerpColors(new THREE.Color(palette.clear), new THREE.Color(palette.warn), (t - 0.35) / 0.35);
+        color.lerpColors(
+          new THREE.Color(PROXIMITY_COLORS.clear),
+          new THREE.Color(PROXIMITY_COLORS.warn),
+          (t - 0.35) / 0.35,
+        );
       } else {
-        color.lerpColors(new THREE.Color(palette.warn), new THREE.Color(palette.threat), (t - 0.7) / 0.3);
+        color.lerpColors(
+          new THREE.Color(PROXIMITY_COLORS.warn),
+          new THREE.Color(PROXIMITY_COLORS.threat),
+          (t - 0.7) / 0.3,
+        );
       }
       mat.color.copy(color);
-      mat.opacity = 0.14 + t * 0.32;
+      mat.opacity = 0.06 + t * 0.18;
     });
 
-    const threatMat = this.threatArc.material as THREE.MeshBasicMaterial;
     const close = Number.isFinite(frame.closestThreatM) ? frame.closestThreatM : 50;
-    const scale = Math.min(1, Math.max(0.15, close / 30));
-    this.threatArc.scale.set(scale * 8, scale * 8, 1);
-    threatMat.opacity = close < 20 ? 0.35 : 0.12;
-    this.threatArc.position.z = -Math.min(close, 40);
+    const targetZ = -Math.min(Math.max(close, 6), 36);
+    this._threatZ += (targetZ - this._threatZ) * 0.12;
+    this.threatArc.position.z = this._threatZ;
+    const threatMat = this.threatArc.material as THREE.MeshBasicMaterial;
+    threatMat.opacity = close < 18 ? 0.28 : 0.1;
   }
 
   update(ego: THREE.Object3D, frame: SensorFrame) {
@@ -156,21 +174,28 @@ export class PerceptionViz {
     this.root.rotation.y = ego.rotation.y;
 
     this.scanRing.rotation.z = frame.scannerPhase;
-    this.scanWedge.rotation.z = Math.PI / 2 + frame.scannerPhase * 0.4;
+    this.scanWedge.rotation.z = Math.PI / 2 + frame.scannerPhase * 0.25;
 
     this._applyLidarPoints(frame);
     this._updateProximityRings(frame);
 
     const seen = new Set<string>();
     for (const track of frame.tracks) {
+      const pos = track.object.position;
+      if (!Number.isFinite(pos.x) || !Number.isFinite(pos.y) || !Number.isFinite(pos.z)) continue;
+
       seen.add(track.object.uuid);
       const color = track.color;
       if (!this.boxes.has(track.object.uuid)) {
         const helper = new THREE.BoxHelper(track.object, color);
-        helper.material.transparent = true;
-        helper.material.opacity = 0.92;
-        helper.renderOrder = 7;
-        this.root.parent!.add(helper);
+        const mat = helper.material as THREE.LineBasicMaterial;
+        mat.transparent = true;
+        mat.opacity = 0.88;
+        mat.depthTest = false;
+        mat.depthWrite = false;
+        mat.linewidth = 2;
+        helper.renderOrder = 8;
+        this.boxGroup.add(helper);
         this.boxes.set(track.object.uuid, helper);
       } else {
         const helper = this.boxes.get(track.object.uuid)!;
@@ -181,7 +206,7 @@ export class PerceptionViz {
 
     for (const [uuid, helper] of this.boxes) {
       if (!seen.has(uuid)) {
-        this.root.parent!.remove(helper);
+        this.boxGroup.remove(helper);
         helper.geometry.dispose();
         this.boxes.delete(uuid);
       }
@@ -190,7 +215,7 @@ export class PerceptionViz {
 
   dispose() {
     for (const helper of this.boxes.values()) {
-      this.root.parent?.remove(helper);
+      this.boxGroup.remove(helper);
       helper.geometry.dispose();
     }
     this.boxes.clear();
