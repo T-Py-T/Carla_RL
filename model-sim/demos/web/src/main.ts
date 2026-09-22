@@ -12,7 +12,15 @@ declare global {
     renderPlainFrame: () => Promise<boolean>;
     waitForDemoReady: () => Promise<void>;
     captureCanvasPng: () => string | null;
-    demoMotionSample: () => { egoZ: number; step: number; tracks: number };
+    demoMotionSample: () => {
+      egoZ: number;
+      step: number;
+      tracks: number;
+      speedKmh: number;
+      action: number;
+      leadGap: number;
+      egoModel: string;
+    };
   }
 }
 
@@ -59,4 +67,13 @@ window.captureCanvasPng = () => {
   return canvas.toDataURL("image/png");
 };
 
-window.demoMotionSample = () => window.demo?.motionSample() ?? { egoZ: 0, step: 0, tracks: 0 };
+window.demoMotionSample = () =>
+  window.demo?.motionSample() ?? {
+    egoZ: 0,
+    step: 0,
+    tracks: 0,
+    speedKmh: 0,
+    action: 0,
+    leadGap: Infinity,
+    egoModel: "none",
+  };

@@ -131,7 +131,7 @@ export class TrafficSystem {
     // After `npm run fetch:sketchfab-traffic`, swap in SKETCHFAB_TRAFFIC_MODELS ids for mixed fleet.
     // All NPC vehicles ahead in parallel one-way lanes — slow lead in ego lane for braking demo.
     const specs = [
-      { type: "vehicle", x: EGO_LANE_X, z: -22, speed: 0.028, modelId: "kenney-sedan" },
+      { type: "vehicle", x: EGO_LANE_X, z: -16, speed: 0.02, modelId: "kenney-sedan" },
       { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -18, speed: 0.075, modelId: "kenney-hatchback-sports" },
       { type: "vehicle", x: ONE_WAY_LANE_X[2], z: -26, speed: 0.068, modelId: "kenney-van" },
       { type: "vehicle", x: ONE_WAY_LANE_X[3], z: -34, speed: 0.072, modelId: "kenney-firetruck" },
@@ -192,9 +192,11 @@ export class TrafficSystem {
     for (const actor of this.actors) {
       if (actor.kind !== "vehicle") continue;
       const gap = this._gapToEgo(actor.mesh, ego);
-      if (gap < 4 || gap > 120) continue;
+      // Keep a closing / overlapping lead in-lane so playback braking never drops out
+      // (the old `gap < 4` skip released the brake and let ego drive through).
+      if (gap > 120) continue;
       if (!this._laneOverlap(actor.mesh.position.x, ego.position.x)) continue;
-      minGap = Math.min(minGap, gap);
+      minGap = Math.min(minGap, Math.max(0, gap));
     }
     return minGap;
   }

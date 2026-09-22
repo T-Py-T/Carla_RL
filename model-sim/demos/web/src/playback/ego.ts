@@ -7,7 +7,7 @@ import {
   type TrafficModelId,
 } from "../vendor/jevpilot/traffic-assets";
 
-/** Procedural placeholder — swapped for Model Y GLB once loaded (JevPilot scene.js ~798–817). */
+/** Placeholder only until Tesla Model Y GLB loads. Ego mesh is Model Y — never a traffic kit car. */
 export function createEgoVehicle() {
   return detailedCar("#e2e5e9");
 }

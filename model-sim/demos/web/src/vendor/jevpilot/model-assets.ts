@@ -17,7 +17,12 @@ export async function loadHeroCar() {
   carAsset ||= (async () => {
     const decoder = new DRACOLoader().setDecoderPath("/draco/");
     const loader = new GLTFLoader().setDRACOLoader(decoder);
-    const { scene } = await loader.loadAsync("/models/model-y/model-y.glb");
+    const { scene } = await Promise.race([
+      loader.loadAsync("/models/model-y/model-y.glb"),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("Model Y GLB load timed out")), 20000);
+      }),
+    ]);
     decoder.dispose();
 
     const paint = physical("model-y-paint", {
@@ -95,7 +100,9 @@ export async function loadHeroCar() {
       batches.set(pivot, new Map());
     });
 
-    if (wheels.size !== 4) throw new Error("Model Y asset is missing an axle");
+    if (wheels.size !== 4) {
+      console.warn(`Model Y axle count ${wheels.size}; wheel spin disabled`);
+    }
 
     const rolling = new Set(["tires", "wheels", "brakedsk", "metal", "alum", "chrome"]);
     const calipers = new Set(["calipers", "calipers2"]);
@@ -109,6 +116,7 @@ export async function loadHeroCar() {
       const wheelName = `wheel_${center.z < 0 ? "f" : "r"}${center.x < 0 ? "l" : "r"}`;
       const candidate = wheels.get(wheelName);
       const atAxle =
+        !!candidate &&
         Math.abs(center.z - candidate.pivot.position.z) < 0.3 &&
         Math.abs(center.x - candidate.pivot.position.x) < 0.25 &&
         box.max.y < 0.8 &&
@@ -167,9 +175,10 @@ export async function loadHeroCar() {
     model.name = "tesla-model-y";
     model.userData.eyeHeight = 1.28;
     model.userData.eyeForward = 0.45;
-    model.userData.wheelbase = Math.abs(
-      wheels.get("wheel_fl").pivot.position.z - wheels.get("wheel_rl").pivot.position.z,
-    );
+    const fl = wheels.get("wheel_fl");
+    const rl = wheels.get("wheel_rl");
+    model.userData.wheelbase =
+      fl && rl ? Math.abs(fl.pivot.position.z - rl.pivot.position.z) : 2.8;
     model.userData.width = 1.9;
     model.userData.depth = 4.75;
     model.userData.sourcedModel = true;

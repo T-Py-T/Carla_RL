@@ -20,7 +20,9 @@ Three.js **chase-cam** town playback — NOT highway-env top-down.
 | Decision HUD | `.navigation-hud`, `.bottom-hud`, `#json-dialog` |
 | Local only | No Jev driver / no `TYPESAFE_API_KEY` |
 
-**Later (NOT P0):** CARLA sensor mesh, real point clouds, live scanner.
+**Honesty (required):** Ego slow/BRK is **scripted** from `TrafficSystem.leadGap` in the web playback demo. The LiDAR/proximity/tracks overlay is `SensorAdapter` with source `synthetic-adapter` (derived from actor poses — viz only). **Real sensor→control, loaded model decisions, and closed-loop RL come later.** See `model-sim/demos/web/README.md`.
+
+**Later (NOT this slice):** real sensor→control, loaded model decisions, closed-loop RL, CARLA live LiDAR.
 
 ## Quick start (clean checkout, no CARLA required)
 

@@ -12,8 +12,17 @@
 
     <div class="topbar glass">
       <strong>Carla RL · FSD Playback</strong>
-      <span>Town03 · chase cam · local playback adapter (no Jev driver)</span>
+      <span>Model Y ego · scripted leadGap brake · synthetic-adapter viz · not closed-loop</span>
     </div>
+
+    <aside id="honesty-banner" class="glass">
+      <strong>Scripted playback — not a loaded model, not closed-loop RL.</strong>
+      <span>
+        Ego slow/BRK is scripted from <code>TrafficSystem.leadGap</code>.
+        Sensor overlay is <code>synthetic-adapter</code> viz from actor poses.
+        Real sensor→control, loaded model decisions, and closed-loop RL come later.
+      </span>
+    </aside>
 
     <div class="navigation-hud">
       <div class="navigation-card glass">
@@ -40,7 +49,11 @@
           <button type="button" data-tab="signals">Local signals</button>
         </div>
       </div>
-      <p id="json-description">Playback adapter poses/paths/probs — no Jev decision API.</p>
+      <p id="json-description">
+        Scripted playback: BRAKE from TrafficSystem.leadGap. SensorAdapter =
+        synthetic-adapter (actor poses). Sensor→control, loaded model, and
+        closed-loop RL come later.
+      </p>
       <pre id="json-content">{}</pre>
     </div>
 
@@ -58,8 +71,8 @@
         </div>
         <span class="dock-divider"></span>
         <div id="decision-status">
-          <strong id="pilot-state">Local playback</strong>
-          <span id="context-message">Candidate paths visible</span>
+          <strong id="pilot-state">Scripted playback</strong>
+          <span id="context-message">leadGap brake · not a model</span>
         </div>
         <span class="dock-divider"></span>
         <button class="candidate-button selected" type="button">FWD</button>

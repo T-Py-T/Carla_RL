@@ -52,6 +52,8 @@ export class JevTownDemo {
   private _heroCar: THREE.Group | null = null;
   private _lastPayload: Record<string, unknown> = {};
   private _lastFrameMs = performance.now();
+  /** Last TrafficSystem.leadGap (scripted playback input — not a learned policy). */
+  private _leadGap = Infinity;
   private hud!: {
     maneuver: HTMLElement;
     distance: HTMLElement;
@@ -108,9 +110,10 @@ export class JevTownDemo {
     this._camTarget.set(0, 1.0, -12);
 
     const playerGroup = this.car;
+    // Ego is Tesla Model Y only. `procedural=1` is a headless fallback — do not
+    // skip the GLB just because NPC traffic is procedural.
     const skipHeroModel =
-      options.procedural ??
-      (this.proceduralTraffic || new URLSearchParams(location.search).get("procedural") === "1");
+      options.procedural === true || new URLSearchParams(location.search).get("procedural") === "1";
     const heroReady = skipHeroModel
       ? Promise.resolve()
       : loadHeroCar()
@@ -225,18 +228,24 @@ export class JevTownDemo {
     const traffic = this.traffic.step(this.car, this.stepIndex);
     const actors = traffic.actors;
     const leadGap = traffic.leadGap ?? Infinity;
+    this._leadGap = leadGap;
 
+    // Scripted playback from TrafficSystem.leadGap — NOT a learned / sensor closed-loop policy.
+    // Same #113-class curve in captureMode (no weaker floor / no skipped BRAKE HUD).
     let accel = action === 3 ? -3.0 : 1.2;
-    const brakeNear = this.captureMode ? 8 : 14;
-    const brakeFar = this.captureMode ? 16 : 24;
-    if (leadGap < brakeFar) {
-      accel = Math.min(accel, this.captureMode ? -1.2 : -2.0);
-      const floor = this.captureMode ? 14 : 8;
-      this.speedKmh = Math.min(this.speedKmh, Math.max(floor, (leadGap - 4) * (this.captureMode ? 1.8 : 2.6)));
+    if (leadGap < 24) {
+      accel = Math.min(accel, -2.0);
+      this.speedKmh = Math.min(this.speedKmh, Math.max(8, (leadGap - 4) * 2.6));
     }
-    if (leadGap < brakeNear) {
-      accel = this.captureMode ? -2.0 : -4.5;
-      if (!this.captureMode) this.action = 3;
+    if (leadGap < 14) {
+      accel = -4.5;
+      this.action = 3;
+    }
+    // Hold short of the lead so ego cannot pierce once gap drops below the 8 km/h floor.
+    if (leadGap < 8) {
+      accel = -8;
+      this.speedKmh = Math.min(this.speedKmh, Math.max(0, (leadGap - 6) * 4));
+      this.action = 3;
     }
 
     const delta = this.speedKmh / 3.6 / 10;
@@ -264,9 +273,10 @@ export class JevTownDemo {
       this.hud.distance.textContent = `${Math.round(this.distance)} m ahead`;
       this.hud.remaining.textContent = `${Math.max(0, 420 - Math.round(this.distance))} m left`;
       this.hud.speed.textContent = String(Math.round(this.speedKmh));
-      this.hud.state.textContent = "Local FSD playback";
-      this.hud.context.textContent = `${LABELS[this.action]} · p=${Math.round(probs[this.action] * 100)}%`;
+      this.hud.state.textContent = "Scripted playback";
+      this.hud.context.textContent = `${LABELS[this.action]} · leadGap (not a model)`;
       this.hud.turnIcon.textContent = this.action === 1 ? "←" : this.action === 2 ? "→" : "↑";
+      document.body.classList.toggle("is-braking", this.action === 3);
       (this.hud.buttons as HTMLButtonElement[]).forEach((btn, idx) =>
         btn.classList.toggle("selected", idx === this.action),
       );
@@ -279,6 +289,12 @@ export class JevTownDemo {
         action: { index: this.action, label: LABELS[this.action] },
         vehicle: { speed_kmh: +this.speedKmh.toFixed(1), speed_limit_kmh: 50 },
         perception: this.sensor.frameStats(sensorFrame),
+        honesty: {
+          control: "scripted-leadGap",
+          sensor: "synthetic-adapter",
+          closed_loop: false,
+          later: "sensor→control, loaded model decisions, closed-loop RL",
+        },
         q_values: Object.fromEntries(q.map((v, i) => [String(i), +v.toFixed(3)])),
         probabilities: Object.fromEntries(probs.map((v, i) => [String(i), +v.toFixed(3)])),
       });
@@ -299,6 +315,10 @@ export class JevTownDemo {
       egoZ: this.car.position.z,
       step: this.stepIndex,
       tracks: perception?.tracks?.length ?? 0,
+      speedKmh: this.speedKmh,
+      action: this.action,
+      leadGap: this._leadGap,
+      egoModel: this._heroCar?.name ?? "procedural-placeholder",
     };
   }
 }
