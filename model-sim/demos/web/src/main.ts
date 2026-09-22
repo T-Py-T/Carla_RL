@@ -23,6 +23,8 @@ declare global {
       leadGap: number;
       bumperGap: number;
       overlap: boolean;
+      transparentMeshes: number;
+      egoMeshCount: number;
       egoModel: string;
     };
   }
@@ -83,5 +85,7 @@ window.demoMotionSample = () =>
     leadGap: Infinity,
     bumperGap: Infinity,
     overlap: false,
+    transparentMeshes: 0,
+    egoMeshCount: 0,
     egoModel: "none",
   };

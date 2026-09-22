@@ -22,6 +22,13 @@ body.capture-mode #json-dialog {
   background: #fffffff2 !important;
 }
 
+/* Portfolio clip: no maintainer honesty sticker. PR body + README keep the facts. */
+body.capture-mode #honesty-banner,
+body.capture-mode #json-dialog,
+body.capture-mode #json-description {
+  display: none !important;
+}
+
 body.capture-mode #json-content {
   max-height: 300px;
   overflow: auto;

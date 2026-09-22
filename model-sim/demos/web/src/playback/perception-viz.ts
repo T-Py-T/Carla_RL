@@ -39,25 +39,25 @@ export class PerceptionViz {
         depthWrite: false,
         depthTest: true,
         sizeAttenuation: false,
-        blending: THREE.AdditiveBlending,
       }),
     );
     this.points.renderOrder = 3;
     this.root.add(this.points);
 
+    // Forward arc on the pavement — never a disc through the ego body.
     this.scanRing = new THREE.Mesh(
-      new THREE.RingGeometry(1.4, 1.65, 48),
+      new THREE.RingGeometry(3.2, 3.55, 48, 1, Math.PI / 2 - 0.85, 1.7),
       new THREE.MeshBasicMaterial({
         color: 0x38bcd6,
         transparent: true,
-        opacity: 0.28,
+        opacity: 0.34,
         side: THREE.DoubleSide,
         depthWrite: false,
-        depthTest: false,
+        depthTest: true,
       }),
     );
     this.scanRing.rotation.x = -Math.PI / 2;
-    this.scanRing.position.y = 0.16;
+    this.scanRing.position.set(0, 0.08, 0);
     this.root.add(this.scanRing);
 
     this.proximityRings = PROXIMITY_DISPLAY.map((radius, i) => {
@@ -68,11 +68,10 @@ export class PerceptionViz {
         new THREE.MeshBasicMaterial({
           color: 0x2ecc71,
           transparent: true,
-          opacity: 0.42,
+          opacity: 0.28,
           side: THREE.DoubleSide,
           depthWrite: false,
-          depthTest: false,
-          blending: THREE.AdditiveBlending,
+          depthTest: true,
         }),
       );
       ring.rotation.x = -Math.PI / 2;
@@ -86,10 +85,10 @@ export class PerceptionViz {
       new THREE.MeshBasicMaterial({
         color: 0x007aff,
         transparent: true,
-        opacity: 0.16,
+        opacity: 0.1,
         side: THREE.DoubleSide,
         depthWrite: false,
-        depthTest: false,
+        depthTest: true,
       }),
     );
     this.scanWedge.rotation.x = -Math.PI / 2;
@@ -102,10 +101,10 @@ export class PerceptionViz {
       new THREE.MeshBasicMaterial({
         color: 0xe74c3c,
         transparent: true,
-        opacity: 0.2,
+        opacity: 0.22,
         side: THREE.DoubleSide,
         depthWrite: false,
-        depthTest: false,
+        depthTest: true,
       }),
     );
     this.threatArc.rotation.x = -Math.PI / 2;
@@ -191,7 +190,7 @@ export class PerceptionViz {
         const mat = helper.material as THREE.LineBasicMaterial;
         mat.transparent = true;
         mat.opacity = 0.88;
-        mat.depthTest = false;
+        mat.depthTest = true;
         mat.depthWrite = false;
         mat.linewidth = 2;
         helper.renderOrder = 8;

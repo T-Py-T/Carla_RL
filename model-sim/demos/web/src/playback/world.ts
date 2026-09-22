@@ -2,7 +2,7 @@
 import * as THREE from "three";
 import { buildTownRoadNetwork } from "../vendor/jevpilot/jevpilot-road";
 import { placeStreetLamps } from "../vendor/jevpilot/scenery-assets";
-import { createNpcVehicleFallback, createPedestrian, createProceduralNpcVehicle } from "./ego";
+import { createOpaqueSedan, createNpcVehicleFallback, createPedestrian, createProceduralNpcVehicle } from "./ego";
 
 const MIN_VEHICLE_GAP = 12;
 const MIN_SPAWN_AHEAD = 16;
@@ -135,17 +135,18 @@ export class TrafficSystem {
     // Research CC shortlist — Kenney Car Kit + Khronos + OGA UAZ (NOT Model Y).
     // After `npm run fetch:sketchfab-traffic`, swap in SKETCHFAB_TRAFFIC_MODELS ids for mixed fleet.
     // All NPC vehicles ahead in parallel one-way lanes — slow lead in ego lane for braking demo.
-    // Adjacent-lane NPCs stay well ahead so a long Model Y cannot occupy the
-    // same space as the dark hatch / red truck during the capture clip.
+    // In-lane lead is the only near car. Adjacent traffic stays far enough
+    // that a 3/4 chase cam cannot stack them on the ego (the last clip's
+    // "dark sedan pierce" was a depthTest=false box drawn through the hull).
     const specs = [
-      { type: "vehicle", x: EGO_LANE_X, z: -20, speed: 0.008, modelId: "kenney-sedan" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -40, speed: 0.055, modelId: "kenney-hatchback-sports" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[2], z: -46, speed: 0.05, modelId: "kenney-van" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[3], z: -58, speed: 0.048, modelId: "kenney-firetruck" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -74, speed: 0.05, modelId: "kenney-truck" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[2], z: -86, speed: 0.046, modelId: "kenney-delivery" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[3], z: -98, speed: 0.044, modelId: "khronos-milk-truck" },
-      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -110, speed: 0.042, modelId: "oga-uaz-truck" },
+      { type: "vehicle", x: EGO_LANE_X, z: -26, speed: 0, modelId: "lead-sedan", color: "#1a3d66" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -70, speed: 0.04, modelId: "kenney-hatchback-sports" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[2], z: -78, speed: 0.038, modelId: "kenney-van" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[3], z: -88, speed: 0.036, modelId: "kenney-firetruck" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -100, speed: 0.035, modelId: "kenney-truck" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[2], z: -112, speed: 0.034, modelId: "kenney-delivery" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[3], z: -124, speed: 0.032, modelId: "khronos-milk-truck" },
+      { type: "vehicle", x: ONE_WAY_LANE_X[0], z: -136, speed: 0.03, modelId: "oga-uaz-truck" },
       { type: "pedestrian", x: -9, z: -22, speed: 0.025, lane: 1 },
       { type: "pedestrian", x: 9.2, z: -40, speed: 0.02, lane: -1 },
       { type: "pedestrian", x: -9, z: -58, speed: 0.018, lane: 1 },
@@ -153,9 +154,11 @@ export class TrafficSystem {
     for (const spec of specs) {
       const mesh =
         spec.type === "vehicle"
-          ? proceduralTraffic
-            ? createProceduralNpcVehicle(spec.modelId)
-            : createNpcVehicleFallback(spec.modelId)
+          ? spec.color
+            ? createOpaqueSedan(spec.color, spec.modelId)
+            : proceduralTraffic
+              ? createProceduralNpcVehicle(spec.modelId)
+              : createNpcVehicleFallback(spec.modelId)
           : createPedestrian(spec.lane > 0 ? "#548975" : "#c27d55");
       mesh.position.set(spec.x, 0, spec.z);
       if (spec.type === "vehicle") mesh.rotation.y = 0;

@@ -217,6 +217,9 @@ async function main() {
     if (plainMotion.egoModel !== "tesla-model-y") {
       throw new Error(`Ego must be Tesla Model Y, got ${plainMotion.egoModel}`);
     }
+    if ((plainMotion.transparentMeshes ?? 0) > 0) {
+      throw new Error(`plain ego has ${plainMotion.transparentMeshes} transparent meshes`);
+    }
     await pageBefore.close();
 
     console.log("after_fsd_overlay (viewport still, HUD + overlay)...");
@@ -235,6 +238,9 @@ async function main() {
     }
     if (stillMotion.action !== 3) {
       throw new Error(`after still must show BRAKE (action=3), got ${stillMotion.action}`);
+    }
+    if ((stillMotion.transparentMeshes ?? 0) > 0) {
+      throw new Error(`after still: ego has ${stillMotion.transparentMeshes} transparent meshes`);
     }
     if (stillMotion.overlap) {
       throw new Error("after still: ego mesh intersects a lead / NPC mesh");
@@ -266,6 +272,7 @@ async function main() {
     let sawBrake = first.action === 3;
     let sawOverlap = !!first.overlap;
     let maxAbsHeading = Math.abs(first.heading ?? 0);
+    let maxTransparent = first.transparentMeshes ?? 0;
 
     for (let i = 0; i < FRAMES; i++) {
       const motion = await page.evaluate((steps) => {
@@ -287,6 +294,7 @@ async function main() {
       if (motion.action === 3) sawBrake = true;
       if (motion.overlap) sawOverlap = true;
       maxAbsHeading = Math.max(maxAbsHeading, Math.abs(motion.heading ?? 0));
+      maxTransparent = Math.max(maxTransparent, motion.transparentMeshes ?? 0);
       if (i % 12 === 0) {
         console.log(
           `  frame ${i}: egoZ=${motion.egoZ.toFixed(2)} speed=${motion.speedKmh?.toFixed?.(1)} ` +
@@ -304,6 +312,9 @@ async function main() {
     );
     if (hashes.size < 16) throw new Error(`Too few unique frames: ${hashes.size}`);
     if (Math.abs(lastZ - firstZ) < 1.5) throw new Error("Insufficient ego motion");
+    if (maxTransparent > 0) {
+      throw new Error(`Ego grew transparent meshes during the clip (${maxTransparent})`);
+    }
     if (sawOverlap) throw new Error("Drive-through: ego AABB intersected a lead / NPC mesh");
     if (minLeadGap < MIN_LEAD_GAP_M) {
       throw new Error(`Drive-through: min bumperGap ${minLeadGap.toFixed(2)} m < ${MIN_LEAD_GAP_M}`);

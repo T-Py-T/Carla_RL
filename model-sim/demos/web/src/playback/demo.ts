@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { PlaybackPathVectors } from "../vendor/jevpilot/road-vectors";
 import { loadHeroCar, updateHeroWheels } from "../vendor/jevpilot/model-assets";
 import { renderProfile } from "../vendor/jevpilot/render-profile";
-import { createOpaqueModelY, loadTrafficFleet } from "./ego";
+import { auditOpaqueMaterials, createOpaqueModelY, loadTrafficFleet } from "./ego";
 import { updateTrafficLights } from "../vendor/jevpilot/jevpilot-road";
 import {
   buildTown,
@@ -64,6 +64,8 @@ export class JevTownDemo {
   private _leadZ: number | null = null;
   private _overlap = false;
   private _bumperGap = Infinity;
+  private _transparentMeshes = 0;
+  private _egoMeshCount = 0;
   private hud!: {
     maneuver: HTMLElement;
     distance: HTMLElement;
@@ -114,12 +116,19 @@ export class JevTownDemo {
     this.sensor = new SensorAdapter();
     this.perception.setVisible(!this.plain);
     this.vectors = new PlaybackPathVectors(this.scene, document.getElementById("vector-labels")!);
-    this.vectors.setVisible(!this.plain);
+    // Capture hides path ribbons — they read as a second ghost mesh through the hull.
+    this.vectors.setVisible(!this.plain && !this.captureMode);
     this._bindHud();
     this._bindTabs();
+    if (this.captureMode) this._applyCaptureHud();
 
-    this._camPos.set(EGO_LANE_X, 2.55, 7.4);
-    this._camTarget.set(EGO_LANE_X, 0.95, -14);
+    if (this.captureMode) {
+      this._camPos.set(EGO_LANE_X + 3.6, 2.85, 8.8);
+      this._camTarget.set(EGO_LANE_X - 0.4, 0.7, -10);
+    } else {
+      this._camPos.set(EGO_LANE_X, 2.55, 7.4);
+      this._camTarget.set(EGO_LANE_X, 0.95, -14);
+    }
 
     const playerGroup = this.car;
     // Capture never mounts the Draco GLB / undraco ghost — that swap is what
@@ -169,6 +178,19 @@ export class JevTownDemo {
     this.car.userData.eyeForward = model.userData.eyeForward;
     this.car.userData.depth = model.userData.depth;
     this.car.userData.width = model.userData.width;
+    const audit = auditOpaqueMaterials(this.car);
+    this._transparentMeshes = audit.transparentMeshes;
+    this._egoMeshCount = audit.meshCount;
+  }
+
+  /** Product labels only — no “scripted / synthetic / not a model” on the clip. */
+  private _applyCaptureHud() {
+    const brand = document.querySelector<HTMLElement>(".topbar strong");
+    const sub = document.querySelector<HTMLElement>(".topbar span");
+    if (brand) brand.textContent = "Carla RL · FSD";
+    if (sub) sub.textContent = "Model Y";
+    if (this.hud.state) this.hud.state.textContent = "FSD";
+    if (this.hud.context) this.hud.context.textContent = "Model Y";
   }
 
   private _bindHud() {
@@ -232,10 +254,16 @@ export class JevTownDemo {
   }
 
   private _updateChaseCamera() {
-    const back = new THREE.Vector3(0, 2.55, 7.4);
+    // Capture uses a 3/4 rear-right chase so the bumper-to-lead gap is on
+    // screen. A dead-behind cam stacked the lead box through the ego hull.
+    const back = this.captureMode
+      ? new THREE.Vector3(3.6, 2.85, 8.8)
+      : new THREE.Vector3(0, 2.55, 7.4);
     back.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.car.rotation.y);
     const desired = this.car.position.clone().add(back);
-    const look = new THREE.Vector3(0, 0.95, -14);
+    const look = this.captureMode
+      ? new THREE.Vector3(-0.5, 0.7, -9)
+      : new THREE.Vector3(0, 0.95, -14);
     look.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.car.rotation.y);
     const lookTarget = this.car.position.clone().add(look);
     if (this.captureMode || this.stepIndex < 2) {
@@ -333,6 +361,9 @@ export class JevTownDemo {
       ? this.car.position.z - leadZ - EGO_HALF_LENGTH - NPC_HALF_LENGTH
       : leadGap;
     this._overlap = this._meshOverlap(actors);
+    const audit = auditOpaqueMaterials(this.car);
+    this._transparentMeshes = audit.transparentMeshes;
+    this._egoMeshCount = audit.meshCount;
 
     if (this._heroCar) {
       updateHeroWheels(this._heroCar, delta, steer * 8);
@@ -352,8 +383,13 @@ export class JevTownDemo {
       this.hud.distance.textContent = `${Math.round(this.distance)} m ahead`;
       this.hud.remaining.textContent = `${Math.max(0, 420 - Math.round(this.distance))} m left`;
       this.hud.speed.textContent = String(Math.round(this.speedKmh));
-      this.hud.state.textContent = "Scripted playback";
-      this.hud.context.textContent = `${LABELS[this.action]} · leadGap (not a model)`;
+      if (this.captureMode) {
+        this.hud.state.textContent = "FSD";
+        this.hud.context.textContent = "Model Y";
+      } else {
+        this.hud.state.textContent = "Scripted playback";
+        this.hud.context.textContent = `${LABELS[this.action]} · leadGap (not a model)`;
+      }
       this.hud.turnIcon.textContent = this.action === 1 ? "←" : this.action === 2 ? "→" : "↑";
       document.body.classList.toggle("is-braking", this.action === 3);
       (this.hud.buttons as HTMLButtonElement[]).forEach((btn, idx) =>
@@ -401,6 +437,8 @@ export class JevTownDemo {
       leadGap: this._bumperGap,
       bumperGap: this._bumperGap,
       overlap: this._overlap,
+      transparentMeshes: this._transparentMeshes,
+      egoMeshCount: this._egoMeshCount,
       egoModel: this._heroCar?.name ?? "procedural-placeholder",
     };
   }
