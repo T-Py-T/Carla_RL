@@ -12,15 +12,15 @@
 
     <div class="topbar glass">
       <strong>Carla RL · FSD Playback</strong>
-      <span>Model Y ego · scripted leadGap brake · synthetic-adapter viz · not closed-loop</span>
+      <span>Model Y ego · sensor-feedback control · rule-based (no RL checkpoint)</span>
     </div>
 
     <aside id="honesty-banner" class="glass">
-      <strong>Scripted playback — not a loaded model, not closed-loop RL.</strong>
+      <strong>Sensor-feedback control — rule-based, not a loaded RL checkpoint.</strong>
       <span>
-        Ego slow/BRK is scripted from <code>TrafficSystem.leadGap</code>.
-        Sensor overlay is <code>synthetic-adapter</code> viz from actor poses.
-        Real sensor→control, loaded model decisions, and closed-loop RL come later.
+        Ego brake/accel follows <code>EgoController</code> fused from LiDAR, proximity,
+        and track observations (<code>SensorAdapter</code>). Closed-loop sense→decide→actuate;
+        no trained DQN weights loaded.
       </span>
     </aside>
 
@@ -50,9 +50,8 @@
         </div>
       </div>
       <p id="json-description">
-        Scripted playback: BRAKE from TrafficSystem.leadGap. SensorAdapter =
-        synthetic-adapter (actor poses). Sensor→control, loaded model, and
-        closed-loop RL come later.
+        Sensor-feedback loop: SensorAdapter → EgoController.decide → actuate.
+        Rule-based longitudinal control from fused observations — not a loaded RL checkpoint.
       </p>
       <pre id="json-content">{}</pre>
     </div>
@@ -71,8 +70,8 @@
         </div>
         <span class="dock-divider"></span>
         <div id="decision-status">
-          <strong id="pilot-state">Scripted playback</strong>
-          <span id="context-message">leadGap brake · not a model</span>
+          <strong id="pilot-state">FSD</strong>
+          <span id="context-message">sensor feedback · rule-based</span>
         </div>
         <span class="dock-divider"></span>
         <button class="candidate-button selected" type="button">FWD</button>

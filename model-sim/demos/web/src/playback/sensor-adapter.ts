@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { EGO_HALF_LENGTH, NPC_HALF_LENGTH } from "./world";
 
 export interface LidarPoint {
   x: number;
@@ -23,6 +24,22 @@ export interface ProximityZone {
   threat: number;
 }
 
+/** Fused observations for the ego feedback controller (sense stage). */
+export interface ControlObservations {
+  /** Bumper-to-forward-obstacle gap estimated from tracks + LiDAR (m). */
+  forwardGapM: number;
+  /** Inner proximity ring threat 0..1. */
+  innerThreat: number;
+  /** Minimum forward LiDAR return in ego lane wedge (m). */
+  forwardLidarMinM: number;
+  /** Nearest in-lane vehicle track bumper gap (m). */
+  trackBumperGapM: number;
+  /** World Z of in-lane lead from track fusion (bumper clamp). */
+  leadWorldZ: number | null;
+  /** Small lateral bias from asymmetric proximity (−1..1, lane-centering). */
+  lateralBias: number;
+}
+
 export interface SensorFrame {
   lidarPoints: LidarPoint[];
   tracks: TrackDetection[];
@@ -31,6 +48,7 @@ export interface SensorFrame {
   scannerPhase: number;
   pointCount: number;
   source: "synthetic-adapter";
+  controlObs: ControlObservations;
 }
 
 /** Distinct per-track colors (vehicles + pedestrians). */
@@ -170,6 +188,96 @@ export class SensorAdapter {
     return idx;
   }
 
+  private _laneOverlap(ax: number, bx: number): boolean {
+    return Math.abs(ax - bx) < 1.35;
+  }
+
+  /** Actor-surface returns only — ground bins sit at ~4 m and must not drive braking. */
+  private _forwardLidarMin(lidarPoints: LidarPoint[]): number {
+    let minRange = Infinity;
+    for (const p of lidarPoints) {
+      if (p.y < -50) continue;
+      if (p.z > -1.5) continue;
+      if (Math.abs(p.x) > 2.4) continue;
+      // Ground returns: g≈0.72·i, b≈0.95·i. Actor hits: g≈0.88·i, b≈0.98·i.
+      if (p.g < p.b * 0.9) continue;
+      const range = Math.hypot(p.x, p.z);
+      if (range < minRange) minRange = range;
+    }
+    return minRange === Infinity ? LIDAR_MAX_RANGE : minRange;
+  }
+
+  private _trackObservations(
+    ego: THREE.Object3D,
+    tracks: TrackDetection[],
+  ): { bumperGapM: number; leadWorldZ: number | null; lateralBias: number } {
+    const egoPos = ego.position;
+    let minBumper = Infinity;
+    let leadWorldZ: number | null = null;
+    let leftThreat = 0;
+    let rightThreat = 0;
+
+    for (const track of tracks) {
+      if (track.kind !== "vehicle") continue;
+      const obj = track.object;
+      const centerGap = egoPos.z - obj.position.z;
+      if (centerGap > 120 || centerGap < -8) continue;
+      if (!this._laneOverlap(obj.position.x, egoPos.x)) {
+        const side = obj.position.x - egoPos.x;
+        const threat = Math.max(0, 1 - track.distance / PROXIMITY_RADII[0]);
+        if (side < 0) leftThreat = Math.max(leftThreat, threat);
+        else rightThreat = Math.max(rightThreat, threat);
+        continue;
+      }
+      const bumper = centerGap - EGO_HALF_LENGTH - NPC_HALF_LENGTH;
+      if (bumper < minBumper) {
+        minBumper = bumper;
+        leadWorldZ = obj.position.z;
+      }
+    }
+
+    const lateralBias = Math.max(-1, Math.min(1, (leftThreat - rightThreat) * 0.35));
+
+    return {
+      bumperGapM: minBumper === Infinity ? Infinity : minBumper,
+      leadWorldZ,
+      lateralBias,
+    };
+  }
+
+  private _fuseControlObs(
+    ego: THREE.Object3D,
+    frame: Omit<SensorFrame, "controlObs">,
+  ): ControlObservations {
+    const forwardLidarMinM = this._forwardLidarMin(frame.lidarPoints);
+    const trackObs = this._trackObservations(ego, frame.tracks);
+    const innerThreat = frame.proximityZones[0]?.threat ?? 0;
+
+    const lidarBumperEst = forwardLidarMinM - NPC_HALF_LENGTH - 0.6;
+    let forwardGapM = trackObs.bumperGapM;
+    // Tracks are authoritative for in-lane lead; LiDAR fills gaps when no track lock.
+    if (!Number.isFinite(forwardGapM)) {
+      forwardGapM = Number.isFinite(lidarBumperEst)
+        ? lidarBumperEst
+        : Math.min(forwardLidarMinM, frame.closestThreatM) - EGO_HALF_LENGTH;
+    } else if (Number.isFinite(lidarBumperEst) && lidarBumperEst < forwardGapM - 6) {
+      // Tighten only when LiDAR sees a nearer surface than the fused track (≥6 m margin).
+      forwardGapM = lidarBumperEst;
+    }
+    if (!Number.isFinite(forwardGapM) || forwardGapM > 200) {
+      forwardGapM = 200;
+    }
+
+    return {
+      forwardGapM,
+      innerThreat,
+      forwardLidarMinM,
+      trackBumperGapM: trackObs.bumperGapM,
+      leadWorldZ: trackObs.leadWorldZ,
+      lateralBias: trackObs.lateralBias,
+    };
+  }
+
   private _proximityZones(
     ego: THREE.Object3D,
     actors: THREE.Object3D[],
@@ -230,19 +338,25 @@ export class SensorAdapter {
 
     const { zones, closest } = this._proximityZones(ego, tracked);
 
-    return {
+    const partial = {
       lidarPoints,
       tracks,
       proximityZones: zones,
       closestThreatM: closest,
       scannerPhase: this._phase,
       pointCount: maxPoints,
-      source: "synthetic-adapter",
+      source: "synthetic-adapter" as const,
+    };
+
+    return {
+      ...partial,
+      controlObs: this._fuseControlObs(ego, partial),
     };
   }
 
   /** Expose last frame stats for JSON HUD. */
   frameStats(frame: SensorFrame) {
+    const obs = frame.controlObs;
     return {
       tracks: frame.tracks.map((t) => ({
         id: t.trackId,
@@ -256,6 +370,15 @@ export class SensorAdapter {
         radius_m: z.radius,
         threat: +z.threat.toFixed(2),
       })),
+      control: {
+        forward_gap_m: +obs.forwardGapM.toFixed(2),
+        forward_lidar_min_m: +obs.forwardLidarMinM.toFixed(2),
+        track_bumper_gap_m: Number.isFinite(obs.trackBumperGapM)
+          ? +obs.trackBumperGapM.toFixed(2)
+          : null,
+        inner_threat: +obs.innerThreat.toFixed(2),
+        lateral_bias: +obs.lateralBias.toFixed(3),
+      },
       scanner: frame.source,
     };
   }

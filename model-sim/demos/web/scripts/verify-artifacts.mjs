@@ -153,7 +153,7 @@ export function verifyArtifactDir(outDir) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const outDir = process.argv[2] ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../docs/pr-114-artifacts");
+  const outDir = process.argv[2] ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../docs/pr-115-artifacts");
   const result = verifyArtifactDir(outDir);
   console.log("MP4 frames:", result.motion.frames);
   console.log("pix_fmt:", result.motion.stream.pix_fmt, "codec:", result.motion.stream.codec_name);
