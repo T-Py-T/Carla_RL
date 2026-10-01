@@ -32,6 +32,7 @@ weights or retained evaluation scores in this repository).
 | Train or evaluate policies | [`model-sim/README.md`](../model-sim/README.md) |
 | Run or containerize the API | [`model-serving/README.md`](../model-serving/README.md) |
 | Report a vulnerability | [`SECURITY.md`](../SECURITY.md) |
+| Propose a change | [`CONTRIBUTING.md`](../CONTRIBUTING.md) |
 | 3D FSD-style playback notes | [`docs/carla-fsd-playback.md`](carla-fsd-playback.md) |
 | Python / tooling notes | [`docs/python-three-shim.md`](python-three-shim.md) |
 | Serving deep dives | [`model-serving/docs/`](../model-serving/docs/) |
@@ -40,8 +41,8 @@ weights or retained evaluation scores in this repository).
 Validate changes with the locked `uv` environments and pytest suites in the
 root README; `make check` runs root-level Ruff and compile checks.
 
-There is no separate `CONTRIBUTING.md`; propose changes via pull request against
-`master` and keep docs accurate about local-only validation.
+Contribution expectations live in [`CONTRIBUTING.md`](../CONTRIBUTING.md);
+keep docs accurate about local-only validation.
 
 ## Suggested GitHub topics
 
@@ -65,8 +66,8 @@ Orientation for this docs slice only—not a release gate, visual gate, score, o
 
 | Field | Value |
 | --- | --- |
-| `master` tip prefix at authoring | `b03d04c` |
-| Steward resolve | Pending on the opening PR for Ship 254 |
+| `master` tip prefix at authoring | `c002379c` |
+| Steward resolve | Pending on the opening PR for Ship 258 |
 
 After merge, re-check `git rev-parse origin/master`; the tip moves independently
 of this file.

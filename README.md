@@ -35,6 +35,8 @@ not a trained driving policy.
   suggested GitHub topics, and license pointers (tip-cited; tip≠READY)
 - [`SECURITY.md`](SECURITY.md) — vulnerability reporting and repository
   boundaries
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — lean pull-request and local-check
+  pointers (tip≠READY)
 - [`docs/`](docs/) — supplemental notes (for example FSD playback and Python
   tooling); serving details live under [`model-serving/docs/`](model-serving/docs/)
 
