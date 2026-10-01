@@ -29,6 +29,15 @@ The simulation and serving code do not currently share an automatic export
 pipeline. The checked-in serving example generates a small test artifact; it is
 not a trained driving policy.
 
+## Documentation and security
+
+- [`docs/HIREABILITY.md`](docs/HIREABILITY.md) — lean what/why/how index,
+  suggested GitHub topics, and license pointers (tip-cited; tip≠READY)
+- [`SECURITY.md`](SECURITY.md) — vulnerability reporting and repository
+  boundaries
+- [`docs/`](docs/) — supplemental notes (for example FSD playback and Python
+  tooling); serving details live under [`model-serving/docs/`](model-serving/docs/)
+
 ## Implemented components
 
 ### Simulation and training
@@ -134,6 +143,6 @@ and Ruff checks. No GitHub-hosted workflow is configured; validation is local.
 
 ## License
 
-The original repository is licensed under Apache License 2.0. The
-`model-serving` component includes its own [MIT License](model-serving/LICENSE).
+The repository default is [Apache License 2.0](LICENSE). The `model-serving`
+component includes its own [MIT License](model-serving/LICENSE).
 Third-party libraries and simulators remain under their respective terms.
