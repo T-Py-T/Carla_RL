@@ -48,6 +48,5 @@ or generated change as secure.
 ## See also
 
 - [`README.md`](README.md#current-boundaries) — repository scope and limits
-- [`docs/HIREABILITY.md`](docs/HIREABILITY.md) — lean navigation index (tip≠READY)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — pull requests and local validation
 - [`LICENSE`](LICENSE) — Apache 2.0; [`model-serving/LICENSE`](model-serving/LICENSE) for the serving component

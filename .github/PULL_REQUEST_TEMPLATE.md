@@ -2,7 +2,7 @@
 
 <!-- What changes and why (1–3 sentences). -->
 
-## Tip-cite (tip≠READY)
+## Tip-cite
 
 Orientation for this change only—not a release gate, visual gate, score, or “READY”
 claim. Do not invent READY status.

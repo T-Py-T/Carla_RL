@@ -16,14 +16,12 @@ README.
 
 ## Docs and discoverability
 
-- [`docs/HIREABILITY.md`](docs/HIREABILITY.md) — lean what/why/how index and
-  navigation (tip-cited; tip≠READY)
 - [`SECURITY.md`](SECURITY.md) — vulnerability reporting and repository
   boundaries
 - [`LICENSE`](LICENSE) — Apache 2.0 default; [`model-serving/LICENSE`](model-serving/LICENSE)
   is MIT for that component
 
-## Snapshot cite (tip≠READY)
+## Snapshot cite
 
 Orientation for this docs slice only—not a release gate, visual gate, score, or
 “READY” claim.
