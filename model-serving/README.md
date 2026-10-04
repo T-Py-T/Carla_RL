@@ -61,11 +61,16 @@ curl --request POST http://127.0.0.1:8080/predict \
     "observations": [{
       "speed": 25.5,
       "steering": 0.1,
-      "sensors": [0.8, 0.2, 0.5, 0.9, 0.1]
+      "sensors": [0.8, 0.2, 0.5]
     }],
     "deterministic": true
   }'
 ```
+
+The example preprocessor is fitted on three-sensor observations, giving the
+five-feature input reported by `GET /metadata`. Sending a different number of
+sensors passes request validation and then fails inside the model with an
+`INFERENCE_ERROR` shape mismatch.
 
 ## Artifact contract
 
