@@ -1,101 +1,62 @@
 # Highway RL
 
-Train a deep Q-network to drive in
-[`highway-env`](https://github.com/Farama-Foundation/HighwayEnv), then serve the
-policy over HTTP as a versioned, hash-verified TorchScript artifact.
+**Train a driving policy in highway-env on your laptop, then ask it for throttle, brake, and steering over HTTP.**
 
-Two halves live here, and each is useful on its own:
+The repository is still named `Carla_RL`. The thing you can run without bringing your own simulator is [highway-env](https://github.com/Farama-Foundation/HighwayEnv): a small Gymnasium driving task, a DQN (optional Double DQN and dueling heads), and a training script. Next to it is a FastAPI service that loads a versioned TorchScript policy, checks the request, and returns bounded controls.
 
-- **[`model-sim/`](model-sim)** — the research half. highway-env scenarios, a DQN
-  agent with optional Double DQN and dueling heads, a training loop, and
-  saved-model evaluation.
-- **[`model-serving/`](model-serving)** — the serving half. A FastAPI service that
-  loads a versioned TorchScript policy, validates every request, and answers
-  with bounded throttle, brake, and steering values.
+CARLA is optional. It needs a simulator you install yourself. It is not the path this page starts with.
 
-The repository directory is named `Carla_RL` for historical reasons. The
-maintained simulator in this tree is highway-env. CARLA appears only as an
-optional playback path that needs a simulator you supply yourself — see
-[CARLA, optional](#carla-optional).
+## Why try it
 
-## Why it exists
+A lot of driving-RL repos end at a checkpoint on disk. The awkward next step is letting another program call that policy without importing the training stack. This repo is built around that step.
 
-Plenty of driving-RL repositories stop at a training script: you get a loop, a
-reward curve on your own screen, and a checkpoint file. The distance between
-that checkpoint and something another program can actually call is where most of
-the work in this repository went.
+The service treats a policy as a versioned directory: a model card, the preprocessor that was fit with it, and SHA-256 hashes checked at load. A request can ask for deterministic inference. Health, version, git revision, and Prometheus metrics are part of the process, and the version tools can discover, select, and roll back artifacts.
 
-So the serving half treats a policy as a release artifact rather than a file on
-disk. Every version is a directory with a model card, the preprocessor state
-that produced it, and SHA-256 hashes that are verified at load time. A request
-can ask for deterministic inference, which seeds Torch so the same observation
-returns the same action. The service reports its own health, loaded version, git
-revision, and Prometheus metrics, and it can discover, select, migrate, and roll
-back between versions.
+Two limits, up front, so the rest of the page stays useful:
 
-## Project status
+- **No driving or training result is published here.** No reward table, no success rate, no episode counts from a retained run, no trained weights. Checkpoints and logs are gitignored. If you want a number, you have to train and measure it.
+- **The two halves are not wired together yet.** Training writes Keras models. The service loads TorchScript. There is no tested converter in the tree.
 
-**No training result is published in this repository.** There is no retained
-training run, no evaluation report, no reward or success-rate table, and no
-trained policy file anywhere in the tree. Checkpoints, logs, and generated
-artifacts are gitignored, so anything you want to know about policy quality you
-will have to measure yourself.
+## What you are not looking at
 
-Two things that are easy to mistake for results, and are not:
+Easy to misread, and not results:
 
-- The TorchScript artifact produced by `scripts/create_example_artifacts` is a
-  randomly initialized network. Its weights are not seeded, so `model.pt` hashes
-  differently on every generation. It exercises the loading and request path and
-  nothing else.
-- The browser demo below is driven by a rule-based controller, not by a learned
-  policy.
+- `scripts/create_example_artifacts` builds a network so the server has something to load. It is not trained. Construction uses PyTorch's default initializer with no seed, then multiplies the last layer's weights by 0.1 and sets that layer's bias to `[0.5, -2.0, 0.0]`. The file `model.pt` hashes differently every time you generate it.
+- The chase-cam in [`model-sim/demos/web/`](model-sim/demos/web) is a rule-based controller (`source: "sensor-feedback"` in `ego-controller.ts`). It does not load a policy. The OpenCV playback in `demos/fsd_playback.py` uses `LocalDrivingPolicy`, which is also rule-based.
+- [`AUDIT_version-updates-verify.md`](AUDIT_version-updates-verify.md) records one dependency-upgrade load test of the HTTP service on the author's machine, against an untrained example artifact. Those figures are latency and throughput, not driving quality, and they are not a benchmark this README repeats.
 
-The one place in the tree with numbers from a real run is
-[`AUDIT_version-updates-verify.md`](AUDIT_version-updates-verify.md), a
-dependency-upgrade audit memo. Its figures are HTTP load-test latency and
-throughput for the service, measured once on the author's machine against that
-untrained example artifact. They say nothing about driving quality and are not a
-maintained benchmark.
+## Contents
 
-The two halves are also not yet joined. Training saves Keras models and the
-service loads TorchScript, so a tested conversion step between them is still
-missing.
+- [Getting started](#getting-started)
+- [Worked example](#worked-example)
+- [Demo](#demo)
+- [CARLA, optional](#carla-optional)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Getting started
 
-You need **Python 3.12 or 3.13** and [**uv**](https://docs.astral.sh/uv/). Each
-component has its own lockfile and virtual environment; there is no root
-install step.
+Python **3.12 or 3.13**, and [uv](https://docs.astral.sh/uv/). Each component has its own lockfile. There is no install at the repository root.
 
-Not included in this repository, and required if you want the thing it gates:
-
-| You want | You must supply |
+| If you want | You supply |
 | --- | --- |
-| A trained policy to serve | Your own training run; no weights are committed |
-| CARLA playback | A CARLA 0.9.15 server and its matching Python API |
-| The browser demo | Node.js and npm, plus a WebGL-capable browser |
+| A policy that has actually learned to drive | Your own training run. No weights are committed. |
+| CARLA playback | A CARLA 0.9.15 server and the matching Python API |
+| The browser chase-cam | Node.js, npm, and a WebGL browser |
 
-### Serve a policy
-
-This is the fastest path to something running, and it needs no GPU, no display,
-and no trained model.
+### Highway, the path that runs here
 
 ```bash
-cd model-serving
-uv sync --locked --extra dev
-uv run python -m scripts.create_example_artifacts \
-  --output artifacts \
-  --version v0.1.0
-uv run uvicorn src.server:app --host 127.0.0.1 --port 8080
+git clone https://github.com/T-Py-T/Carla_RL.git
+cd Carla_RL/model-sim
+uv sync --locked --extra apple-gpu --extra dev
 ```
 
-Interactive API documentation is then at `http://127.0.0.1:8080/docs`.
+`apple-gpu` is a historical extra name. It installs the plain CPU TensorFlow wheel, which is what you want on macOS and on Linux without CUDA. On Linux with an NVIDIA GPU, use `--extra nvidia-gpu` instead (`tensorflow[and-cuda]`).
 
-### Train an agent
+Train:
 
 ```bash
-cd model-sim
-uv sync --locked --extra apple-gpu --extra dev
 uv run python training/highway/train_highway.py \
   --scenario highway \
   --episodes 1000 \
@@ -105,51 +66,58 @@ uv run python training/highway/train_highway.py \
   --no-tensorboard
 ```
 
-Scenarios are `highway`, `merge`, `intersection`, `parking`, `racetrack`, and
-`curriculum`, which cycles through the other five. Drop the last two flags to
-log to TensorBoard and Weights & Biases instead.
+Scenarios: `highway`, `merge`, `intersection`, `parking`, `racetrack`, and `curriculum` (cycles the other five). Drop the last two flags to log to TensorBoard and Weights & Biases. This training command was **not** run while writing this page, so no episode count or return is reported.
 
-The `--extra` flag selects the TensorFlow build. `apple-gpu` is a historical
-name for the plain CPU wheel, which is what you want on macOS and on Linux
-without CUDA; use `nvidia-gpu` for `tensorflow[and-cuda]` on Linux with an
-NVIDIA GPU. Training writes models and logs beneath `model-sim/`. Weight files
-are gitignored, but the JSON metadata and config sidecars written next to them
-are not, so check `git status` before you commit after a run.
+What was run, once, from `model-sim` with `src` on `PYTHONPATH`, is a single reset of the wrapped environment:
 
-Once a model exists under `models/highway`, evaluate it with:
+```text
+env_id highway-fast-v0
+obs_shape (5, 5) float32
+action_space Discrete(5)
+```
+
+`HighwayEnvironment` resets inside `__init__` so the observation space matches any config, then this call reset again with `seed=0`. That shape is the default kinematics observation. It is not a score. The `info` dict from that reset includes a `rewards` key; the value is not quoted here because one reset is not a training result.
+
+After a run of your own, models land under `models/highway` (gitignored). JSON sidecars next to them may not be ignored, so check `git status` before you commit. Evaluate with:
 
 ```bash
 uv run python evaluation/highway/evaluate_models.py
 ```
 
-## A worked example
+That evaluator was not run here. It needs models you trained.
 
-With the service running from [Serve a policy](#serve-a-policy), ask it what it
-loaded:
+On this checkout, `uv run pytest tests -q` in `model-sim` reported `12 passed, 2 skipped`. The skips are the GPU probe (this Mac has the CPU wheel, so TensorFlow sees no GPU) and the CUDA probe (it only runs on Linux or Windows).
+
+### Serve an untrained policy
+
+Still no GPU, no display, and no trained model. From `model-serving`:
+
+```bash
+uv sync --locked --extra dev
+uv run python -m scripts.create_example_artifacts \
+  --output artifacts \
+  --version v0.1.0
+ARTIFACT_DIR=artifacts MODEL_VERSION=v0.1.0 \
+  uv run uvicorn src.server:app --host 127.0.0.1 --port 8080
+```
+
+API docs: `http://127.0.0.1:8080/docs`.
+
+`GET /healthz` stays `degraded` until something has exercised the model. `POST /warmup` flips it to `ok`. Confirmed on this machine against a freshly generated v0.1.0 artifact: `degraded`, then `{"status":"warmed",...}`, then `{"status":"ok",...}`.
+
+On this same checkout, `uv run pytest tests -q --tb=line -m "not slow and not integration"` reported `685 passed, 14 skipped, 2 deselected`. The marker filter left out slow and integration tests. Several skips are integration cases that want a server already listening on port 8080. The unfiltered `pytest tests -q` was not run.
+
+## Worked example
+
+With the server up, the loaded artifact describes itself as a five-wide input. Those five numbers are `speed`, `steering`, and **three** sensor readings. The example preprocessor was fit on three sensors.
 
 ```bash
 curl -s http://127.0.0.1:8080/metadata
 ```
 
 ```json
-{
-  "modelName": "carla-ppo",
-  "version": "v0.1.0",
-  "device": "cpu",
-  "inputShape": [5],
-  "actionSpace": {
-    "throttle": [0.0, 1.0],
-    "brake": [0.0, 1.0],
-    "steer": [-1.0, 1.0]
-  }
-}
+{"modelName":"carla-ppo","version":"v0.1.0","device":"cpu","inputShape":[5],"actionSpace":{"throttle":[0.0,1.0],"brake":[0.0,1.0],"steer":[-1.0,1.0]}}
 ```
-
-Those five input features are `speed`, `steering`, and **exactly three** sensor
-readings. The preprocessor shipped with the example artifact was fitted on
-three-sensor observations, so sending a different number of sensors fails with
-an `INFERENCE_ERROR` and a shape-mismatch message rather than a validation
-error. Request an action:
 
 ```bash
 curl -s -X POST http://127.0.0.1:8080/predict \
@@ -164,38 +132,25 @@ curl -s -X POST http://127.0.0.1:8080/predict \
   }'
 ```
 
+One call on this Mac, against one generated artifact, returned:
+
 ```json
-{
-  "actions": [{"throttle": 0.46, "brake": 0.0, "steer": 0.01}],
-  "version": "v0.1.0",
-  "timingMs": 1.23,
-  "deterministic": true
-}
+{"actions":[{"throttle":0.4651787281036377,"brake":0.0,"steer":0.0004096789925824851}],"version":"v0.1.0","timingMs":0.9672089945524931,"deterministic":true}
 ```
 
-Treat those action numbers as illustrative: the example network's weights are
-random, so yours will differ, and `timingMs` is whatever your machine managed.
-What does hold is that repeated calls against the same artifact return identical
-actions, which is the property `deterministic` exists to guarantee. One request
-carries between 1 and 1,000 observations.
+A second identical call returned the same `actions` and a different `timingMs`. That match is the deterministic flag doing its job for a fixed artifact. It is not a driving score, and the next `create_example_artifacts` run will not reproduce those floats, because initialization is unseeded. A request carries 1 to 1,000 observations.
 
-Two details worth knowing before you wire up a health check. `GET /healthz`
-reports `degraded` until the model has been exercised, so call `POST /warmup`
-first and it flips to `ok`. And `GET /versions` lists every artifact directory it
-discovered along with the hashes it verified.
+Do not copy the five-sensor example still embedded in [`model-serving/src/io_schemas.py`](model-serving/src/io_schemas.py). Request validation accepts it (sensors only have to be a non-empty list of finite numbers). Inference then fails. On this machine a five-sensor body returned `INFERENCE_ERROR`: the preprocessor emitted 7 features into a linear layer of width 5 (`mat1 and mat2 shapes cannot be multiplied (1x7 and 5x64)`). Use three sensors with the example artifact.
+
+`GET /versions` lists artifact directories and the hashes it checked.
 
 ## Demo
 
-The repository includes a Three.js chase-cam driving visualization under
-[`model-sim/demos/web/`](model-sim/demos/web), with captured stills and video
-checked in at [`docs/pr-115-artifacts/`](docs/pr-115-artifacts).
+There is a Three.js chase-cam under [`model-sim/demos/web/`](model-sim/demos/web). A still already in the tree:
 
-![Chase-cam view with perception overlay and driving HUD](docs/pr-115-artifacts/after_fsd_overlay.png)
+![Chase-cam capture with the perception overlay. Rule-based controller, not a trained policy.](docs/pr-115-artifacts/after_fsd_overlay.png)
 
-Be clear about what you are looking at: the car is steered by a rule-based
-controller that reacts to synthesized LiDAR and proximity readings each frame,
-not by a trained network. No policy weights are loaded. What it shows is the
-interface around a driving policy, not a policy.
+That file is a capture that was committed with the demo. This page does not claim a fresh look at the live browser scene. The car in that demo is steered by the rule-based controller above. No policy weights are loaded.
 
 ```bash
 cd model-sim/demos/web
@@ -203,78 +158,41 @@ npm install
 npm run dev
 ```
 
-There is also a headless OpenCV renderer that needs no browser:
+`npm install` and `npm run dev` were not run for this rewrite, and the browser scene was not opened.
+
+A headless OpenCV renderer, no browser:
 
 ```bash
 cd model-sim
 uv run python demos/fsd_playback.py --mode offline --headless --steps 240
 ```
 
-See [3D town FSD playback](docs/carla-fsd-playback.md) for the capture and
-verification scripts.
+`--mode offline` does not contact CARLA. A shorter run, `--steps 5`, exited 0 on this Mac and printed nothing. No frame was saved, and the output was not inspected visually. The default `--steps 240` was not run. Notes on the capture scripts are in [docs/carla-fsd-playback.md](docs/carla-fsd-playback.md).
 
 ## CARLA, optional
 
-[`model-sim/src/carla_rl/env.py`](model-sim/src/carla_rl/env.py) imports the
-CARLA Python API behind a guarded import and can connect to a server, load a
-town, and spawn an ego vehicle with camera and collision sensors. The
-`--mode carla` branch of `demos/fsd_playback.py` uses it for live ego-camera
-playback.
+[`model-sim/src/carla_rl/env.py`](model-sim/src/carla_rl/env.py) can connect to a CARLA server, load a town, and spawn an ego vehicle with camera and collision sensors. `demos/fsd_playback.py --mode carla` uses that for live ego-camera playback.
 
-None of that works out of the box. The CARLA simulator is not vendored here and
-cannot be; you need a CARLA 0.9.15 server, its matching Python API package, and
-in practice Linux with an NVIDIA GPU.
-[`model-sim/docker/setup_carla.sh`](model-sim/docker) helps fetch the server.
-Highway-env training does not touch CARLA at all.
+None of that was run here. The simulator is not in the repo. You need a CARLA 0.9.15 server, the matching Python API, and in practice Linux with an NVIDIA GPU. [`model-sim/docker/setup_carla.sh`](model-sim/docker/setup_carla.sh) helps fetch the server. Highway training never imports CARLA.
 
-## Repository layout
+## Layout
 
-| Path | Purpose |
+| Path | What it is |
 | --- | --- |
-| [`model-sim/`](model-sim) | highway-env wrapper, DQN agent, trainer, evaluation, demos, tests |
-| [`model-serving/`](model-serving) | FastAPI service, artifact versioning, deployment manifests, tests |
-| [`docs/`](docs) | playback notes, tooling notes, and captured demo media |
-| [`.devcontainer/`](.devcontainer) | containerized development environment |
-| [`Makefile`](Makefile) | shortcuts that delegate into both components |
+| [`model-sim/`](model-sim) | highway-env, DQN, trainer, evaluation, demos, tests |
+| [`model-serving/`](model-serving) | FastAPI service, versioned artifacts, deploy manifests, tests |
+| [`docs/`](docs) | playback notes and captured demo media |
+| [`.devcontainer/`](.devcontainer) | containerized dev environment |
+| [`Makefile`](Makefile) | shortcuts into both components |
 
-## Validate a change
+There is no hosted CI. [`.github/workflows/README.md`](.github/workflows/README.md) says why. `make check` at the root runs Ruff and then a bare `python` compile step, which does nothing useful on a machine where only `python3` is on `PATH`. The component pytest commands above are the gate that was actually run.
 
-There is no hosted CI in this repository; see
-[`.github/workflows/README.md`](.github/workflows/README.md) for the reasoning.
-Validation is local, and each component runs in its own locked environment:
-
-```bash
-cd model-sim
-uv sync --locked --extra apple-gpu --extra dev
-uv run pytest tests -q
-
-cd ../model-serving
-uv sync --locked --extra dev
-uv run pytest tests -q
-```
-
-From the root, `make check` runs Ruff across the tree. Its Python compile step
-invokes a bare `python`, so it silently does nothing on systems where only
-`python3` is on the path; the component suites above are the real gate.
+The Dockerfile, Compose files, Kubernetes manifests, and Prometheus / Grafana config under `model-serving/deploy/` are development references. The Kubernetes example uses `imagePullPolicy: Never`. CORS and allowed hosts default to `*`. Read those before you run any of it outside an isolated environment.
 
 ## Contributing
 
-Pull requests go against `master`. Keep a change inside the component it
-touches, run that component's locked suite, and leave checkpoints, generated
-artifacts, and deployment exports out of the commit. The full checklist is in
-[`CONTRIBUTING.md`](CONTRIBUTING.md), and vulnerability reporting is in
-[`SECURITY.md`](SECURITY.md).
-
-## A note on the deployment files
-
-The Dockerfile, Compose files, Kubernetes manifests, and Prometheus and Grafana
-configuration under `model-serving/deploy/` are development references. The
-Kubernetes example relies on `imagePullPolicy: Never`, and CORS and allowed
-hosts both default to `*`. Review security, resource, ingress, and persistence
-settings before running any of it outside an isolated environment.
+Pull requests target `master`. Keep a change inside the component it touches, run that component's locked tests, and leave checkpoints and generated artifacts out of the commit. The checklist is [`CONTRIBUTING.md`](CONTRIBUTING.md). Vulnerabilities go through [`SECURITY.md`](SECURITY.md), not a public issue.
 
 ## License
 
-This repository is [Apache License 2.0](LICENSE) by default. The
-`model-serving` component carries its own [MIT License](model-serving/LICENSE).
-Third-party libraries and simulators stay under their own terms.
+[Apache License 2.0](LICENSE) for the repository by default. `model-serving` has its own [MIT License](model-serving/LICENSE). Third-party libraries and simulators stay under their own terms.
