@@ -12,25 +12,13 @@ A lot of driving-RL repos end at a checkpoint on disk. The awkward next step is 
 
 The service treats a policy as a versioned directory: a model card, the preprocessor that was fit with it, and SHA-256 hashes checked at load. A request can ask for deterministic inference. Health, version, git revision, and Prometheus metrics are part of the process, and the version tools can discover, select, and roll back artifacts.
 
-Two limits, up front, so the rest of the page stays useful:
-
-- **No driving or training result is published here.** No reward table, no success rate, no episode counts from a retained run, no trained weights. Checkpoints and logs are gitignored. If you want a number, you have to train and measure it.
-- **The two halves are not wired together yet.** Training writes Keras models. The service loads TorchScript. There is no tested converter in the tree.
-
-## What you are not looking at
-
-Easy to misread, and not results:
-
-- `scripts/create_example_artifacts` builds a network so the server has something to load. It is not trained. Construction uses PyTorch's default initializer with no seed, then multiplies the last layer's weights by 0.1 and sets that layer's bias to `[0.5, -2.0, 0.0]`. The file `model.pt` hashes differently every time you generate it.
-- The chase-cam in [`model-sim/demos/web/`](model-sim/demos/web) is a rule-based controller (`source: "sensor-feedback"` in `ego-controller.ts`). It does not load a policy. The OpenCV playback in `demos/fsd_playback.py` uses `LocalDrivingPolicy`, which is also rule-based.
-- [`AUDIT_version-updates-verify.md`](AUDIT_version-updates-verify.md) records one dependency-upgrade load test of the HTTP service on the author's machine, against an untrained example artifact. Those figures are latency and throughput, not driving quality, and they are not a benchmark this README repeats.
-
 ## Contents
 
 - [Getting started](#getting-started)
 - [Worked example](#worked-example)
 - [Demo](#demo)
 - [CARLA, optional](#carla-optional)
+- [Status](#status)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -188,6 +176,16 @@ None of that was run here. The simulator is not in the repo. You need a CARLA 0.
 There is no hosted CI. [`.github/workflows/README.md`](.github/workflows/README.md) says why. `make check` at the root runs Ruff and then a bare `python` compile step, which does nothing useful on a machine where only `python3` is on `PATH`. The component pytest commands above are the gate that was actually run.
 
 The Dockerfile, Compose files, Kubernetes manifests, and Prometheus / Grafana config under `model-serving/deploy/` are development references. The Kubernetes example uses `imagePullPolicy: Never`. CORS and allowed hosts default to `*`. Read those before you run any of it outside an isolated environment.
+
+## Status
+
+No trained weights, reward tables, or evaluation numbers are committed; checkpoints and logs are gitignored, so any result comes from your own training run. Training currently writes Keras models while the service loads TorchScript, and there is no tested converter between the two yet.
+
+Some pieces of the tree are easy to misread:
+
+- `scripts/create_example_artifacts` builds a network so the server has something to load. It is not trained. Construction uses PyTorch's default initializer with no seed, then multiplies the last layer's weights by 0.1 and sets that layer's bias to `[0.5, -2.0, 0.0]`. The file `model.pt` hashes differently every time you generate it.
+- The chase-cam in [`model-sim/demos/web/`](model-sim/demos/web) is a rule-based controller (`source: "sensor-feedback"` in `ego-controller.ts`). It does not load a policy. The OpenCV playback in `demos/fsd_playback.py` uses `LocalDrivingPolicy`, which is also rule-based.
+- [`AUDIT_version-updates-verify.md`](AUDIT_version-updates-verify.md) records one dependency-upgrade load test of the HTTP service on the author's machine, against an untrained example artifact. Those figures are latency and throughput, not driving quality, and they are not a benchmark this README repeats.
 
 ## Contributing
 
