@@ -24,7 +24,7 @@ schedule depends on the severity and the affected component.
 
 - Do not send or commit API keys, provider tokens, training checkpoints with
   sensitive metadata, authentication seeds, or personal data.
-- Do not attach unredacted agent transcripts, Docker or Kubernetes secrets, or
+- Do not attach unredacted logs or transcripts, Docker or Kubernetes secrets, or
   host-specific deployment evidence.
 - Use synthetic observations, credentials, and local fixtures when reproducing
   training or inference defects.
@@ -47,6 +47,6 @@ or generated change as secure.
 
 ## See also
 
-- [`README.md`](README.md#current-boundaries) — repository scope and limits
+- [`README.md`](README.md#status) — repository scope and limits
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — pull requests and local validation
 - [`LICENSE`](LICENSE) — Apache 2.0; [`model-serving/LICENSE`](model-serving/LICENSE) for the serving component
